@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/app.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <AssemblyTitle>WowStopwatcher</AssemblyTitle>
     <Product>WowStopwatcher</Product>
@@ -26,6 +27,9 @@
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
     </ItemGroup>
   </Target>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets/app.ico" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\WowStopwatcher.Core\WowStopwatcher.Core.csproj" />
     <ProjectReference Include="..\WowStopwatcher.Data\WowStopwatcher.Data.csproj" />

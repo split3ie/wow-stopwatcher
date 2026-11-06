@@ -83,7 +83,16 @@ Built with Avalonia 12, CommunityToolkit.Mvvm and Microsoft.Data.Sqlite. Project
 
 ## Releasing
 
-Releases are built by GitHub Actions. To publish version `X.Y.Z`:
+Releases are built by GitHub Actions. The easiest way is a button:
+
+1. Open **Actions → Release → Run workflow**.
+2. Pick the branch to release (usually `main`).
+3. Choose `patch`, `minor` or `major`, or type an exact version such as `1.2.0` or `1.2.0-beta.1`.
+
+The bump starts from the latest stable `vX.Y.Z` tag (pre-release tags are ignored). The workflow creates the tag on the
+selected commit and fails if that tag already exists.
+
+Pushing a tag yourself still works:
 
 ```
 git tag vX.Y.Z

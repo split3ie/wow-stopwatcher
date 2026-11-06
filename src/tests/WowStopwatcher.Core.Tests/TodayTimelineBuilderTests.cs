@@ -47,7 +47,7 @@ public class TodayTimelineBuilderTests
         var remaining = timeline.Segments[^1];
         Assert.Equal(0.35, remaining.Width, 6);
         Assert.True(remaining.Capped);
-        Assert.Equal("Left to 2 goals · shortened to fit", remaining.Title);
+        Assert.Equal("Left to 2 goals", remaining.Title);
         Assert.Equal("A 9h 50m · B 2h", remaining.SubText);
         Assert.Equal(0.65, timeline.NowPosition, 6);
         Assert.Equal(0.65, timeline.Segments[0].Width, 6);

@@ -86,7 +86,7 @@ public static class TodayTimelineBuilder
         if (remainingShare > 0)
         {
             var count = remainingGoals.Count;
-            var title = $"Left to {count} goal{(count == 1 ? "" : "s")}" + (capped ? " · shortened to fit" : "");
+            var title = $"Left to {count} goal{(count == 1 ? "" : "s")}";
             var parts = remainingGoals.Take(3).Select(g => $"{g.Name} {RemainingText(g.Remaining)}").ToList();
             var sub = string.Join(" · ", parts) + (count > 3 ? $" · +{count - 3} more" : "");
             segments.Add(new TimelineSegment(

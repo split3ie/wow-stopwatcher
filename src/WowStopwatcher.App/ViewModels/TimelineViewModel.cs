@@ -106,7 +106,7 @@ public sealed partial class TimelineViewModel : ObservableObject
         NowPosition = timeline.NowPosition;
         HeaderMargin = new Thickness(0, 0, 0, HeaderGap + timeline.MaxPinLevel * PinViewModel.RisePerLevel);
         LoggedText = TimeFormat.Human(timeline.Logged);
-        RemainingText = TimeFormat.HoursMinutes(timeline.Remaining) + (timeline.RemainingCapped ? " (shortened)" : string.Empty);
+        RemainingText = TimeFormat.HoursMinutes(timeline.Remaining);
 
         UpdateTooltips();
     }

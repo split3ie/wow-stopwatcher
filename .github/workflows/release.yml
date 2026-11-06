@@ -3,6 +3,17 @@ name: Release
 on:
   push:
     tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version part to bump from the latest stable vX.Y.Z tag (ignored if version is set)'
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: 'Exact version instead of bump, e.g. 1.2.0 or 1.2.0-beta.1 (optional)'
+        type: string
+        required: false
 
 permissions:
   contents: write
@@ -13,15 +24,40 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Validate tag as SemVer
+      - name: Resolve version
         shell: bash
+        env:
+          INPUT_BUMP: ${{ inputs.bump }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            git fetch --tags --quiet
+            if [[ -n "$INPUT_VERSION" ]]; then
+              version="${INPUT_VERSION#v}"
+            else
+              latest=$(git tag --list 'v*.*.*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+              IFS=. read -r major minor patch <<< "${latest#v}"
+              major=${major:-0}; minor=${minor:-0}; patch=${patch:-0}
+              case "$INPUT_BUMP" in
+                major) major=$((major + 1)); minor=0; patch=0 ;;
+                minor) minor=$((minor + 1)); patch=0 ;;
+                *)     patch=$((patch + 1)) ;;
+              esac
+              version="$major.$minor.$patch"
+            fi
+            if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+              echo "::error::Tag 'v$version' already exists."
+              exit 1
+            fi
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
           semver='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$'
           if ! [[ "$version" =~ $semver ]]; then
-            echo "::error::Tag '$GITHUB_REF_NAME' is not a valid SemVer version (expected vX.Y.Z[-prerelease])."
+            echo "::error::'$version' is not a valid SemVer version (expected X.Y.Z[-prerelease])."
             exit 1
           fi
+          echo "Releasing v$version"
           echo "VERSION=$version" >> "$GITHUB_ENV"
 
       - uses: actions/setup-dotnet@v6
@@ -52,7 +88,9 @@ jobs:
         run: |
           flags=()
           if [[ "$VERSION" == *-* ]]; then flags+=(--prerelease); fi
-          gh release create "$GITHUB_REF_NAME" \
+          # Creates the tag at this commit when it does not exist yet (manual run).
+          gh release create "v$VERSION" \
+            --target "$GITHUB_SHA" \
             "WowStopwatcher-$VERSION-win-x64.zip" \
             "WowStopwatcher-$VERSION-win-x64.zip.sha256" \
             --title "WowStopwatcher $VERSION" \

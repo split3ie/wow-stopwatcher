@@ -65,6 +65,9 @@ public sealed partial class TodayViewModel : ObservableObject
     [ObservableProperty]
     private string _runningText = "Nothing is running";
 
+    [ObservableProperty]
+    private string _runningElapsedText = string.Empty;
+
     /// <summary>Color of the running stopwatch; null when nothing runs.</summary>
     [ObservableProperty]
     private IBrush? _runningBrush;
@@ -298,7 +301,8 @@ public sealed partial class TodayViewModel : ObservableObject
         IsAnyRunning = running is not null;
         RunningText = running is null
             ? "Nothing is running"
-            : $"{running.Name} is running · {TimeFormat.Clock(snapshot.RunningElapsed)}";
+            : $"{running.Name} is running";
+        RunningElapsedText = running is null ? string.Empty : TimeFormat.Clock(snapshot.RunningElapsed);
         if (_runningColor != running?.Color)
         {
             _runningColor = running?.Color;

@@ -59,7 +59,8 @@ The build must finish with no errors and no new warnings. Run the tests after an
 - `dotnet publish src/WowStopwatcher.App -c Release` produces a self-contained single-file `WowStopwatcher.exe` (win-x64).
   The publish-only settings are in the App csproj under `_IsPublishing`; `build` and `run` are unaffected.
 - `.github/workflows/ci.yml` builds and tests on push/PR to `develop` and `main`.
-- `.github/workflows/release.yml` runs on a `vX.Y.Z` tag: tests, publishes, zips `WowStopwatcher-X.Y.Z-win-x64.zip`
+- `.github/workflows/release.yml` runs on a `vX.Y.Z` tag push, or manually (Run workflow) with a patch/minor/major
+  bump or an exact version, in which case it creates the tag itself. Either way it: tests, publishes, zips `WowStopwatcher-X.Y.Z-win-x64.zip`
   (exe + LICENSE) with a `.sha256`, and creates the GitHub Release. A tag with a hyphen becomes a pre-release.
 - Agents never create tags or releases; the owner does.
 
