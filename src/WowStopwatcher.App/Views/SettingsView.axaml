@@ -243,6 +243,7 @@
                         l:FlexWrapPanel.Grow="0"
                         Orientation="Horizontal"
                         Spacing="12"
+                        HorizontalAlignment="Right"
                         VerticalAlignment="Center">
               <TextBlock Classes="updateMessage"
                          Classes.ok="{Binding IsUpdateOk}"
