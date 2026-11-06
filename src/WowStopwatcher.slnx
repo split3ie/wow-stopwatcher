@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="WowStopwatcher.Core/WowStopwatcher.Core.csproj" />
+    <Project Path="WowStopwatcher.Data/WowStopwatcher.Data.csproj" />
+    <Project Path="WowStopwatcher.App/WowStopwatcher.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WowStopwatcher.Core.Tests/WowStopwatcher.Core.Tests.csproj" />
+    <Project Path="tests/WowStopwatcher.Data.Tests/WowStopwatcher.Data.Tests.csproj" />
+  </Folder>
+</Solution>

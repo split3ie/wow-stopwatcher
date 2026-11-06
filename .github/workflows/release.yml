@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate tag as SemVer
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          semver='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$'
+          if ! [[ "$version" =~ $semver ]]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' is not a valid SemVer version (expected vX.Y.Z[-prerelease])."
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test
+        run: dotnet test src/WowStopwatcher.slnx -c Release
+
+      - name: Publish
+        run: dotnet publish src/WowStopwatcher.App -c Release -p:Version=${{ env.VERSION }} -o publish
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $name = "WowStopwatcher-$env:VERSION-win-x64"
+          New-Item -ItemType Directory -Path stage | Out-Null
+          Copy-Item publish/WowStopwatcher.exe stage/
+          Copy-Item LICENSE stage/
+          Compress-Archive -Path stage/* -DestinationPath "$name.zip"
+          $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name.zip" | Set-Content -Path "$name.zip.sha256" -Encoding ascii
+
+      - name: Create GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          flags=()
+          if [[ "$VERSION" == *-* ]]; then flags+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" \
+            "WowStopwatcher-$VERSION-win-x64.zip" \
+            "WowStopwatcher-$VERSION-win-x64.zip.sha256" \
+            --title "WowStopwatcher $VERSION" \
+            --generate-notes \
+            "${flags[@]}"

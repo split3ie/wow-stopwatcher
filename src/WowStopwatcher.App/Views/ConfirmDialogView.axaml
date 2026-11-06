@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:vm="using:WowStopwatcher.App.ViewModels"
+             x:Class="WowStopwatcher.App.Views.ConfirmDialogView"
+             x:DataType="vm:ConfirmDialogViewModel"
+             IsVisible="{Binding IsOpen}">
+
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+  </UserControl.KeyBindings>
+
+  <Grid Background="{DynamicResource OverlayBrush}">
+    <Border MaxWidth="420"
+            Margin="16"
+            Padding="22,22,22,18"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Center"
+            Background="{DynamicResource CardBrush}"
+            CornerRadius="{DynamicResource RadiusDialog}"
+            BoxShadow="{DynamicResource ShadowDialog}"
+            AutomationProperties.Name="{Binding Title}">
+      <StackPanel Spacing="14">
+        <Grid ColumnDefinitions="Auto,*">
+          <Border Width="40" Height="40"
+                  VerticalAlignment="Top"
+                  CornerRadius="20"
+                  Background="{DynamicResource DangerSoftBrush}">
+            <c:Icon Width="20" Height="20"
+                    Data="{StaticResource IconReset}"
+                    Stroke="{DynamicResource DangerBrush}"
+                    StrokeThickness="2" />
+          </Border>
+          <StackPanel Grid.Column="1" Margin="14,0,0,0" Spacing="6">
+            <TextBlock Text="{Binding Title}"
+                       FontSize="17"
+                       FontWeight="Bold"
+                       LetterSpacing="-0.17"
+                       TextWrapping="Wrap" />
+            <TextBlock Text="{Binding Body}"
+                       FontSize="14"
+                       LineHeight="21"
+                       Foreground="{DynamicResource SecondaryBrush}"
+                       TextWrapping="Wrap" />
+          </StackPanel>
+        </Grid>
+        <StackPanel Margin="0,4,0,0"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+          <Button x:Name="CancelButton"
+                  Classes="secondary"
+                  Command="{Binding CancelCommand}"
+                  Content="Cancel" />
+          <Button Classes="dangerSolid"
+                  Command="{Binding ConfirmCommand}"
+                  Content="{Binding ConfirmLabel}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

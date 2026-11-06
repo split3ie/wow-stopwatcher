@@ -1,0 +1,105 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Colors -->
+  <Color x:Key="PageColor">#F4F5F7</Color>
+  <Color x:Key="CardColor">#FFFFFF</Color>
+  <Color x:Key="BorderColor">#E3E6EB</Color>
+  <Color x:Key="TextColor">#151821</Color>
+  <Color x:Key="MutedColor">#5B6472</Color>
+  <Color x:Key="SecondaryColor">#3A414C</Color>
+  <Color x:Key="GripColor">#6B7480</Color>
+  <Color x:Key="AccentColor">#2F6FEB</Color>
+  <Color x:Key="AccentSoftColor">#EEF2FD</Color>
+  <Color x:Key="AccentStrongColor">#1D4FB8</Color>
+  <Color x:Key="DangerColor">#B42318</Color>
+  <Color x:Key="DangerBorderColor">#F1C4C4</Color>
+  <Color x:Key="DangerSoftColor">#FEF3F2</Color>
+  <Color x:Key="StarColor">#F2A900</Color>
+  <Color x:Key="StarStrokeColor">#B26A00</Color>
+  <Color x:Key="StarSoftColor">#FFF4D6</Color>
+  <Color x:Key="ReachedBgColor">#FFF8E6</Color>
+  <Color x:Key="ReachedTextColor">#5C3D00</Color>
+  <Color x:Key="ReachedAccentColor">#8A5300</Color>
+  <Color x:Key="LineColor">#D5D9E0</Color>
+  <Color x:Key="LineSoftColor">#EEF0F3</Color>
+  <Color x:Key="ChipColor">#F0F2F5</Color>
+  <Color x:Key="RemainingColor">#C9CED6</Color>
+  <Color x:Key="IdleColor">#B8BEC7</Color>
+  <Color x:Key="CappedColor">#8A93A0</Color>
+  <Color x:Key="OnDarkColor">#FFFFFF</Color>
+  <Color x:Key="TooltipSubColor">#C9CED6</Color>
+  <Color x:Key="OverlayColor">#73151821</Color>
+  <Color x:Key="SegmentSeamColor">#B3FFFFFF</Color>
+
+  <!-- Brushes -->
+  <SolidColorBrush x:Key="PageBrush" Color="{DynamicResource PageColor}" />
+  <SolidColorBrush x:Key="CardBrush" Color="{DynamicResource CardColor}" />
+  <SolidColorBrush x:Key="BorderBrush" Color="{DynamicResource BorderColor}" />
+  <SolidColorBrush x:Key="TextBrush" Color="{DynamicResource TextColor}" />
+  <SolidColorBrush x:Key="MutedBrush" Color="{DynamicResource MutedColor}" />
+  <SolidColorBrush x:Key="SecondaryBrush" Color="{DynamicResource SecondaryColor}" />
+  <SolidColorBrush x:Key="GripBrush" Color="{DynamicResource GripColor}" />
+  <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource AccentColor}" />
+  <SolidColorBrush x:Key="AccentSoftBrush" Color="{DynamicResource AccentSoftColor}" />
+  <SolidColorBrush x:Key="AccentStrongBrush" Color="{DynamicResource AccentStrongColor}" />
+  <SolidColorBrush x:Key="DangerBrush" Color="{DynamicResource DangerColor}" />
+  <SolidColorBrush x:Key="DangerBorderBrush" Color="{DynamicResource DangerBorderColor}" />
+  <SolidColorBrush x:Key="DangerSoftBrush" Color="{DynamicResource DangerSoftColor}" />
+  <SolidColorBrush x:Key="StarBrush" Color="{DynamicResource StarColor}" />
+  <SolidColorBrush x:Key="StarStrokeBrush" Color="{DynamicResource StarStrokeColor}" />
+  <SolidColorBrush x:Key="StarSoftBrush" Color="{DynamicResource StarSoftColor}" />
+  <SolidColorBrush x:Key="ReachedBgBrush" Color="{DynamicResource ReachedBgColor}" />
+  <SolidColorBrush x:Key="ReachedTextBrush" Color="{DynamicResource ReachedTextColor}" />
+  <SolidColorBrush x:Key="ReachedAccentBrush" Color="{DynamicResource ReachedAccentColor}" />
+  <SolidColorBrush x:Key="LineBrush" Color="{DynamicResource LineColor}" />
+  <SolidColorBrush x:Key="LineSoftBrush" Color="{DynamicResource LineSoftColor}" />
+  <SolidColorBrush x:Key="ChipBrush" Color="{DynamicResource ChipColor}" />
+  <SolidColorBrush x:Key="RemainingBrush" Color="{DynamicResource RemainingColor}" />
+  <SolidColorBrush x:Key="IdleBrush" Color="{DynamicResource IdleColor}" />
+  <SolidColorBrush x:Key="CappedBrush" Color="{DynamicResource CappedColor}" />
+  <SolidColorBrush x:Key="OnDarkBrush" Color="{DynamicResource OnDarkColor}" />
+  <SolidColorBrush x:Key="TooltipBrush" Color="{DynamicResource TextColor}" />
+  <SolidColorBrush x:Key="TooltipSubBrush" Color="{DynamicResource TooltipSubColor}" />
+  <SolidColorBrush x:Key="OverlayBrush" Color="{DynamicResource OverlayColor}" />
+  <SolidColorBrush x:Key="SegmentSeamBrush" Color="{DynamicResource SegmentSeamColor}" />
+
+  <!-- Diagonal stripes for "left to goal" (period 12 px on the track, 6 px in the legend) -->
+  <DrawingBrush x:Key="StripeBrush" TileMode="Tile" DestinationRect="0,0,17,17">
+    <DrawingBrush.Drawing>
+      <DrawingGroup>
+        <GeometryDrawing Brush="{DynamicResource LineSoftBrush}" Geometry="M0,0 H17 V17 H0 Z" />
+        <GeometryDrawing Brush="{DynamicResource LineBrush}" Geometry="M0,0 L8.5,0 L0,8.5 Z M17,0 L17,8.5 L8.5,17 L0,17 Z" />
+      </DrawingGroup>
+    </DrawingBrush.Drawing>
+  </DrawingBrush>
+  <DrawingBrush x:Key="StripeSmallBrush" TileMode="Tile" DestinationRect="0,0,8.5,8.5">
+    <DrawingBrush.Drawing>
+      <DrawingGroup>
+        <GeometryDrawing Brush="{DynamicResource LineSoftBrush}" Geometry="M0,0 H8.5 V8.5 H0 Z" />
+        <GeometryDrawing Brush="{DynamicResource LineBrush}" Geometry="M0,0 L4.25,0 L0,4.25 Z M8.5,0 L8.5,4.25 L4.25,8.5 L0,8.5 Z" />
+      </DrawingGroup>
+    </DrawingBrush.Drawing>
+  </DrawingBrush>
+
+  <!-- Radii -->
+  <CornerRadius x:Key="RadiusCard">12</CornerRadius>
+  <CornerRadius x:Key="RadiusRow">10</CornerRadius>
+  <CornerRadius x:Key="RadiusDialog">14</CornerRadius>
+  <CornerRadius x:Key="RadiusControl">8</CornerRadius>
+  <CornerRadius x:Key="RadiusTooltip">6</CornerRadius>
+  <CornerRadius x:Key="RadiusChip">5</CornerRadius>
+  <CornerRadius x:Key="RadiusPill">999</CornerRadius>
+  <CornerRadius x:Key="RadiusBar">4</CornerRadius>
+  <CornerRadius x:Key="RadiusLegend">3</CornerRadius>
+
+  <!-- Shadows -->
+  <BoxShadows x:Key="ShadowDialog">0 24 60 0 #4D151821</BoxShadows>
+  <BoxShadows x:Key="ShadowTooltip">0 4 12 0 #2E151821</BoxShadows>
+  <BoxShadows x:Key="ShadowDrop">0 0 0 2 #2F6FEB</BoxShadows>
+  <BoxShadows x:Key="ShadowPin">0 1 3 0 #26151821</BoxShadows>
+
+  <!-- Fonts -->
+  <FontFamily x:Key="UiFont">Inter, Segoe UI, sans-serif</FontFamily>
+  <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas</FontFamily>
+</ResourceDictionary>

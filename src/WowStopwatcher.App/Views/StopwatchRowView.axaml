@@ -1,0 +1,237 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:l="using:WowStopwatcher.App.Layout"
+             xmlns:vm="using:WowStopwatcher.App.ViewModels"
+             x:Class="WowStopwatcher.App.Views.StopwatchRowView"
+             x:DataType="vm:StopwatchRowViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="Border.rowFrame.running" x:DataType="vm:StopwatchRowViewModel">
+      <Setter Property="BorderBrush" Value="{Binding Brush}" />
+      <Setter Property="BoxShadow" Value="{Binding Glow}" />
+    </Style>
+    <Style Selector="c|Icon.goalStar">
+      <Setter Property="Fill" Value="Transparent" />
+    </Style>
+    <Style Selector="c|Icon.goalStar.reached">
+      <Setter Property="Fill" Value="{DynamicResource StarBrush}" />
+    </Style>
+    <Style Selector="c|Icon.chevron.open">
+      <Setter Property="RenderTransform" Value="rotate(180deg)" />
+    </Style>
+    <Style Selector="TextBlock.time">
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+    </Style>
+    <Style Selector="TextBlock.time.running" x:DataType="vm:StopwatchRowViewModel">
+      <Setter Property="Foreground" Value="{Binding Brush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Classes="card rowCard"
+          Classes.dragging="{Binding IsDragging}"
+          Classes.drop="{Binding IsDropTarget}"
+          Padding="16,14">
+    <StackPanel Spacing="10">
+
+      <!-- Top: grip, start/stop button, goal column -->
+      <l:FlexWrapPanel Spacing="12">
+        <Button Classes="grip"
+                l:FlexWrapPanel.Basis="18"
+                l:FlexWrapPanel.Grow="0"
+                Margin="-6,0,0,0"
+                AutomationProperties.Name="{Binding ReorderLabel}">
+          <Button.KeyBindings>
+            <KeyBinding Gesture="Up" Command="{Binding MoveUpCommand}" />
+            <KeyBinding Gesture="Down" Command="{Binding MoveDownCommand}" />
+          </Button.KeyBindings>
+          <c:Icon Width="14" Height="20"
+                  ViewWidth="14" ViewHeight="20"
+                  Data="{StaticResource IconGrip}"
+                  Fill="{Binding $parent[Button].Foreground}"
+                  StrokeThickness="0" />
+        </Button>
+
+        <Button Classes="row"
+                l:FlexWrapPanel.Basis="380"
+                l:FlexWrapPanel.Grow="1"
+                Command="{Binding ToggleCommand}"
+                AutomationProperties.Name="{Binding ToggleLabel}">
+          <Border Classes="rowFrame"
+                  Classes.running="{Binding IsRunning}"
+                  Background="{DynamicResource CardBrush}"
+                  BorderBrush="{DynamicResource LineBrush}"
+                  BorderThickness="1"
+                  CornerRadius="{DynamicResource RadiusRow}">
+            <Grid>
+              <!-- Progress toward the goal -->
+              <Border ClipToBounds="True" CornerRadius="9">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{Binding DoneWidth}" />
+                    <ColumnDefinition Width="{Binding LeftWidth}" />
+                  </Grid.ColumnDefinitions>
+                  <Border Background="{Binding FillBrush}" />
+                </Grid>
+              </Border>
+
+              <Grid Margin="18,14" ColumnDefinitions="Auto,*,Auto">
+                <!-- Play / stop circle -->
+                <Grid Width="40" Height="40" VerticalAlignment="Center">
+                  <Ellipse Fill="{DynamicResource ChipBrush}" />
+                  <Ellipse IsVisible="{Binding IsRunning}" Fill="{Binding Brush}" />
+                  <c:Icon IsVisible="{Binding !IsRunning}"
+                          Width="16" Height="16"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Data="{StaticResource IconPlay}"
+                          Fill="{Binding Brush}"
+                          StrokeThickness="0" />
+                  <c:Icon IsVisible="{Binding IsRunning}"
+                          Width="16" Height="16"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Data="{StaticResource IconStop}"
+                          Fill="{DynamicResource OnDarkBrush}"
+                          StrokeThickness="0" />
+                </Grid>
+
+                <StackPanel Grid.Column="1" Margin="14,0,0,0" Spacing="3" VerticalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding Name}"
+                               VerticalAlignment="Center"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis" />
+                    <c:Icon IsVisible="{Binding HasGoal}"
+                            Width="15" Height="15"
+                            VerticalAlignment="Center"
+                            Data="{StaticResource IconStar}"
+                            Stroke="{DynamicResource StarStrokeBrush}"
+                            Classes="goalStar"
+                            Classes.reached="{Binding IsGoalReached}"
+                            AutomationProperties.Name="Has a goal" />
+                    <Border IsVisible="{Binding IsRunning}"
+                            Padding="8,2"
+                            VerticalAlignment="Center"
+                            CornerRadius="{DynamicResource RadiusPill}"
+                            Background="{DynamicResource ChipBrush}">
+                      <StackPanel Orientation="Horizontal" Spacing="5">
+                        <Ellipse Classes="live"
+                                 Width="7" Height="7"
+                                 VerticalAlignment="Center"
+                                 Fill="{Binding Brush}" />
+                        <TextBlock Text="Running"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource SecondaryBrush}" />
+                      </StackPanel>
+                    </Border>
+                  </StackPanel>
+                  <TextBlock FontSize="12" Classes="muted">
+                    <Run Text="Total today " /><Run Classes="mono"
+                                                     FontWeight="SemiBold"
+                                                     Foreground="{DynamicResource TextBrush}"
+                                                     Text="{Binding TotalText}" />
+                  </TextBlock>
+                </StackPanel>
+
+                <TextBlock Grid.Column="2"
+                           Classes="time mono"
+                           Classes.running="{Binding IsRunning}"
+                           Margin="12,0,0,0"
+                           VerticalAlignment="Center"
+                           FontSize="28"
+                           FontWeight="Medium"
+                           LetterSpacing="-0.56"
+                           Text="{Binding CurrentText}" />
+              </Grid>
+            </Grid>
+          </Border>
+        </Button>
+
+        <Grid l:FlexWrapPanel.Basis="132"
+              l:FlexWrapPanel.Grow="0"
+              RowDefinitions="*,Auto">
+          <StackPanel Spacing="0">
+            <TextBlock FontSize="12" LineHeight="18" Classes="muted" Text="{Binding GoalLine}" />
+            <TextBlock Classes="goalSub"
+                       Classes.reached="{Binding IsGoalReached}"
+                       Classes.nogoal="{Binding !HasGoal}"
+                       FontSize="12"
+                       LineHeight="18"
+                       Text="{Binding GoalSub}" />
+          </StackPanel>
+          <Button Grid.Row="1"
+                  Classes="danger small"
+                  Margin="0,8,0,0"
+                  Command="{Binding ResetCommand}"
+                  Content="Reset" />
+        </Grid>
+      </l:FlexWrapPanel>
+
+      <!-- Footer: shortcut hint and details toggle -->
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" IsVisible="{Binding HasShortcut}">
+          <TextBlock Text="Start / Stop" FontSize="12" VerticalAlignment="Center" Classes="muted" />
+          <Border Classes="kbd" Margin="4,0,0,0" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Shortcut}" />
+          </Border>
+        </StackPanel>
+        <Button Grid.Column="1"
+                Classes="link"
+                Command="{Binding ToggleOpenCommand}"
+                AutomationProperties.Name="{Binding DetailsLabel}">
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <TextBlock Text="{Binding DetailsLabel}" VerticalAlignment="Center" />
+            <c:Icon Classes="chevron"
+                    Classes.open="{Binding IsOpen}"
+                    Width="14" Height="14"
+                    VerticalAlignment="Center"
+                    Data="{StaticResource IconChevronDown}"
+                    Stroke="{Binding $parent[Button].Foreground}"
+                    StrokeThickness="2" />
+          </StackPanel>
+        </Button>
+      </Grid>
+
+      <!-- Details -->
+      <Border IsVisible="{Binding IsOpen}"
+              Padding="0,12,0,0"
+              BorderBrush="{DynamicResource LineSoftBrush}"
+              BorderThickness="0,1,0,0">
+        <l:FlexWrapPanel Spacing="24">
+          <StackPanel l:FlexWrapPanel.Basis="220" l:FlexWrapPanel.Grow="1" Spacing="6">
+            <TextBlock Classes="section" FontSize="11" Text="SESSIONS TODAY" />
+            <ItemsControl ItemsSource="{Binding Sessions}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="4" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:SessionItemViewModel">
+                  <Grid ColumnDefinitions="22,96,*">
+                    <TextBlock Classes="mono muted" FontSize="13" Text="{Binding Number}" />
+                    <TextBlock Grid.Column="1" Classes="mono" FontSize="13" Text="{Binding Duration}" />
+                    <TextBlock Grid.Column="2" Classes="muted" FontSize="11" VerticalAlignment="Center" Text="{Binding Tag}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+          <Grid l:FlexWrapPanel.Basis="200"
+                l:FlexWrapPanel.Grow="0"
+                VerticalAlignment="Top"
+                ColumnDefinitions="Auto,*"
+                RowDefinitions="Auto,Auto">
+            <TextBlock Classes="muted" FontSize="13" Margin="0,0,16,4" Text="Total" />
+            <TextBlock Grid.Column="1" Classes="mono" FontSize="13" FontWeight="SemiBold"
+                       HorizontalAlignment="Right" Text="{Binding TotalHuman}" />
+            <TextBlock Grid.Row="1" Classes="muted" FontSize="13" Margin="0,0,16,0" Text="{Binding ToGoalLabel}" />
+            <TextBlock Grid.Row="1" Grid.Column="1" Classes="mono" FontSize="13" FontWeight="SemiBold"
+                       HorizontalAlignment="Right" Text="{Binding ToGoal}" />
+          </Grid>
+        </l:FlexWrapPanel>
+      </Border>
+    </StackPanel>
+  </Border>
+</UserControl>

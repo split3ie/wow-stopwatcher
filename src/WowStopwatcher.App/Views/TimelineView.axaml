@@ -1,0 +1,195 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:vm="using:WowStopwatcher.App.ViewModels"
+             x:Class="WowStopwatcher.App.Views.TimelineView"
+             x:DataType="vm:TimelineViewModel">
+
+  <Border Classes="card" Padding="20,16,20,14">
+    <StackPanel>
+
+      <!-- Header: title and legend -->
+      <Grid ColumnDefinitions="Auto,*" Margin="{Binding HeaderMargin}">
+        <TextBlock Classes="section" Text="TIMELINE" VerticalAlignment="Center" />
+        <ItemsControl Grid.Column="1" ItemsSource="{Binding Legend}" HorizontalAlignment="Right">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:LegendItemViewModel">
+              <StackPanel Orientation="Horizontal" Spacing="6" Margin="14,3,0,3">
+                <Border IsVisible="{Binding IsStopwatch}"
+                        Width="10" Height="10"
+                        VerticalAlignment="Center"
+                        CornerRadius="{DynamicResource RadiusLegend}"
+                        Background="{Binding Brush}" />
+                <Border IsVisible="{Binding IsRemaining}"
+                        Width="10" Height="10"
+                        VerticalAlignment="Center"
+                        CornerRadius="{DynamicResource RadiusLegend}"
+                        Background="{DynamicResource StripeSmallBrush}" />
+                <c:Icon IsVisible="{Binding IsGoal}"
+                        Width="12" Height="12"
+                        VerticalAlignment="Center"
+                        Data="{StaticResource IconStar}"
+                        Fill="{DynamicResource StarBrush}"
+                        Stroke="{DynamicResource StarStrokeBrush}" />
+                <TextBlock Text="{Binding Name}"
+                           VerticalAlignment="Center"
+                           FontSize="12"
+                           Foreground="{DynamicResource SecondaryBrush}" />
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Grid>
+
+      <!-- Track -->
+      <Grid Height="40">
+
+        <!-- Segments -->
+        <Border Background="{DynamicResource PageBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="{DynamicResource RadiusControl}"
+                ClipToBounds="True">
+          <ItemsControl ItemsSource="{Binding Segments}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <c:TrackPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.Styles>
+              <Style Selector="ContentPresenter" x:DataType="vm:SegmentViewModel">
+                <Setter Property="(c:TrackPanel.Start)" Value="{Binding Start}" />
+                <Setter Property="(c:TrackPanel.SpanWidth)" Value="{Binding Width}" />
+              </Style>
+            </ItemsControl.Styles>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:SegmentViewModel">
+                <c:HoverBorder Classes="segment" Background="Transparent" IsActive="{Binding IsHovered, Mode=TwoWay}">
+                  <Grid>
+                    <Border Background="{Binding Brush}" />
+                    <Border IsVisible="{Binding IsRemaining}" Background="{DynamicResource StripeBrush}" />
+                    <Line IsVisible="{Binding IsCapped}"
+                          StartPoint="1,0" EndPoint="1,40"
+                          HorizontalAlignment="Left"
+                          Stretch="Fill"
+                          Stroke="{DynamicResource CappedBrush}"
+                          StrokeThickness="2"
+                          StrokeDashArray="2,2" />
+                    <Rectangle Width="1"
+                               HorizontalAlignment="Right"
+                               Fill="{DynamicResource SegmentSeamBrush}" />
+                  </Grid>
+                </c:HoverBorder>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+
+        <!-- "Now" marker -->
+        <c:TrackPanel IsHitTestVisible="False">
+          <Border c:TrackPanel.Placement="Pin"
+                  c:TrackPanel.Start="{Binding NowPosition}"
+                  c:TrackPanel.Rise="6"
+                  Width="2"
+                  Margin="0,0,0,-6"
+                  CornerRadius="1"
+                  Background="{DynamicResource TextBrush}" />
+        </c:TrackPanel>
+
+        <!-- Goal pins -->
+        <ItemsControl ItemsSource="{Binding Pins}" ClipToBounds="False">
+          <ItemsControl.Template>
+            <ControlTemplate>
+              <ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
+            </ControlTemplate>
+          </ItemsControl.Template>
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <c:TrackPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.Styles>
+            <Style Selector="ContentPresenter" x:DataType="vm:PinViewModel">
+              <Setter Property="(c:TrackPanel.Placement)" Value="Pin" />
+              <Setter Property="(c:TrackPanel.Start)" Value="{Binding Position}" />
+              <Setter Property="(c:TrackPanel.Rise)" Value="{Binding Rise}" />
+            </Style>
+          </ItemsControl.Styles>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:PinViewModel">
+              <Grid Width="20" RowDefinitions="Auto,*">
+                <c:HoverBorder Background="Transparent"
+                               CornerRadius="10"
+                               BoxShadow="{DynamicResource ShadowPin}"
+                               IsActive="{Binding IsActive, Mode=TwoWay}">
+                  <Button Classes="pin" AutomationProperties.Name="{Binding Label}">
+                    <c:Icon Width="12" Height="12"
+                            Data="{StaticResource IconStar}"
+                            Fill="{DynamicResource StarBrush}"
+                            Stroke="{DynamicResource StarStrokeBrush}" />
+                  </Button>
+                </c:HoverBorder>
+                <Rectangle Grid.Row="1"
+                           Width="2"
+                           HorizontalAlignment="Center"
+                           IsHitTestVisible="False"
+                           Fill="{DynamicResource StarBrush}" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Tooltips -->
+        <c:TrackPanel IsHitTestVisible="False">
+          <Border Classes="tip"
+                  IsVisible="{Binding IsSegmentTipVisible}"
+                  c:TrackPanel.Placement="Above"
+                  c:TrackPanel.Start="{Binding SegmentTipPosition}"
+                  c:TrackPanel.Rise="{Binding SegmentTipRise}">
+            <StackPanel>
+              <TextBlock Classes="tipSub" Text="{Binding SegmentTipTitle}" />
+              <TextBlock Classes="tipTime" Text="{Binding SegmentTipTime}" />
+              <TextBlock Classes="tipSub"
+                         Margin="0,2,0,0"
+                         Text="{Binding SegmentTipSub}"
+                         IsVisible="{Binding SegmentTipSub, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+          </Border>
+          <Border Classes="tip"
+                  IsVisible="{Binding IsPinTipVisible}"
+                  c:TrackPanel.Placement="Above"
+                  c:TrackPanel.Start="{Binding PinTipPosition}"
+                  c:TrackPanel.Rise="{Binding PinTipRise}">
+            <StackPanel>
+              <TextBlock Classes="tipSub" Text="Goal reached" />
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Ellipse Width="8" Height="8"
+                         VerticalAlignment="Center"
+                         Fill="{Binding PinTipBrush}" />
+                <TextBlock Text="{Binding PinTipTitle}" FontSize="13" FontWeight="SemiBold" />
+              </StackPanel>
+              <TextBlock Classes="tipSub" Margin="0,2,0,0" Text="{Binding PinTipSub}" />
+            </StackPanel>
+          </Border>
+        </c:TrackPanel>
+      </Grid>
+
+      <!-- Footer -->
+      <Grid Margin="0,8,0,0" ColumnDefinitions="Auto,*">
+        <TextBlock Classes="mono muted" FontSize="12" Text="0:00" />
+        <TextBlock Grid.Column="1"
+                   Classes="mono muted"
+                   FontSize="12"
+                   HorizontalAlignment="Right"
+                   TextWrapping="Wrap">
+          <Run Text="{Binding LoggedText}" /><Run Text=" logged · " /><Run Text="{Binding RemainingText}" /><Run Text=" to goals" />
+        </TextBlock>
+      </Grid>
+    </StackPanel>
+  </Border>
+</UserControl>
