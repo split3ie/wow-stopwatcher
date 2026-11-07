@@ -1,44 +1,42 @@
+using System.IO.Pipes;
 using System.Security.Principal;
 
 namespace WowStopwatcher.App.Services;
 
 /// <summary>
-/// Allows one app instance per user (named mutex). A second launch signals the first one through a named
-/// event so it can show its window.
+/// Allows one app instance per user (named mutex). A second launch signals the first one through a per-user
+/// local named pipe so it can show its window. Works on Windows, macOS and Linux.
 /// </summary>
 public sealed class SingleInstanceGuard : IDisposable
 {
-    private readonly Mutex _mutex;
-    private readonly EventWaitHandle _showEvent;
-    private volatile bool _disposed;
+    private const PipeOptions Options = PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly;
 
-    private SingleInstanceGuard(Mutex mutex, EventWaitHandle showEvent)
+    private readonly Mutex _mutex;
+    private readonly CancellationTokenSource _cts = new();
+
+    private SingleInstanceGuard(Mutex mutex)
     {
         _mutex = mutex;
-        _showEvent = showEvent;
     }
 
     private static string Suffix =>
-        WindowsIdentity.GetCurrent().User?.Value ?? Environment.UserName;
+        (OperatingSystem.IsWindows() ? WindowsIdentity.GetCurrent().User?.Value : null) ?? Environment.UserName;
 
     private static string MutexName => $"WowStopwatcher.Instance.{Suffix}";
 
-    private static string EventName => $"WowStopwatcher.Show.{Suffix}";
+    private static string PipeName => $"WowStopwatcher.Show.{Suffix}";
 
     /// <summary>Returns the guard when this is the first instance, otherwise null.</summary>
     public static SingleInstanceGuard? TryAcquire()
     {
-        // The event is created first so a second instance can always find it once the mutex is taken.
-        var showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, EventName);
         var mutex = new Mutex(true, MutexName, out var created);
         if (!created)
         {
             mutex.Dispose();
-            showEvent.Dispose();
             return null;
         }
 
-        return new SingleInstanceGuard(mutex, showEvent);
+        return new SingleInstanceGuard(mutex);
     }
 
     /// <summary>Asks the running instance to show its window.</summary>
@@ -46,10 +44,10 @@ public sealed class SingleInstanceGuard : IDisposable
     {
         try
         {
-            using var handle = EventWaitHandle.OpenExisting(EventName);
-            handle.Set();
+            using var client = new NamedPipeClientStream(".", PipeName, PipeDirection.Out, Options);
+            client.Connect(1000);
         }
-        catch (Exception ex) when (ex is WaitHandleCannotBeOpenedException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is TimeoutException or IOException or UnauthorizedAccessException)
         {
             System.Diagnostics.Debug.WriteLine($"Could not signal the running instance: {ex.Message}");
         }
@@ -58,30 +56,41 @@ public sealed class SingleInstanceGuard : IDisposable
     /// <summary>Calls <paramref name="onShowRequested"/> (on a background thread) whenever another launch signals.</summary>
     public void StartListening(Action onShowRequested)
     {
-        var thread = new Thread(() =>
+        var token = _cts.Token;
+        _ = Task.Run(async () =>
         {
-            while (true)
+            while (!token.IsCancellationRequested)
             {
-                _showEvent.WaitOne();
-                if (_disposed)
+                try
+                {
+                    await using var server = new NamedPipeServerStream(
+                        PipeName, PipeDirection.In, 1, PipeTransmissionMode.Byte, Options);
+                    await server.WaitForConnectionAsync(token).ConfigureAwait(false);
+                    onShowRequested();
+                }
+                catch (OperationCanceledException)
                 {
                     return;
                 }
-
-                onShowRequested();
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Single-instance listener error: {ex.Message}");
+                    try
+                    {
+                        await Task.Delay(500, token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
+                }
             }
-        })
-        {
-            IsBackground = true,
-            Name = "SingleInstanceListener",
-        };
-        thread.Start();
+        });
     }
 
     public void Dispose()
     {
-        _disposed = true;
-        _showEvent.Set();
+        _cts.Cancel();
         try
         {
             _mutex.ReleaseMutex();
@@ -92,6 +101,6 @@ public sealed class SingleInstanceGuard : IDisposable
         }
 
         _mutex.Dispose();
-        _showEvent.Dispose();
+        _cts.Dispose();
     }
 }

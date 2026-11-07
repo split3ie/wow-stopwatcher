@@ -19,12 +19,15 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: windows-latest
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.VERSION }}
     steps:
       - uses: actions/checkout@v7
 
       - name: Resolve version
+        id: resolve
         shell: bash
         env:
           INPUT_BUMP: ${{ inputs.bump }}
@@ -58,19 +61,46 @@ jobs:
             exit 1
           fi
           echo "Releasing v$version"
-          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "VERSION=$version" >> "$GITHUB_OUTPUT"
+
+  test:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Test
+        run: dotnet test src/WowStopwatcher.slnx -c Release
+
+  build:
+    needs: [version, test]
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { os: windows-latest, rid: win-x64 }
+          - { os: ubuntu-latest, rid: linux-x64 }
+          - { os: macos-latest, rid: osx-arm64 }
+          - { os: macos-latest, rid: osx-x64 }
+    runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      RID: ${{ matrix.rid }}
+    steps:
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
-      - name: Test
-        run: dotnet test src/WowStopwatcher.slnx -c Release
-
       - name: Publish
-        run: dotnet publish src/WowStopwatcher.App -c Release -p:Version=${{ env.VERSION }} -o publish
+        shell: bash
+        run: dotnet publish src/WowStopwatcher.App -c Release -r "$RID" -p:Version="$VERSION" -o publish
 
-      - name: Package
+      - name: Package (win-x64)
+        if: matrix.rid == 'win-x64'
         shell: pwsh
         run: |
           $name = "WowStopwatcher-$env:VERSION-win-x64"
@@ -81,18 +111,67 @@ jobs:
           $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLower()
           "$hash  $name.zip" | Set-Content -Path "$name.zip.sha256" -Encoding ascii
 
+      - name: Package (linux-x64)
+        if: matrix.rid == 'linux-x64'
+        shell: bash
+        run: |
+          name="WowStopwatcher-$VERSION-linux-x64"
+          mkdir stage
+          cp publish/WowStopwatcher stage/
+          cp LICENSE stage/
+          chmod +x stage/WowStopwatcher
+          tar -czf "$name.tar.gz" -C stage WowStopwatcher LICENSE
+          sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+
+      - name: Package (macOS)
+        if: startsWith(matrix.rid, 'osx-')
+        shell: bash
+        run: |
+          name="WowStopwatcher-$VERSION-$RID"
+          app="WowStopwatcher.app"
+          mkdir -p "$app/Contents/MacOS"
+          mkdir -p "$app/Contents/Resources"
+          cp build/macos/WowStopwatcher.icns "$app/Contents/Resources/WowStopwatcher.icns"
+          cp publish/WowStopwatcher "$app/Contents/MacOS/WowStopwatcher"
+          chmod +x "$app/Contents/MacOS/WowStopwatcher"
+          sed "s/@VERSION@/$VERSION/g" build/macos/Info.plist > "$app/Contents/Info.plist"
+          codesign --force --deep -s - "$app"
+          ditto -c -k --keepParent "$app" "$name.zip"
+          shasum -a 256 "$name.zip" > "$name.zip.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.rid }}
+          path: |
+            WowStopwatcher-*.zip
+            WowStopwatcher-*.tar.gz
+            WowStopwatcher-*.sha256
+          if-no-files-found: error
+
+  release:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          merge-multiple: true
+          path: dist
+
       - name: Create GitHub Release
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           flags=()
           if [[ "$VERSION" == *-* ]]; then flags+=(--prerelease); fi
+          ls -l dist
           # Creates the tag at this commit when it does not exist yet (manual run).
           gh release create "v$VERSION" \
             --target "$GITHUB_SHA" \
-            "WowStopwatcher-$VERSION-win-x64.zip" \
-            "WowStopwatcher-$VERSION-win-x64.zip.sha256" \
+            dist/WowStopwatcher-* \
             --title "WowStopwatcher $VERSION" \
             --generate-notes \
             "${flags[@]}"

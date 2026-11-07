@@ -101,5 +101,5 @@
 
   <!-- Fonts -->
   <FontFamily x:Key="UiFont">Inter, Segoe UI, sans-serif</FontFamily>
-  <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas</FontFamily>
+  <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace</FontFamily>
 </ResourceDictionary>

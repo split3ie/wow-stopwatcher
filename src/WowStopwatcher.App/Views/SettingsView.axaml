@@ -176,6 +176,12 @@
           </Button>
         </Grid>
 
+        <TextBlock Foreground="{DynamicResource DangerBrush}"
+                   FontSize="13"
+                   TextWrapping="Wrap"
+                   Text="{Binding ShortcutsUnsupportedText}"
+                   IsVisible="{Binding AreShortcutsUnsupported}" />
+
         <ItemsControl x:Name="ItemsList" ItemsSource="{Binding Items}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>

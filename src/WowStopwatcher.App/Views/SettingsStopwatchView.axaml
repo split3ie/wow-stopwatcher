@@ -229,7 +229,7 @@
             </Grid>
           </Border>
           <TextBlock Classes="hint"
-                     Classes.warn="{Binding HasShortcutWarning}"
+                     Classes.warn="{Binding HasShortcutHintWarning}"
                      Text="{Binding ShortcutHint}" />
         </StackPanel>
       </l:FlexWrapPanel>

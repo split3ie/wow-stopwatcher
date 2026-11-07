@@ -10,6 +10,8 @@
         Width="1200"
         Height="880"
         MinWidth="760"
+        MaxWidth="1200"
+        CanMaximize="False"
         MinHeight="480"
         Background="{DynamicResource PageBrush}"
         Foreground="{DynamicResource TextBrush}"

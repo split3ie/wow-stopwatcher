@@ -1,6 +1,6 @@
 # WowStopwatcher
 
-A Windows desktop app for tracking your day with several stopwatches and daily goals.
+A desktop app for Windows, macOS and Linux for tracking your day with several stopwatches and daily goals.
 <img width="1502" height="931" alt="image" src="https://github.com/user-attachments/assets/4d4ada76-3c15-4ad5-a140-7ab5aef37aad" />
 
 
@@ -23,23 +23,41 @@ timeline.
   stopwatch and its live time, the running one highlighted. Click a stopwatch to switch to it. Double-click the tray icon to
   stop the current stopwatch and start the next one in order.
 - **Global shortcuts.** Give each stopwatch a shortcut (for example `Ctrl+F1`) to start or stop it from any app.
-- **Run with Windows.** Optionally start in the tray when you sign in. No stopwatch starts by itself.
+- **Run on sign-in.** Optionally start in the tray when you sign in. No stopwatch starts by itself.
 - **Local and private.** All data stays on your computer in a SQLite file. Nothing is sent anywhere, except the optional
   "Check for updates" request to GitHub.
 
 ## Download
 
-1. Open [Releases](https://github.com/split3ie/wow-stopwatcher/releases) and download `WowStopwatcher-<version>-win-x64.zip`.
-2. Unzip it to a folder of your choice, for example `%LocalAppData%\Programs\WowStopwatcher`.
-3. Run `WowStopwatcher.exe`.
+Open [Releases](https://github.com/split3ie/wow-stopwatcher/releases) and download the file for your system:
 
-Requirements: Windows 10 or 11, 64-bit. No .NET install is needed; the runtime is included.
+| System | File |
+| --- | --- |
+| Windows 10/11, 64-bit | `WowStopwatcher-<version>-win-x64.zip` |
+| macOS, Apple silicon | `WowStopwatcher-<version>-osx-arm64.zip` |
+| macOS, Intel | `WowStopwatcher-<version>-osx-x64.zip` |
+| Linux, 64-bit | `WowStopwatcher-<version>-linux-x64.tar.gz` |
 
-The executable isn't code-signed, so Windows SmartScreen may warn on first start. Choose **More info → Run anyway**. Each
-release includes a `.sha256` file to check the download.
+No .NET install is needed; the runtime is included. Each release includes a `.sha256` file to check the download. The app
+isn't code-signed.
 
-If you turn on **Run with computer start** and later move the folder, turn the setting off and on again so it points to the
-new location.
+**Windows.** Unzip to a folder of your choice, for example `%LocalAppData%\Programs\WowStopwatcher`, and run
+`WowStopwatcher.exe`. SmartScreen may warn on first start: choose **More info → Run anyway**.
+
+**macOS.** Unzip and move `WowStopwatcher.app` to Applications. The app is unsigned (ad-hoc signature only), so on first
+launch right-click it and choose **Open**, or run `xattr -dr com.apple.quarantine WowStopwatcher.app`.
+
+**Linux.** Extract with `tar -xzf WowStopwatcher-<version>-linux-x64.tar.gz` and run `./WowStopwatcher`.
+
+- The tray icon needs a StatusNotifierItem host. On GNOME, install the AppIndicator extension.
+- Global shortcuts work on X11 only, not on pure Wayland.
+
+If you turn on **Run with computer start** and later move the app, turn the setting off and on again so it points to the
+new location. Autostart is stored here:
+
+- Windows: `HKCU\...\Run` registry key
+- macOS: `~/Library/LaunchAgents/com.split3ie.wowstopwatcher.plist`
+- Linux: `~/.config/autostart/wowstopwatcher.desktop`
 
 ## Usage
 
@@ -59,12 +77,12 @@ Good to know:
 
 ## Your data
 
-Sessions and stopwatches are stored in `%AppData%\WowStopwatcher\wowstopwatcher.db` (SQLite). Back up that file to keep your
+Sessions and stopwatches are stored in `wowstopwatcher.db` (SQLite) in a `WowStopwatcher` folder under the OS application-data folder (`Environment.SpecialFolder.ApplicationData`; on Windows `%AppData%\WowStopwatcher`). Back up that file to keep your
 history. Deleting it resets the app.
 
 ## Build from source
 
-Requirements: [.NET 10 SDK](https://dotnet.microsoft.com/download) on Windows.
+Requirements: [.NET 10 SDK](https://dotnet.microsoft.com/download) on Windows, macOS or Linux.
 
 ```
 dotnet build src/WowStopwatcher.slnx
@@ -101,8 +119,8 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-The workflow runs the tests, builds the single-file executable and creates a GitHub Release with the zip, its checksum and
-generated release notes. Tags with a suffix, such as `v0.2.0-beta.1`, are published as pre-releases. The in-app
+The workflow runs the tests, builds single-file packages for Windows, macOS (arm64, x64) and Linux, and creates a GitHub Release with
+the packages, their checksums and generated release notes. Tags with a suffix, such as `v0.2.0-beta.1`, are published as pre-releases. The in-app
 **Check for updates** compares the running version with the latest release.
 
 ## License

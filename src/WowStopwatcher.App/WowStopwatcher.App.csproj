@@ -12,7 +12,7 @@
   <!-- Applied only by "dotnet publish" (sets _IsPublishing); build and run are unaffected. -->
   <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
     <AssemblyName>WowStopwatcher</AssemblyName>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>

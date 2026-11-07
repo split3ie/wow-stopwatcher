@@ -142,7 +142,7 @@ public sealed partial class StopwatchRowViewModel : ObservableObject
         GoalSub = !hasGoal
             ? "Set one in Settings"
             : reached ? "Reached" : $"{(int)Math.Floor(fraction * 100)}% done";
-        Shortcut = definition.Shortcut;
+        Shortcut = definition.Shortcut is null ? null : SettingsShortcutKeys.ToDisplay(definition.Shortcut);
         HasShortcut = !string.IsNullOrWhiteSpace(definition.Shortcut);
         TotalHuman = TimeFormat.Human(total);
         ToGoalLabel = !hasGoal ? "Goal" : reached ? "Over goal" : "To goal";

@@ -1,8 +1,5 @@
-using System.Runtime.Versioning;
 using Avalonia;
 using WowStopwatcher.App.Services;
-
-[assembly: SupportedOSPlatform("windows")]
 
 namespace WowStopwatcher.App;
 

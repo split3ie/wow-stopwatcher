@@ -68,7 +68,12 @@ public sealed partial class MainViewModel : ObservableObject
 
         if (previous == AppPage.Settings && page != AppPage.Settings)
         {
-            (CurrentPage as SettingsViewModel)?.StopRecording();
+            if (CurrentPage is SettingsViewModel settings)
+            {
+                settings.StopRecording();
+                settings.Detach();
+            }
+
             _engine.ReloadDefinitions();
         }
 
