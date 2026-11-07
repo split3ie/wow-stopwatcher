@@ -1,8 +1,6 @@
 # WowStopwatcher
 
 A desktop app for Windows, macOS and Linux for tracking your day with several stopwatches and daily goals.
-<img width="1502" height="931" alt="image" src="https://github.com/user-attachments/assets/4d4ada76-3c15-4ad5-a140-7ab5aef37aad" />
-
 
 Create a stopwatch per activity: "English" with a 5-hour goal, "YouTube", "Walking" with a 1-hour goal. Start one and the
 time counts. Switch to another and the first one stops. Only one stopwatch runs at a time, so your day adds up to one honest
