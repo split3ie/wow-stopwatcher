@@ -55,7 +55,7 @@
       <Setter Property="Height" Value="24" />
       <Setter Property="Padding" Value="10,0" />
       <Setter Property="FontSize" Value="12" />
-      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Opacity" Value="0" />
     </Style>
@@ -347,9 +347,23 @@
                                 <Grid>
                                   <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="{Binding ShareWidth}" />
+                                    <ColumnDefinition Width="{Binding OvertimeWidth}" />
                                     <ColumnDefinition Width="{Binding RestWidth}" />
                                   </Grid.ColumnDefinitions>
-                                  <Border Background="{Binding Brush}" CornerRadius="{DynamicResource RadiusBar}" />
+                                  <!-- Normal and overtime parts form one rounded bar: a clipped rounded container
+                                       over both columns, with the darkening overlay on the overtime column. -->
+                                  <Border Grid.ColumnSpan="2"
+                                          Background="{Binding Brush}"
+                                          CornerRadius="{DynamicResource RadiusBar}"
+                                          ClipToBounds="True">
+                                    <Grid>
+                                      <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="{Binding ShareWidth}" />
+                                        <ColumnDefinition Width="{Binding OvertimeWidth}" />
+                                      </Grid.ColumnDefinitions>
+                                      <Border Grid.Column="1" Background="{DynamicResource OvertimeOverlayBrush}" />
+                                    </Grid>
+                                  </Border>
                                 </Grid>
                               </Border>
                               <TextBlock Grid.Column="2"

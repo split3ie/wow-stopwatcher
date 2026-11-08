@@ -5,6 +5,7 @@ namespace WowStopwatcher.Core;
 /// <param name="Goal">The stopwatch's current goal, or null.</param>
 /// <param name="IsIndependent">True for an independent stopwatch.</param>
 /// <param name="GoalReached">True when the stopwatch is not deleted, has a goal, and Total &gt;= Goal.</param>
+/// <param name="OvertimeShare">The part of <paramref name="Share"/> beyond the goal ((Total - Goal) / day total, clamped to 0..Share); 0 when the goal is not reached, there is no goal, or the stopwatch is deleted.</param>
 public sealed record DayStopwatchTotal(
     string StopwatchId,
     string Name,
@@ -14,4 +15,5 @@ public sealed record DayStopwatchTotal(
     double Share,
     TimeSpan? Goal,
     bool GoalReached,
-    bool IsIndependent = false);
+    bool IsIndependent = false,
+    double OvertimeShare = 0);

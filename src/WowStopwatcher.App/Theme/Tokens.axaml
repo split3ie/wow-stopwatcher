@@ -31,6 +31,7 @@
   <Color x:Key="TooltipSubColor">#C9CED6</Color>
   <Color x:Key="OverlayColor">#73151821</Color>
   <Color x:Key="SegmentSeamColor">#B3FFFFFF</Color>
+  <Color x:Key="OvertimeOverlayColor">#59000000</Color>
 
   <!-- Brushes -->
   <SolidColorBrush x:Key="PageBrush" Color="{DynamicResource PageColor}" />
@@ -63,6 +64,7 @@
   <SolidColorBrush x:Key="TooltipSubBrush" Color="{DynamicResource TooltipSubColor}" />
   <SolidColorBrush x:Key="OverlayBrush" Color="{DynamicResource OverlayColor}" />
   <SolidColorBrush x:Key="SegmentSeamBrush" Color="{DynamicResource SegmentSeamColor}" />
+  <SolidColorBrush x:Key="OvertimeOverlayBrush" Color="{DynamicResource OvertimeOverlayColor}" />
 
   <!-- Diagonal stripes for "left to goal" (period 12 px on the track, 6 px in the legend) -->
   <DrawingBrush x:Key="StripeBrush" TileMode="Tile" DestinationRect="0,0,17,17">

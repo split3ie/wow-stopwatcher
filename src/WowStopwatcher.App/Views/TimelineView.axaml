@@ -94,6 +94,12 @@
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <Border IsVisible="{Binding IsHovered}"
+                            IsHitTestVisible="False"
+                            Opacity="0.18"
+                            Background="{DynamicResource OnDarkBrush}"
+                            CornerRadius="{Binding CornerRadius}"
+                            Margin="{Binding FillMargin}" />
                     <Line IsVisible="{Binding IsCapped}"
                           StartPoint="1,0" EndPoint="1,40"
                           HorizontalAlignment="Left"

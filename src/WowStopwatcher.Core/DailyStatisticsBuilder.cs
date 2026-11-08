@@ -63,7 +63,10 @@ public static class DailyStatisticsBuilder
                 var total = perStopwatch.GetValueOrDefault(s.Id);
                 var reached = !s.IsDeleted && s.HasGoal && total >= s.Goal!.Value;
                 var share = dayTotal > TimeSpan.Zero ? Math.Clamp(total / dayTotal, 0, 1) : 0;
-                return new DayStopwatchTotal(s.Id, s.Name, s.Color, s.IsDeleted, total, share, s.Goal, reached, s.IsIndependent);
+                var overtime = reached && dayTotal > TimeSpan.Zero
+                    ? Math.Clamp((total - s.Goal!.Value) / dayTotal, 0, share)
+                    : 0;
+                return new DayStopwatchTotal(s.Id, s.Name, s.Color, s.IsDeleted, total, share, s.Goal, reached, s.IsIndependent, overtime);
             })
             .ToList();
 

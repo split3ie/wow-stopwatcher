@@ -80,6 +80,26 @@ public class DailyStatisticsBuilderTests
     }
 
     [Fact]
+    public void OvertimeShare_IsTimePastGoalOverDayTotal()
+    {
+        var day = new DateTimeOffset(2026, 3, 11, 9, 0, 0, TimeSpan.Zero);
+        var sessions = new[] { Sess(1, "a", day, 186), Sess(2, "b", day.AddHours(4), 92) };
+        var stats = DailyStatisticsBuilder.Build(sessions, [Def("a", 0, goalMinutes: 180), Def("b", 1)], Now, Zone).Days.Single();
+        Assert.Equal(6.0 / 278, stats.Totals[0].OvertimeShare, 6);
+        Assert.Equal(186.0 / 278, stats.Totals[0].Share, 6);
+    }
+
+    [Fact]
+    public void OvertimeShare_IsZero_WhenGoalNotReached_NoGoal_OrDeleted()
+    {
+        var day = new DateTimeOffset(2026, 3, 11, 9, 0, 0, TimeSpan.Zero);
+        var defs = new[] { Def("a", 0, goalMinutes: 120), Def("b", 1), Def("c", 2, goalMinutes: 10, deleted: true) };
+        var sessions = new[] { Sess(1, "a", day, 60), Sess(2, "b", day.AddHours(2), 60), Sess(3, "c", day.AddHours(4), 60) };
+        var totals = DailyStatisticsBuilder.Build(sessions, defs, Now, Zone).Days.Single().Totals;
+        Assert.All(totals, t => Assert.Equal(0, t.OvertimeShare));
+    }
+
+    [Fact]
     public void Segments_AreChronological()
     {
         var day = new DateTimeOffset(2026, 3, 11, 9, 0, 0, TimeSpan.Zero);

@@ -44,6 +44,9 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
     private GridLength _shareWidth = new(0, GridUnitType.Star);
 
     [ObservableProperty]
+    private GridLength _overtimeWidth = new(0, GridUnitType.Star);
+
+    [ObservableProperty]
     private GridLength _restWidth = new(1, GridUnitType.Star);
 
     [RelayCommand]
@@ -58,7 +61,9 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
         IsReached = total.GoalReached;
         TimeText = TimeFormat.HoursMinutes(total.Total)
             + (total.Goal is { } goal && !total.IsDeleted ? " / " + TimeFormat.GoalLabel(goal) : string.Empty);
-        ShareWidth = new GridLength(share, GridUnitType.Star);
+        var overtime = Math.Clamp(total.OvertimeShare, 0, share);
+        ShareWidth = new GridLength(share - overtime, GridUnitType.Star);
+        OvertimeWidth = new GridLength(overtime, GridUnitType.Star);
         RestWidth = new GridLength(1 - share, GridUnitType.Star);
         if (_color != total.Color)
         {
