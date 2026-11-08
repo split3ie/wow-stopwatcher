@@ -3,24 +3,31 @@
 A desktop app for Windows, macOS and Linux for tracking your day with several stopwatches and daily goals.
 
 Create a stopwatch per activity: "English" with a 5-hour goal, "YouTube", "Walking" with a 1-hour goal. Start one and the
-time counts. Switch to another and the first one stops. Only one stopwatch runs at a time, so your day adds up to one honest
-timeline.
+time counts. Switch to another and the first one stops. Only one regular stopwatch runs at a time, so your day adds up to one
+honest timeline. Mark a stopwatch as independent (for example "Walking" while you listen to English) and it runs alongside
+the others; time when several run at once counts once in the day's total.
 
 ## Features
 
-- **Today timeline.** A colored bar of today's sessions in order. Hover a section to see its time. A striped grey section shows
-  how much time is left to reach your goals, and a star marks the moment each goal was reached.
+- **Today timeline.** A colored bar of today's sessions in order. Hover a section to see its time. Time when several
+  stopwatches ran together is drawn as stacked stripes, one per stopwatch. After the logged time, a striped section shows the
+  plan to reach your goals: one piece per unfinished goal, tinted in that stopwatch's color, nearest goal first. Hover a piece
+  to see which goal it is and how much is left. A star marks the moment each goal was reached.
 - **Stopwatch rows.** One big start/stop button per stopwatch with the current session time, today's total, goal progress and
   the session list (collapsible).
 - **Goals.** Optional daily goal per stopwatch, with a progress fill, a "Goals" panel and a star once it's reached.
-- **Total today and Stop all.** The combined time of all stopwatches, plus a single button to stop the running one or start the
-  last used one.
+- **Total today and Stop all.** The day's tracked time (overlapping time counted once), plus a single button to stop every
+  running stopwatch or start the last used one.
 - **Statistics.** One timeline per day, newest first. Click a day for totals per stopwatch, goals met and session count. Select
   days to clear them.
 - **System tray.** The app keeps running in the tray when you close the window. Click the tray icon for a menu with every
-  stopwatch and its live time, the running one highlighted. Click a stopwatch to switch to it. Double-click the tray icon to
-  stop the current stopwatch and start the next one in order.
-- **Global shortcuts.** Give each stopwatch a shortcut (for example `Ctrl+F1`) to start or stop it from any app.
+  stopwatch and its live time, running ones highlighted. Click a stopwatch to switch to it. Double-click the tray icon to
+  stop the current regular stopwatch and start the next regular one in order.
+- **Independent stopwatches.** Up to 3 stopwatches can run at once: one regular plus independent ones. Starting or stopping
+  an independent stopwatch doesn't affect the others.
+- **Global shortcuts.** Each stopwatch can have a shortcut to start or stop it from any app. A new stopwatch gets the first
+  free one of `Ctrl+F1`…`Ctrl+F12`, then `Ctrl+Shift+F1`…`F12`, `Ctrl+Alt+F1`…`F12` and `Ctrl+Alt+Shift+F1`…`F12`. Change
+  or clear it in Settings.
 - **Run on sign-in.** Optionally start in the tray when you sign in. No stopwatch starts by itself.
 - **Local and private.** All data stays on your computer in a SQLite file. Nothing is sent anywhere, except the optional
   "Check for updates" request to GitHub.
@@ -59,14 +66,16 @@ new location. Autostart is stored here:
 
 ## Usage
 
-1. Open **Settings** and add your stopwatches: name, color, optional daily goal (`hh:mm:ss`) and optional shortcut.
+1. Open **Settings** and add your stopwatches: name, color, optional daily goal (`hh:mm:ss`), independent or not, and a
+   shortcut (a default one is filled in).
 2. Go to **Today** and click a stopwatch to start it. Click it again, press its shortcut, or use **Stop** to stop it.
 3. Close the window when you like; the app stays in the tray. Use **Quit** in the tray menu to exit. A running stopwatch is
    stopped and saved on quit.
 
 Good to know:
 
-- Starting a stopwatch stops the one that was running.
+- Starting a regular stopwatch stops the regular one that was running; independent ones keep running.
+- New shortcuts start working after you leave the Settings page.
 - A session running past midnight is split, so each day's statistics stay correct.
 - **Reset** on Today deletes that stopwatch's sessions for today. **Reset all** deletes all of today's sessions.
 - Deleting a stopwatch in Settings keeps its past sessions in Statistics.

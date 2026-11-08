@@ -144,7 +144,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             ?? palette[Items.Count % palette.Count].Hex;
 
         var definition = new StopwatchDefinition(
-            StopwatchDefinition.NewId(), NewStopwatchName, color, null, null, Items.Count);
+            StopwatchDefinition.NewId(), NewStopwatchName, color, null,
+            DefaultShortcuts.Next(Items.Select(i => i.StoredShortcut)), Items.Count);
         _stopwatches.Add(definition);
 
         var item = new SettingsStopwatchViewModel(this, definition, _hotkeys) { FocusNameRequested = true };

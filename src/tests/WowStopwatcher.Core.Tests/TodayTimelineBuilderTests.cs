@@ -20,8 +20,10 @@ public class TodayTimelineBuilderTests
         Assert.Equal(1.0, segment.Width, 6);
         Assert.False(segment.Capped);
         Assert.Equal(0, timeline.NowPosition, 6);
-        Assert.Equal("Left to 1 goal", segment.Title);
-        Assert.Equal("English 5h", segment.SubText);
+        Assert.Equal("English · left to goal", segment.Title);
+        Assert.Equal("Goal 5h", segment.SubText);
+        Assert.Equal("a", segment.StopwatchId);
+        Assert.Equal("#a00000", segment.Color);
     }
 
     [Fact]
@@ -44,23 +46,44 @@ public class TodayTimelineBuilderTests
         var defs = new[] { Def("a", "A", 0, 600), Def("b", "B", 1, 120) };
         var timeline = TodayTimelineBuilder.Build(defs, [Sess(1, "a", 0, 10)], T0.AddMinutes(20));
 
-        var remaining = timeline.Segments[^1];
-        Assert.Equal(0.35, remaining.Width, 6);
-        Assert.True(remaining.Capped);
-        Assert.Equal("Left to 2 goals", remaining.Title);
-        Assert.Equal("A 9h 50m · B 2h", remaining.SubText);
+        var remaining = timeline.Segments.Where(x => x.Kind == TimelineSegmentKind.Remaining).ToList();
+        Assert.Equal(2, remaining.Count);
+        Assert.Equal(0.35, remaining.Sum(x => x.Width), 6);
+        Assert.True(timeline.RemainingCapped);
         Assert.Equal(0.65, timeline.NowPosition, 6);
         Assert.Equal(0.65, timeline.Segments[0].Width, 6);
         Assert.Equal(TimeSpan.FromMinutes(710), timeline.Remaining);
     }
 
     [Fact]
-    public void RemainingSubText_ListsThreeGoalsAndMore()
+    public void Remaining_IsOneSegmentPerGoal_NearestFirst_WithPerSegmentDetails()
     {
-        var defs = new[] { Def("a", "A", 0, 60), Def("b", "B", 1, 50), Def("c", "C", 2, 40), Def("d", "D", 3, 30), Def("e", "E", 4, 20) };
-        var segment = TodayTimelineBuilder.Build(defs, [], T0).Segments[0];
-        Assert.Equal("A 1h · B 50m · C 40m · +2 more", segment.SubText);
-        Assert.Equal("Left to 5 goals", segment.Title);
+        // logged 10; remaining: A 590, B 120 -> capped at 35%, split 590:120
+        var defs = new[] { Def("a", "A", 0, 600), Def("b", "B", 1, 120) };
+        var timeline = TodayTimelineBuilder.Build(defs, [Sess(1, "a", 0, 10)], T0.AddMinutes(20));
+
+        var remaining = timeline.Segments.Where(x => x.Kind == TimelineSegmentKind.Remaining).ToList();
+        Assert.Equal(["b", "a"], remaining.Select(x => x.StopwatchId));
+        Assert.Equal(0.35 * 120 / 710, remaining[0].Width, 6);
+        Assert.Equal(0.35 * 590 / 710, remaining[1].Width, 6);
+        Assert.Equal(0.65, remaining[0].Start, 6);
+        Assert.Equal(remaining[0].Start + remaining[0].Width, remaining[1].Start, 6);
+        Assert.Equal([true, false], remaining.Select(x => x.Capped));
+        Assert.Equal(["B · left to goal", "A · left to goal"], remaining.Select(x => x.Title));
+        Assert.Equal(["Goal 2h", "Goal 10h"], remaining.Select(x => x.SubText));
+        Assert.Equal(["#b00000", "#a00000"], remaining.Select(x => x.Color));
+        Assert.Equal([TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(590)], remaining.Select(x => x.Duration));
+        Assert.Equal(["a", "b"], timeline.RemainingGoals.Select(g => g.StopwatchId).OrderBy(x => x));
+    }
+
+    [Fact]
+    public void Remaining_TiesAreOrderedByStopwatchOrder()
+    {
+        var defs = new[] { Def("a", "A", 1, 60), Def("b", "B", 0, 60) };
+        var segments = TodayTimelineBuilder.Build(defs, [], T0).Segments;
+        Assert.Equal(["b", "a"], segments.Select(x => x.StopwatchId));
+        Assert.Equal([false, false], segments.Select(x => x.Capped));
+        Assert.Equal(0.5, segments[0].Width, 6);
     }
 
     [Fact]
