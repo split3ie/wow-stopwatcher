@@ -53,6 +53,9 @@ public sealed class FakeSessionRepository : ISessionRepository
         Items.Where(s => stopwatchIds.Contains(s.StopwatchId))
             .OrderByDescending(s => s.StartUtc).ThenByDescending(s => s.Id).FirstOrDefault();
 
+    public IReadOnlyDictionary<string, DateTimeOffset> GetLatestStartPerStopwatch() =>
+        Items.GroupBy(s => s.StopwatchId).ToDictionary(g => g.Key, g => g.Max(s => s.StartUtc));
+
     public IReadOnlyList<Session> GetInRange(DateTimeOffset fromUtc, DateTimeOffset toUtc) =>
         Items.Where(s => s.StartUtc >= fromUtc && s.StartUtc < toUtc).OrderBy(s => s.StartUtc).ThenBy(s => s.Id).ToList();
 

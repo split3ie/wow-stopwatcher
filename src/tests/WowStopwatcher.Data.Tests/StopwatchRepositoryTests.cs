@@ -28,6 +28,22 @@ public class StopwatchRepositoryTests
     }
 
     [Fact]
+    public void IsPermanentAndActiveSince_RoundTripOnAddAndUpdate()
+    {
+        using var db = new TempDatabase();
+        var since = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+        var def = new StopwatchDefinition("a", "English", "#111111", null, null, 0, IsPermanent: true, ActiveSinceUtc: since);
+        db.Stopwatches.Add(def);
+        Assert.Equal(def, db.Stopwatches.Get("a"));
+        Assert.Equal(def, Assert.Single(db.Stopwatches.GetAll()));
+
+        db.Stopwatches.Update(def with { IsPermanent = false, ActiveSinceUtc = since.AddDays(1) });
+        var updated = db.Stopwatches.Get("a")!;
+        Assert.False(updated.IsPermanent);
+        Assert.Equal(since.AddDays(1), updated.ActiveSinceUtc);
+    }
+
+    [Fact]
     public void NullableFields_RoundTripAsNull()
     {
         using var db = new TempDatabase();

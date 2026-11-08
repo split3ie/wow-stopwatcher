@@ -299,6 +299,16 @@
           <TextBlock Classes="hint" Text="Runs alongside other stopwatches" />
         </StackPanel>
 
+        <!-- Permanent -->
+        <StackPanel l:FlexWrapPanel.Basis="220" Spacing="6">
+          <CheckBox IsChecked="{Binding IsPermanent}"
+                    MinHeight="20"
+                    AutomationProperties.Name="Permanent">
+            <TextBlock Classes="fieldLabel" Text="Permanent" />
+          </CheckBox>
+          <TextBlock Classes="hint" Text="Kept every day. Temporary stopwatches disappear after a full day without use." />
+        </StackPanel>
+
         <!-- Shortcut -->
         <StackPanel l:FlexWrapPanel.Basis="220" Spacing="6">
           <TextBlock Classes="fieldLabel" Text="Start / Stop shortcut" />

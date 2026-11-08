@@ -10,7 +10,7 @@ namespace WowStopwatcher.Data;
 public sealed class SqliteDatabase
 {
     /// <summary>Current schema version.</summary>
-    public const int LatestSchemaVersion = 3;
+    public const int LatestSchemaVersion = 4;
 
     private readonly string _connectionString;
 
@@ -114,6 +114,18 @@ public sealed class SqliteDatabase
             using var transaction = connection.BeginTransaction();
             Execute(connection, "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);", transaction);
             Execute(connection, "PRAGMA user_version = 3;", transaction);
+            transaction.Commit();
+            version = 3;
+        }
+
+        if (version < 4)
+        {
+            // Existing stopwatches become temporary; the migration time counts as their last use (grace period).
+            using var transaction = connection.BeginTransaction();
+            Execute(connection, "ALTER TABLE stopwatches ADD COLUMN is_permanent INTEGER NOT NULL DEFAULT 0;", transaction);
+            Execute(connection, "ALTER TABLE stopwatches ADD COLUMN active_since_utc INTEGER NULL;", transaction);
+            Execute(connection, "UPDATE stopwatches SET active_since_utc = CAST(strftime('%s', 'now') AS INTEGER) * 1000;", transaction);
+            Execute(connection, "PRAGMA user_version = 4;", transaction);
             transaction.Commit();
         }
     }
