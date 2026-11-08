@@ -176,6 +176,12 @@
           </Button>
         </Grid>
 
+        <TextBlock Foreground="{DynamicResource DangerBrush}"
+                   FontSize="13"
+                   TextWrapping="Wrap"
+                   Text="{Binding ShortcutsUnsupportedText}"
+                   IsVisible="{Binding AreShortcutsUnsupported}" />
+
         <ItemsControl x:Name="ItemsList" ItemsSource="{Binding Items}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
@@ -243,6 +249,7 @@
                         l:FlexWrapPanel.Grow="0"
                         Orientation="Horizontal"
                         Spacing="12"
+                        HorizontalAlignment="Right"
                         VerticalAlignment="Center">
               <TextBlock Classes="updateMessage"
                          Classes.ok="{Binding IsUpdateOk}"

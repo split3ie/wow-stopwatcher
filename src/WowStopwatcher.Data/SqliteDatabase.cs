@@ -10,7 +10,7 @@ namespace WowStopwatcher.Data;
 public sealed class SqliteDatabase
 {
     /// <summary>Current schema version.</summary>
-    public const int LatestSchemaVersion = 1;
+    public const int LatestSchemaVersion = 2;
 
     private readonly string _connectionString;
 
@@ -96,6 +96,15 @@ public sealed class SqliteDatabase
                 CREATE INDEX IF NOT EXISTS ix_sessions_start_utc ON sessions(start_utc);
                 """, transaction);
             Execute(connection, "PRAGMA user_version = 1;", transaction);
+            transaction.Commit();
+            version = 1;
+        }
+
+        if (version < 2)
+        {
+            using var transaction = connection.BeginTransaction();
+            Execute(connection, "ALTER TABLE stopwatches ADD COLUMN is_independent INTEGER NOT NULL DEFAULT 0;", transaction);
+            Execute(connection, "PRAGMA user_version = 2;", transaction);
             transaction.Commit();
         }
     }

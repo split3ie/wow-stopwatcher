@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Reflection;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WowStopwatcher.App.Services;
@@ -42,6 +43,9 @@ public sealed partial class SettingsViewModel : ObservableObject
             Items.Add(new SettingsStopwatchViewModel(this, definition, _hotkeys));
         }
 
+        _hotkeys.FailuresChanged += OnHotkeyFailuresChanged;
+        UpdateShortcutFailures();
+
         IsAutostartSupported = _autostart.IsSupported;
         if (IsAutostartSupported)
         {
@@ -61,6 +65,13 @@ public sealed partial class SettingsViewModel : ObservableObject
     public ObservableCollection<SettingsStopwatchViewModel> Items { get; } = [];
 
     public bool IsAutostartSupported { get; }
+
+    /// <summary>True when global shortcuts cannot work in this session; the page then shows a notice.</summary>
+    public bool AreShortcutsUnsupported => !_hotkeys.IsSupported;
+
+    public string ShortcutsUnsupportedText => OperatingSystem.IsLinux()
+        ? "Global shortcuts aren't available in this session (Wayland). They work on X11."
+        : "Global shortcuts aren't available on this system.";
 
     /// <summary>Version of the running app without any "+commit" suffix, for example "0.1.0".</summary>
     public static string CurrentVersion { get; } = ReadVersion();
@@ -188,12 +199,37 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         var sortOrder = _stopwatches.Get(item.Id)?.SortOrder ?? index;
         _stopwatches.Update(new StopwatchDefinition(
-            item.Id, item.SavedName, item.Color, item.Goal, item.StoredShortcut, sortOrder));
+            item.Id, item.SavedName, item.Color, item.Goal, item.StoredShortcut, sortOrder, IsIndependent: item.IsIndependent));
+    }
+
+    /// <summary>
+    /// Saves a change of the independent flag and tells the engine right away, so a stopwatch that is running
+    /// (or started by a shortcut or the tray while Settings is open) follows its new type.
+    /// </summary>
+    internal void SaveType(SettingsStopwatchViewModel item)
+    {
+        Save(item);
+        _engine.ReloadDefinitions();
     }
 
     /// <summary>The other stopwatch that already uses <paramref name="shortcut"/>, if any.</summary>
     internal SettingsStopwatchViewModel? FindShortcutOwner(SettingsStopwatchViewModel item, string shortcut) =>
         Items.FirstOrDefault(o => o != item && string.Equals(o.Shortcut, shortcut, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Stops listening to hotkey registration results (called when the page is left).</summary>
+    internal void Detach() => _hotkeys.FailuresChanged -= OnHotkeyFailuresChanged;
+
+    private void OnHotkeyFailuresChanged(object? sender, EventArgs e) =>
+        Dispatcher.UIThread.Post(UpdateShortcutFailures);
+
+    private void UpdateShortcutFailures()
+    {
+        var failed = _hotkeys.IsSupported ? _hotkeys.FailedIds.ToHashSet() : [];
+        foreach (var item in Items)
+        {
+            item.IsShortcutTaken = failed.Contains(item.Id);
+        }
+    }
 
     /// <summary>Ends any shortcut recording so global hotkeys are active again (called when the page is left).</summary>
     internal void StopRecording()

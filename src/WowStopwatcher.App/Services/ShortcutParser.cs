@@ -6,24 +6,19 @@ namespace WowStopwatcher.App.Services;
 /// </summary>
 public static class ShortcutParser
 {
-    private const uint ModAlt = 0x0001;
-    private const uint ModControl = 0x0002;
-    private const uint ModShift = 0x0004;
-    private const uint ModWin = 0x0008;
-
-    private static readonly Dictionary<string, uint> NamedKeys = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, HotkeyKey> NamedKeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["Space"] = 0x20,
-        ["PageUp"] = 0x21,
-        ["PageDown"] = 0x22,
-        ["End"] = 0x23,
-        ["Home"] = 0x24,
-        ["Left"] = 0x25,
-        ["Up"] = 0x26,
-        ["Right"] = 0x27,
-        ["Down"] = 0x28,
-        ["Insert"] = 0x2D,
-        ["Delete"] = 0x2E,
+        ["Space"] = HotkeyKey.Space,
+        ["PageUp"] = HotkeyKey.PageUp,
+        ["PageDown"] = HotkeyKey.PageDown,
+        ["End"] = HotkeyKey.End,
+        ["Home"] = HotkeyKey.Home,
+        ["Left"] = HotkeyKey.Left,
+        ["Up"] = HotkeyKey.Up,
+        ["Right"] = HotkeyKey.Right,
+        ["Down"] = HotkeyKey.Down,
+        ["Insert"] = HotkeyKey.Insert,
+        ["Delete"] = HotkeyKey.Delete,
     };
 
     /// <summary>Returns false for null, empty or unparseable text.</summary>
@@ -36,18 +31,18 @@ public static class ShortcutParser
         }
 
         var parts = text.Split('+', StringSplitOptions.TrimEntries);
-        uint modifiers = 0;
+        var modifiers = HotkeyModifiers.None;
         for (var i = 0; i < parts.Length - 1; i++)
         {
             var flag = parts[i].ToLowerInvariant() switch
             {
-                "ctrl" => ModControl,
-                "alt" => ModAlt,
-                "shift" => ModShift,
-                "win" => ModWin,
-                _ => 0u,
+                "ctrl" => HotkeyModifiers.Control,
+                "alt" => HotkeyModifiers.Alt,
+                "shift" => HotkeyModifiers.Shift,
+                "win" => HotkeyModifiers.Win,
+                _ => HotkeyModifiers.None,
             };
-            if (flag == 0 || (modifiers & flag) != 0)
+            if (flag == HotkeyModifiers.None || (modifiers & flag) != 0)
             {
                 return false;
             }
@@ -55,31 +50,37 @@ public static class ShortcutParser
             modifiers |= flag;
         }
 
-        if (!TryParseKey(parts[^1], out var vk))
+        if (!TryParseKey(parts[^1], out var parsed))
         {
             return false;
         }
 
-        key = new ShortcutKey(modifiers, vk);
+        key = new ShortcutKey(modifiers, parsed);
         return true;
     }
 
-    private static bool TryParseKey(string name, out uint vk)
+    private static bool TryParseKey(string name, out HotkeyKey key)
     {
-        vk = 0;
+        key = HotkeyKey.None;
         if (name.Length == 1)
         {
             var c = char.ToUpperInvariant(name[0]);
-            if (c is >= 'A' and <= 'Z' or >= '0' and <= '9')
+            if (c is >= 'A' and <= 'Z')
             {
-                vk = c; // VK codes for A-Z and 0-9 equal their ASCII codes.
+                key = HotkeyKey.A + (c - 'A');
+                return true;
+            }
+
+            if (c is >= '0' and <= '9')
+            {
+                key = HotkeyKey.D0 + (c - '0');
                 return true;
             }
 
             return false;
         }
 
-        if (NamedKeys.TryGetValue(name, out vk))
+        if (NamedKeys.TryGetValue(name, out key))
         {
             return true;
         }
@@ -87,14 +88,14 @@ public static class ShortcutParser
         if (name.StartsWith("F", StringComparison.OrdinalIgnoreCase)
             && int.TryParse(name.AsSpan(1), out var f) && f is >= 1 and <= 24)
         {
-            vk = (uint)(0x70 + f - 1);
+            key = HotkeyKey.F1 + (f - 1);
             return true;
         }
 
         if (name.StartsWith("NumPad", StringComparison.OrdinalIgnoreCase)
             && name.Length == 7 && char.IsAsciiDigit(name[6]))
         {
-            vk = (uint)(0x60 + (name[6] - '0'));
+            key = HotkeyKey.NumPad0 + (name[6] - '0');
             return true;
         }
 

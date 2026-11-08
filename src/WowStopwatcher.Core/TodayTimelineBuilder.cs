@@ -30,7 +30,11 @@ public static class TodayTimelineBuilder
             .Select(s => (Session: s, Duration: s.GetDuration(nowUtc)))
             .ToList();
 
-        var logged = Sum(pieces.Select(p => p.Duration));
+        // The bar shows the union of all sessions; overlapping stopwatches share a slice (one lane each).
+        var slices = SessionSlicer.Build(todaySessions, stopwatches, nowUtc);
+        var logged = SessionSlicer.Total(slices);
+
+        // Each stopwatch's own total (for goals) is its full time, overlaps included.
         var totals = pieces
             .GroupBy(p => p.Session.StopwatchId)
             .ToDictionary(g => g.Key, g => Sum(g.Select(p => p.Duration)));
@@ -70,14 +74,16 @@ public static class TodayTimelineBuilder
         var starts = new List<double>();
         var widths = new List<double>();
         var cursor = 0.0;
-        foreach (var (session, duration) in pieces)
+        foreach (var slice in slices)
         {
-            var def = byId[session.StopwatchId];
-            var width = logged > TimeSpan.Zero ? loggedShare * (duration / logged) : 0;
-            var live = session.IsOpen;
+            var width = logged > TimeSpan.Zero ? loggedShare * (slice.Duration / logged) : 0;
+            var live = slice.IsLive;
+            var title = slice.Lanes.Count == 1
+                ? $"{byId[slice.Lanes[0].StopwatchId].Name} · {(live ? "running" : "session")}"
+                : $"{string.Join(" + ", slice.Lanes.Select(l => byId[l.StopwatchId].Name))} · {(live ? "running together" : "together")}";
             segments.Add(new TimelineSegment(
-                TimelineSegmentKind.Logged, def.Id, def.Color, duration, live,
-                $"{def.Name} · {(live ? "running" : "session")}", null, cursor, width, false));
+                TimelineSegmentKind.Logged, slice.Lanes[0].StopwatchId, slice.Lanes[0].Color, slice.Duration, live,
+                title, null, cursor, width, false, slice.Lanes));
             starts.Add(cursor);
             widths.Add(width);
             cursor += width;
@@ -94,7 +100,7 @@ public static class TodayTimelineBuilder
                 title, sub, loggedShare, remainingShare, capped));
         }
 
-        var pins = BuildPins(stopwatches, pieces, starts, widths, byId);
+        var pins = BuildPins(stopwatches, pieces, slices, starts, widths);
         return new TodayTimeline(
             segments, loggedShare, pins.Pins, pins.MaxLevel, logged, remaining, remainingGoals, capped);
     }
@@ -102,9 +108,9 @@ public static class TodayTimelineBuilder
     private static (IReadOnlyList<TimelineGoalPin> Pins, int MaxLevel) BuildPins(
         IReadOnlyList<StopwatchDefinition> stopwatches,
         List<(Session Session, TimeSpan Duration)> pieces,
+        IReadOnlyList<SessionSlice> slices,
         List<double> starts,
-        List<double> widths,
-        Dictionary<string, StopwatchDefinition> byId)
+        List<double> widths)
     {
         var raw = new List<(StopwatchDefinition Def, double Position, string Sub)>();
         foreach (var def in stopwatches.Where(s => !s.IsDeleted && s.HasGoal))
@@ -112,30 +118,34 @@ public static class TodayTimelineBuilder
             var goal = def.Goal!.Value;
             var cumulative = TimeSpan.Zero;
             var loggedBefore = TimeSpan.Zero;
-            var ordinal = 0;
-            for (var i = 0; i < pieces.Count; i++)
+            for (var i = 0; i < slices.Count; i++)
             {
-                var (session, duration) = pieces[i];
-                if (session.StopwatchId != def.Id)
+                var slice = slices[i];
+                if (slice.Lanes.All(l => l.StopwatchId != def.Id))
                 {
-                    loggedBefore += duration;
+                    loggedBefore += slice.Duration;
                     continue;
                 }
 
-                ordinal++;
-                if (cumulative + duration >= goal && duration > TimeSpan.Zero)
+                if (cumulative + slice.Duration >= goal)
                 {
                     var offset = goal - cumulative;
-                    var position = starts[i] + widths[i] * (offset / duration);
+                    var position = starts[i] + widths[i] * (offset / slice.Duration);
                     var into = loggedBefore + offset;
+
+                    // The goal was reached during the session of this stopwatch that covers that instant.
+                    var instant = slice.StartUtc + offset;
+                    var own = pieces.Where(p => p.Session.StopwatchId == def.Id && p.Duration > TimeSpan.Zero).Select(p => p.Session).ToList();
+                    var index = own.FindIndex(s => s.StartUtc <= instant && instant <= s.StartUtc + s.GetDuration(slice.EndUtc));
+                    var session = own[index];
                     var live = session.IsOpen ? " (running now)" : "";
-                    var sub = $"During its {TimeFormat.Ordinal(ordinal)} session{live} · {TimeFormat.HoursMinutes(into)} into today's log";
+                    var sub = $"During its {TimeFormat.Ordinal(index + 1)} session{live} · {TimeFormat.HoursMinutes(into)} into today's log";
                     raw.Add((def, position, sub));
                     break;
                 }
 
-                cumulative += duration;
-                loggedBefore += duration;
+                cumulative += slice.Duration;
+                loggedBefore += slice.Duration;
             }
         }
 

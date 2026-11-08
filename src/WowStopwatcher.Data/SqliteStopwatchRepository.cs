@@ -6,7 +6,7 @@ namespace WowStopwatcher.Data;
 /// <summary>SQLite implementation of <see cref="IStopwatchRepository"/>.</summary>
 public sealed class SqliteStopwatchRepository(SqliteDatabase database) : IStopwatchRepository
 {
-    private const string Columns = "id, name, color, goal_seconds, shortcut, sort_order, is_deleted";
+    private const string Columns = "id, name, color, goal_seconds, shortcut, sort_order, is_deleted, is_independent";
 
     public IReadOnlyList<StopwatchDefinition> GetAll(bool includeDeleted = false)
     {
@@ -32,8 +32,8 @@ public sealed class SqliteStopwatchRepository(SqliteDatabase database) : IStopwa
         using var connection = database.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO stopwatches (id, name, color, goal_seconds, shortcut, sort_order, is_deleted)
-            VALUES ($id, $name, $color, $goal, $shortcut, $sort, $deleted)
+            INSERT INTO stopwatches (id, name, color, goal_seconds, shortcut, sort_order, is_deleted, is_independent)
+            VALUES ($id, $name, $color, $goal, $shortcut, $sort, $deleted, $independent)
             """;
         Bind(command, stopwatch);
         command.ExecuteNonQuery();
@@ -46,7 +46,7 @@ public sealed class SqliteStopwatchRepository(SqliteDatabase database) : IStopwa
         command.CommandText = """
             UPDATE stopwatches
             SET name = $name, color = $color, goal_seconds = $goal, shortcut = $shortcut,
-                sort_order = $sort, is_deleted = $deleted
+                sort_order = $sort, is_deleted = $deleted, is_independent = $independent
             WHERE id = $id
             """;
         Bind(command, stopwatch);
@@ -88,6 +88,7 @@ public sealed class SqliteStopwatchRepository(SqliteDatabase database) : IStopwa
         command.Parameters.AddWithValue("$shortcut", (object?)s.Shortcut ?? DBNull.Value);
         command.Parameters.AddWithValue("$sort", s.SortOrder);
         command.Parameters.AddWithValue("$deleted", s.IsDeleted ? 1 : 0);
+        command.Parameters.AddWithValue("$independent", s.IsIndependent ? 1 : 0);
     }
 
     private static List<StopwatchDefinition> ReadAll(SqliteCommand command)
@@ -103,7 +104,8 @@ public sealed class SqliteStopwatchRepository(SqliteDatabase database) : IStopwa
                 reader.IsDBNull(3) ? null : TimeSpan.FromSeconds(reader.GetInt64(3)),
                 reader.IsDBNull(4) ? null : reader.GetString(4),
                 reader.GetInt32(5),
-                reader.GetInt32(6) != 0));
+                reader.GetInt32(6) != 0,
+                reader.GetInt32(7) != 0));
         }
 
         return list;

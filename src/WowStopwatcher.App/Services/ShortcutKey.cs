@@ -1,4 +1,4 @@
 namespace WowStopwatcher.App.Services;
 
-/// <summary>A parsed shortcut: Win32 modifier flags (MOD_*) and a virtual-key code.</summary>
-public readonly record struct ShortcutKey(uint Modifiers, uint VirtualKey);
+/// <summary>A parsed shortcut: neutral modifier flags and a neutral key.</summary>
+public readonly record struct ShortcutKey(HotkeyModifiers Modifiers, HotkeyKey Key);

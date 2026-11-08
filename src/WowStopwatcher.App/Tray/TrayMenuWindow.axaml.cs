@@ -167,7 +167,7 @@ public partial class TrayMenuWindow : Window
     private void Refresh()
     {
         var snapshot = _engine.GetSnapshot();
-        var signature = string.Join('|', snapshot.Stopwatches.Select(s => $"{s.Id}:{s.Name}:{s.Color}"));
+        var signature = string.Join('|', snapshot.Stopwatches.Select(s => $"{s.Id}:{s.Name}:{s.Color}:{s.IsIndependent}"));
         if (signature != _signature)
         {
             _signature = signature;
@@ -354,12 +354,19 @@ public partial class TrayMenuWindow : Window
                 Margin = new Thickness(10, 0),
                 ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
             };
-            _name.Margin = new Thickness(10, 0);
             _name.TextTrimming = TextTrimming.CharacterEllipsis;
-            Grid.SetColumn(_name, 1);
+            var nameStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 8,
+                Margin = new Thickness(10, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Children = { _name },
+            };
+            Grid.SetColumn(nameStack, 1);
             Grid.SetColumn(_time, 2);
             grid.Children.Add(_dot);
-            grid.Children.Add(_name);
+            grid.Children.Add(nameStack);
             grid.Children.Add(_time);
 
             Button = new Button { Height = 44, Content = grid };
@@ -378,6 +385,13 @@ public partial class TrayMenuWindow : Window
             _time.Text = TimeFormat.Clock(snapshot.GetTodayTotal(_definition.Id));
 
             var active = snapshot.IsRunning(_definition.Id);
+            var canToggle = active || snapshot.CanStart(_definition.Id);
+            if (Button.IsEnabled != canToggle)
+            {
+                Button.IsEnabled = canToggle;
+                ToolTip.SetTip(Button, canToggle ? null : $"Up to {StopwatchEngine.MaxConcurrent} stopwatches can run at once");
+            }
+
             if (_active == active)
             {
                 return;

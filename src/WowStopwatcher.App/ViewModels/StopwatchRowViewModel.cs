@@ -44,6 +44,16 @@ public sealed partial class StopwatchRowViewModel : ObservableObject
     private bool _hasGoal;
 
     [ObservableProperty]
+    private bool _isIndependent;
+
+    /// <summary>False when starting this stopwatch would exceed the concurrent limit (a running one stays stoppable).</summary>
+    [ObservableProperty]
+    private bool _canToggle = true;
+
+    [ObservableProperty]
+    private string? _toggleTip;
+
+    [ObservableProperty]
     private bool _isGoalReached;
 
     [ObservableProperty]
@@ -133,6 +143,9 @@ public sealed partial class StopwatchRowViewModel : ObservableObject
         IsRunning = running;
         ToggleLabel = (running ? "Stop " : "Start ") + definition.Name;
         HasGoal = hasGoal;
+        IsIndependent = definition.IsIndependent;
+        CanToggle = running || snapshot.CanStart(definition.Id);
+        ToggleTip = CanToggle ? null : $"Up to {StopwatchEngine.MaxConcurrent} stopwatches can run at once";
         IsGoalReached = reached;
         DoneWidth = new GridLength(fraction, GridUnitType.Star);
         LeftWidth = new GridLength(1 - fraction, GridUnitType.Star);
@@ -142,7 +155,7 @@ public sealed partial class StopwatchRowViewModel : ObservableObject
         GoalSub = !hasGoal
             ? "Set one in Settings"
             : reached ? "Reached" : $"{(int)Math.Floor(fraction * 100)}% done";
-        Shortcut = definition.Shortcut;
+        Shortcut = definition.Shortcut is null ? null : SettingsShortcutKeys.ToDisplay(definition.Shortcut);
         HasShortcut = !string.IsNullOrWhiteSpace(definition.Shortcut);
         TotalHuman = TimeFormat.Human(total);
         ToGoalLabel = !hasGoal ? "Goal" : reached ? "Over goal" : "To goal";

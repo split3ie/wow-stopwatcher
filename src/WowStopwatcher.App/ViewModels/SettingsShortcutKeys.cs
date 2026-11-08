@@ -8,6 +8,29 @@ namespace WowStopwatcher.App.ViewModels;
 /// </summary>
 internal static class SettingsShortcutKeys
 {
+    /// <summary>How the stored "Win" modifier is named on this OS: Cmd on macOS, Super on Linux, Win on Windows.</summary>
+    private static readonly string WinLabel = OperatingSystem.IsMacOS() ? "Cmd" : OperatingSystem.IsLinux() ? "Super" : "Win";
+
+    /// <summary>Shortcut text for display: the stored "Win" modifier is shown with the OS name. Stored text is not changed.</summary>
+    public static string ToDisplay(string text)
+    {
+        if (WinLabel == "Win" || !text.Contains("Win", StringComparison.OrdinalIgnoreCase))
+        {
+            return text;
+        }
+
+        var parts = text.Split('+');
+        for (var i = 0; i < parts.Length - 1; i++)
+        {
+            if (string.Equals(parts[i].Trim(), "Win", StringComparison.OrdinalIgnoreCase))
+            {
+                parts[i] = WinLabel;
+            }
+        }
+
+        return string.Join('+', parts);
+    }
+
     public static bool IsModifier(Key key) =>
         key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt
             or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin;

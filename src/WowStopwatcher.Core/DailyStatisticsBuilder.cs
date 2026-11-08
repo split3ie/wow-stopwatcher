@@ -24,9 +24,10 @@ public static class DailyStatisticsBuilder
             .Select(g => (Date: g.Key, Sessions: g.OrderBy(s => s.StartUtc).ThenBy(s => s.Id).ToList()))
             .ToList();
 
+        // The day total (and so the scale) is the union of all sessions: overlapping time counts once.
         var maxMinutes = days.Count == 0
             ? 0
-            : days.Max(d => d.Sessions.Sum(s => s.GetDuration(nowUtc).TotalMinutes));
+            : days.Max(d => SessionSlicer.Total(SessionSlicer.Build(d.Sessions, stopwatches, nowUtc)).TotalMinutes);
         var scale = Math.Max(MinScaleMinutes, (int)Math.Ceiling(maxMinutes / ScaleStepMinutes) * ScaleStepMinutes);
 
         var result = days.Select(d => BuildDay(d.Date, d.Sessions, stopwatches, byId, nowUtc, scale)).ToList();
@@ -45,17 +46,13 @@ public static class DailyStatisticsBuilder
         int scaleMinutes)
     {
         var scale = TimeSpan.FromMinutes(scaleMinutes);
-        var segments = sessions
-            .Select(s =>
-            {
-                var duration = s.GetDuration(nowUtc);
-                return new DaySegment(s.StopwatchId, byId[s.StopwatchId].Color, duration, duration / scale);
-            })
+        var segments = SessionSlicer.Build(sessions, stopwatches, nowUtc)
+            .Select(s => new DaySegment(s.Lanes[0].StopwatchId, s.Lanes[0].Color, s.Duration, s.Duration / scale, s.Lanes))
             .ToList();
 
-        var perStopwatch = segments
+        var perStopwatch = sessions
             .GroupBy(s => s.StopwatchId)
-            .ToDictionary(g => g.Key, g => g.Aggregate(TimeSpan.Zero, (a, s) => a + s.Duration));
+            .ToDictionary(g => g.Key, g => g.Aggregate(TimeSpan.Zero, (a, s) => a + s.GetDuration(nowUtc)));
         var dayTotal = segments.Aggregate(TimeSpan.Zero, (a, s) => a + s.Duration);
 
         var totals = stopwatches
@@ -65,8 +62,8 @@ public static class DailyStatisticsBuilder
             {
                 var total = perStopwatch.GetValueOrDefault(s.Id);
                 var reached = !s.IsDeleted && s.HasGoal && total >= s.Goal!.Value;
-                var share = dayTotal > TimeSpan.Zero ? total / dayTotal : 0;
-                return new DayStopwatchTotal(s.Id, s.Name, s.Color, s.IsDeleted, total, share, s.Goal, reached);
+                var share = dayTotal > TimeSpan.Zero ? Math.Clamp(total / dayTotal, 0, 1) : 0;
+                return new DayStopwatchTotal(s.Id, s.Name, s.Color, s.IsDeleted, total, share, s.Goal, reached, s.IsIndependent);
             })
             .ToList();
 

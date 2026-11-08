@@ -21,6 +21,12 @@ public sealed partial class DaySegmentViewModel : ObservableObject
     [ObservableProperty]
     private IBrush? _brush;
 
+    [ObservableProperty]
+    private bool _hasLanes;
+
+    /// <summary>Stripes of an overlap segment; empty for a single-stopwatch segment.</summary>
+    public System.Collections.ObjectModel.ObservableCollection<LaneViewModel> Lanes { get; } = [];
+
     /// <summary>Set by the view while the pointer is over the segment.</summary>
     [ObservableProperty]
     private bool _isHovered;
@@ -40,6 +46,7 @@ public sealed partial class DaySegmentViewModel : ObservableObject
         Width = segment.WidthFraction;
         Title = $"{stopwatchName} · session {number}";
         TimeText = TimeFormat.HoursMinutes(segment.Duration);
+        HasLanes = LaneViewModel.Sync(Lanes, segment.Lanes);
         if (_color != segment.Color)
         {
             _color = segment.Color;

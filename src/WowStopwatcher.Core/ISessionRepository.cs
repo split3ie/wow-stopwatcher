@@ -15,6 +15,9 @@ public interface ISessionRepository
     /// <summary>The session with the latest start, or null when there are none.</summary>
     Session? GetLatest();
 
+    /// <summary>The session with the latest start among the given stopwatches, or null when there are none (or no ids).</summary>
+    Session? GetLatestForStopwatches(IReadOnlyCollection<string> stopwatchIds);
+
     /// <summary>Sessions whose start is in [<paramref name="fromUtc"/>, <paramref name="toUtc"/>), ordered by start.</summary>
     IReadOnlyList<Session> GetInRange(DateTimeOffset fromUtc, DateTimeOffset toUtc);
 

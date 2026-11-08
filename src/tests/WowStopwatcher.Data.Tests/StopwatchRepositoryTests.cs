@@ -15,6 +15,19 @@ public class StopwatchRepositoryTests
     }
 
     [Fact]
+    public void IsIndependent_RoundTripsOnAddAndUpdate()
+    {
+        using var db = new TempDatabase();
+        var def = new StopwatchDefinition("a", "YouTube", "#111111", null, null, 0, IsIndependent: true);
+        db.Stopwatches.Add(def);
+        Assert.Equal(def, db.Stopwatches.Get("a"));
+        Assert.True(Assert.Single(db.Stopwatches.GetAll()).IsIndependent);
+
+        db.Stopwatches.Update(def with { IsIndependent = false });
+        Assert.False(db.Stopwatches.Get("a")!.IsIndependent);
+    }
+
+    [Fact]
     public void NullableFields_RoundTripAsNull()
     {
         using var db = new TempDatabase();

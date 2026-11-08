@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -8,7 +9,8 @@ using WowStopwatcher.Core;
 namespace WowStopwatcher.App.Tray;
 
 /// <summary>
-/// Owns the tray icon: tooltip, icon color, single click (custom menu) and double click (next stopwatch).
+/// Owns the tray icon: tooltip and icon color. On Windows: single click opens a custom menu, double click starts the
+/// next stopwatch. On macOS and Linux: a native menu with the stopwatches, "Next stopwatch", Stop all, Open and Quit.
 /// Must be created and used on the UI thread.
 /// </summary>
 public sealed class TrayController : IDisposable
@@ -22,6 +24,9 @@ public sealed class TrayController : IDisposable
     private DispatcherTimer? _pendingOpen;
     private long _menuClosedAt;
     private string? _iconKey;
+    private NativeMenu? _stopwatchMenu;
+    private string? _menuSignature;
+    private readonly List<(string Id, NativeMenuItem Item)> _stopwatchItems = [];
 
     public TrayController(StopwatchEngine engine, Action openMain, Action quit)
     {
@@ -32,7 +37,7 @@ public sealed class TrayController : IDisposable
 
     public void Start()
     {
-        // Right click: a plain native menu (left click is the custom menu).
+        // Windows right click: a plain native menu (left click is the custom menu).
         var open = new NativeMenuItem("Open WowStopwatcher");
         open.Click += (_, _) => _openMain();
         var stopAll = new NativeMenuItem("Stop all");
@@ -43,10 +48,19 @@ public sealed class TrayController : IDisposable
         _tray = new TrayIcon
         {
             ToolTipText = "WowStopwatcher",
-            Menu = [open, stopAll, new NativeMenuItemSeparator(), quit],
             IsVisible = true,
         };
-        _tray.Clicked += OnClicked;
+        if (OperatingSystem.IsWindows())
+        {
+            _tray.Menu = [open, stopAll, new NativeMenuItemSeparator(), quit];
+            _tray.Clicked += OnClicked;
+        }
+        else
+        {
+            _stopwatchMenu = new NativeMenu();
+            _tray.Menu = _stopwatchMenu;
+        }
+
         TrayIcon.SetIcons(Application.Current!, [_tray]);
 
         UpdateIconAndTooltip();
@@ -66,11 +80,18 @@ public sealed class TrayController : IDisposable
         }
 
         var snapshot = _engine.GetSnapshot();
-        var running = snapshot.RunningId is { } id ? snapshot.Find(id) : null;
+        // The running normal stopwatch; when only independent ones run, the first of them.
+        var runningSession = snapshot.RunningSession ?? snapshot.RunningSessions.FirstOrDefault();
+        var running = runningSession is null ? null : snapshot.Find(runningSession.StopwatchId);
+
+        if (_stopwatchMenu is not null)
+        {
+            UpdateNativeMenu(snapshot);
+        }
 
         var tooltip = running is null
             ? "WowStopwatcher"
-            : $"WowStopwatcher · {running.Name} {TimeFormat.Clock(snapshot.RunningElapsed)}";
+            : $"WowStopwatcher · {running.Name} {TimeFormat.Clock(snapshot.GetDuration(runningSession!))}";
         if (_tray.ToolTipText != tooltip)
         {
             _tray.ToolTipText = tooltip;
@@ -88,6 +109,81 @@ public sealed class TrayController : IDisposable
         _tray.Icon = TrayIconRenderer.Render(color);
     }
 
+    private void UpdateNativeMenu(StopwatchEngineSnapshot snapshot)
+    {
+        var signature = string.Join('|', snapshot.Stopwatches.Select(s => $"{s.Id}:{s.Name}:{s.Color}:{s.IsIndependent}"));
+        if (signature != _menuSignature)
+        {
+            _menuSignature = signature;
+            RebuildNativeMenu(snapshot);
+        }
+
+        foreach (var (stopwatchId, item) in _stopwatchItems)
+        {
+            var definition = snapshot.Find(stopwatchId);
+            if (definition is null)
+            {
+                continue;
+            }
+
+            var header = $"{definition.Name}  {TimeFormat.Clock(snapshot.GetTodayTotal(stopwatchId))}";
+            if (item.Header != header)
+            {
+                item.Header = header;
+            }
+
+            var isRunning = snapshot.IsRunning(stopwatchId);
+            if (item.IsChecked != isRunning)
+            {
+                item.IsChecked = isRunning;
+            }
+
+            // A running stopwatch stays stoppable; a stopped one cannot start past the concurrent limit.
+            var canToggle = isRunning || snapshot.CanStart(stopwatchId);
+            if (item.IsEnabled != canToggle)
+            {
+                item.IsEnabled = canToggle;
+            }
+        }
+    }
+
+    private void RebuildNativeMenu(StopwatchEngineSnapshot snapshot)
+    {
+        var menu = _stopwatchMenu!;
+        menu.Items.Clear();
+        _stopwatchItems.Clear();
+
+        foreach (var stopwatch in snapshot.Stopwatches)
+        {
+            var id = stopwatch.Id;
+            var item = new NativeMenuItem(stopwatch.Name) { ToggleType = MenuItemToggleType.CheckBox };
+            item.Click += (_, _) => _engine.Toggle(id);
+            _stopwatchItems.Add((id, item));
+            menu.Items.Add(item);
+        }
+
+        if (snapshot.Stopwatches.Count > 0)
+        {
+            menu.Items.Add(new NativeMenuItemSeparator());
+        }
+
+        var next = new NativeMenuItem("Next stopwatch");
+        next.Click += (_, _) => _engine.StartNext();
+        var stopAll = new NativeMenuItem("Stop all");
+        stopAll.Click += (_, _) => _engine.StopAll();
+        var open = new NativeMenuItem("Open WowStopwatcher");
+        open.Click += (_, _) => _openMain();
+        var quit = new NativeMenuItem("Quit");
+        quit.Click += (_, _) => _quit();
+
+        menu.Items.Add(next);
+        menu.Items.Add(stopAll);
+        menu.Items.Add(open);
+        menu.Items.Add(new NativeMenuItemSeparator());
+        menu.Items.Add(quit);
+    }
+
+    [SupportedOSPlatform("windows")]
     private void OnClicked(object? sender, EventArgs e)
     {
         // Second click within the double-click time: next stopwatch, and the menu never opens.
@@ -151,9 +247,11 @@ public sealed class TrayController : IDisposable
         }
     }
 
+    [SupportedOSPlatform("windows")]
     [DllImport("user32.dll")]
     private static extern uint GetDoubleClickTime();
 
+    [SupportedOSPlatform("windows")]
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetCursorPos(out NativePoint point);
