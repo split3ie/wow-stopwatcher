@@ -50,6 +50,19 @@
       <Setter Property="Padding" Value="19,15" />
     </Style>
 
+    <!-- Restore button of a hidden stopwatch: visible only while the row is hovered or focused -->
+    <Style Selector="Button.secondary.restore">
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="10,0" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="Button.secondary.restore.shown">
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+
     <Style Selector="CheckBox.pick">
       <Setter Property="Width" Value="20" />
       <Setter Property="MinWidth" Value="0" />
@@ -305,6 +318,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:DayStopwatchRowViewModel">
+                            <c:HoverBorder Background="Transparent" IsActive="{Binding IsActive, Mode=TwoWay}">
                             <Grid ColumnDefinitions="120,*,Auto" ColumnSpacing="12">
                               <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6" VerticalAlignment="Center">
                                 <Border Width="10" Height="10"
@@ -345,7 +359,15 @@
                                          TextAlignment="Right"
                                          VerticalAlignment="Center"
                                          Text="{Binding TimeText}" />
+                              <Button Grid.Column="1"
+                                      Classes="secondary restore"
+                                      Classes.shown="{Binding IsActive}"
+                                      IsVisible="{Binding IsDeleted}"
+                                      Command="{Binding RestoreCommand}"
+                                      Content="Restore"
+                                      AutomationProperties.Name="{Binding RestoreLabel}" />
                             </Grid>
+                            </c:HoverBorder>
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>

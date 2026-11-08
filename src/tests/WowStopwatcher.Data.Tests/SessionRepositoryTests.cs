@@ -22,6 +22,26 @@ public class SessionRepositoryTests
     }
 
     [Fact]
+    public void GetLatestStartPerStopwatch_ReturnsMaxStartPerId()
+    {
+        using var db = new TempDatabase();
+        db.AddStopwatch("a");
+        db.AddStopwatch("b", 1);
+        db.AddStopwatch("c", 2);
+        db.Sessions.InsertOpen("a", T0);
+        db.Sessions.InsertOpen("a", T0.AddHours(3));
+        db.Sessions.InsertOpen("a", T0.AddHours(1));
+        db.Sessions.InsertOpen("b", T0.AddDays(1));
+
+        var latest = db.Sessions.GetLatestStartPerStopwatch();
+
+        Assert.Equal(2, latest.Count);
+        Assert.Equal(T0.AddHours(3), latest["a"]);
+        Assert.Equal(T0.AddDays(1), latest["b"]);
+        Assert.False(latest.ContainsKey("c"));
+    }
+
+    [Fact]
     public void GetLatestForStopwatches_OnlyConsidersGivenIds()
     {
         using var db = new TempDatabase();

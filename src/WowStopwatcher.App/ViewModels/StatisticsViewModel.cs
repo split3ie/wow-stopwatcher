@@ -135,6 +135,15 @@ public sealed partial class StatisticsViewModel : ObservableObject
         });
     }
 
+    /// <summary>Un-hides a stopwatch and refreshes the page so its row updates right away.</summary>
+    internal void Restore(string id)
+    {
+        if (_engine.Restore(id))
+        {
+            Reload();
+        }
+    }
+
     private static string Plural(int days) => days == 1 ? "1 day" : $"{days} days";
 
     private void EndSelect()

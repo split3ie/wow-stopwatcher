@@ -28,6 +28,7 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
         _brush = ParseBrush(definition.Color);
         _hasGoal = definition.HasGoal;
         _isIndependent = definition.IsIndependent;
+        _isPermanent = definition.IsPermanent;
         _goalText = definition.HasGoal ? TimeFormat.FormatGoal(definition.Goal!.Value) : SettingsGoalMask.Empty;
         _shortcut = definition.Shortcut ?? string.Empty;
         Swatches =
@@ -61,6 +62,10 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
     /// <summary>True when this stopwatch runs alongside the others instead of replacing the running one.</summary>
     [ObservableProperty]
     private bool _isIndependent;
+
+    /// <summary>True when this stopwatch is kept every day instead of disappearing after a full day without use.</summary>
+    [ObservableProperty]
+    private bool _isPermanent;
 
     /// <summary>Goal as "hh:mm:ss". Kept when the goal checkbox is cleared.</summary>
     [ObservableProperty]
@@ -150,6 +155,8 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
     partial void OnHasGoalChanged(bool value) => _owner.Save(this);
 
     partial void OnIsIndependentChanged(bool value) => _owner.SaveType(this);
+
+    partial void OnIsPermanentChanged(bool value) => _owner.SavePermanent(this);
 
     partial void OnGoalTextChanged(string value)
     {

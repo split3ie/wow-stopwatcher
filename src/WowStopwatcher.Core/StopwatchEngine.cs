@@ -192,6 +192,69 @@ public sealed class StopwatchEngine
         return true;
     });
 
+    /// <summary>
+    /// Brings a hidden (deleted or expired) stopwatch back: it goes to the end of the visible list and its
+    /// ActiveSinceUtc is set to now. Keeps its shortcut unless a visible stopwatch uses it, then takes the next free default.
+    /// Returns false when the stopwatch is unknown or not deleted.
+    /// </summary>
+    public bool Restore(string id)
+    {
+        var restored = false;
+        Mutate(now =>
+        {
+            var target = _definitions.FirstOrDefault(d => d.Id == id);
+            if (target is null || !target.IsDeleted)
+            {
+                return false;
+            }
+
+            var visible = _definitions.Where(d => !d.IsDeleted).ToList();
+            var shortcut = target.Shortcut;
+            if (!string.IsNullOrWhiteSpace(shortcut)
+                && visible.Any(d => string.Equals(d.Shortcut?.Trim(), shortcut.Trim(), StringComparison.OrdinalIgnoreCase)))
+            {
+                shortcut = DefaultShortcuts.Next(visible.Select(d => d.Shortcut));
+            }
+
+            _stopwatches.Update(target with { IsDeleted = false, ActiveSinceUtc = now, Shortcut = shortcut });
+            var order = visible.Select(d => d.Id)
+                .Append(id)
+                .Concat(_definitions.Where(d => d.IsDeleted && d.Id != id).Select(d => d.Id))
+                .ToList();
+            _stopwatches.SaveSortOrder(order);
+            _definitions = _stopwatches.GetAll(includeDeleted: true);
+            restored = true;
+            return true;
+        });
+
+        return restored;
+    }
+
+    // Hides temporary stopwatches unused for a full local day. Returns true when any were hidden.
+    private bool ApplyExpiry()
+    {
+        var running = _independent.Keys.ToHashSet();
+        if (_running is { } current)
+        {
+            running.Add(current.StopwatchId);
+        }
+
+        var expired = TemporaryStopwatchExpiry.FindExpired(
+            _definitions, _sessions.GetLatestStartPerStopwatch(), running, _today, _time.LocalTimeZone);
+        if (expired.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var id in expired)
+        {
+            _stopwatches.SoftDelete(id);
+        }
+
+        _definitions = _stopwatches.GetAll(includeDeleted: true);
+        return true;
+    }
+
     private void Load()
     {
         lock (_lock)
@@ -221,6 +284,7 @@ public sealed class StopwatchEngine
             RefreshLastUsed();
             _today = LocalDays.ToLocalDate(now, _time.LocalTimeZone);
             SplitAtMidnight(now);
+            ApplyExpiry();
             RefreshToday();
         }
     }
@@ -242,7 +306,13 @@ public sealed class StopwatchEngine
         lock (_lock)
         {
             var now = Now();
+            var previousDay = _today;
             changed = SplitAtMidnight(now);
+            if (_today != previousDay)
+            {
+                changed |= ApplyExpiry();
+            }
+
             changed |= action(now);
             if (changed)
             {

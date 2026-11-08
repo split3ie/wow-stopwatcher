@@ -125,7 +125,7 @@ public sealed partial class DayViewModel : ObservableObject
             start += segment.WidthFraction;
         }
 
-        CollectionSync.Resize(Rows, day.Totals.Count, () => new DayStopwatchRowViewModel());
+        CollectionSync.Resize(Rows, day.Totals.Count, () => new DayStopwatchRowViewModel(_owner));
         for (var i = 0; i < day.Totals.Count; i++)
         {
             Rows[i].Update(day.Totals[i]);

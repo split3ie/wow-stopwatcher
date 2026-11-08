@@ -15,9 +15,12 @@ WowStopwatcher is a personal desktop app for Windows, macOS and Linux that track
 - Totals (Today and each Statistics day) are wall-clock time when any stopwatch ran: overlapping time counts once.
   Per-stopwatch totals are each stopwatch's full time. In the timeline bars, overlapping time is drawn as
   stacked stripes, one per running stopwatch (`SessionSlicer`).
+- **Temporary vs permanent stopwatches:** a stopwatch is temporary by default and is hidden automatically after a full local day
+  without use (`TemporaryStopwatchExpiry`); a permanent one is kept. Hidden stopwatches (expired or deleted) keep their statistics
+  and can be restored from Statistics (`StopwatchEngine.Restore`).
 - Screens: **Today** (timeline, stopwatch rows, total, Stop all, goals), **Statistics** (one timeline per day,
-  expandable per-stopwatch totals, select/clear days), **Settings** (autostart, goal notification toggle, stopwatches: name, color
-  (16 presets or a custom color), goal, independent, shortcut, order, delete; version and update check).
+  expandable per-stopwatch totals with a hover **Restore** button on hidden stopwatches, select/clear days), **Settings** (autostart, goal notification toggle, stopwatches: name, color
+  (16 presets or a custom color), goal, independent, permanent, shortcut, order, delete; version and update check).
 - **System tray**: icon with a menu listing stopwatches with live times, running ones highlighted, switch on click,
   Stop all (stops every running stopwatch), Open, Quit. Double-clicking the tray icon stops the current regular
   stopwatch and starts the next regular one in order (independent ones are skipped).
@@ -92,7 +95,7 @@ The build must finish with no errors and no new warnings. Run the tests after an
 - Store timestamps as UTC; group sessions into days by **local** date of the session start.
 - A running stopwatch is a session with no stop time. On normal quit, running sessions are stopped and saved.
   After a crash, an open session is resumed on the next start.
-- Deleting a stopwatch is a soft delete: its past sessions stay in statistics with their name and color.
+- Deleting a stopwatch is a soft delete (also used when a temporary stopwatch expires): its past sessions stay in statistics with their name and color.
 - Design tokens (colors, radii, fonts) live in one resource dictionary in the App project. Do not hard-code
   colors in views; reference the tokens.
 - Fonts: Inter (via `Avalonia.Fonts.Inter`) for text; `Cascadia Mono, Consolas` for times and numbers.

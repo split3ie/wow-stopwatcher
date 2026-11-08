@@ -51,6 +51,21 @@ public sealed class SqliteSessionRepository(SqliteDatabase database) : ISessionR
             parameters).FirstOrDefault();
     }
 
+    public IReadOnlyDictionary<string, DateTimeOffset> GetLatestStartPerStopwatch()
+    {
+        using var connection = database.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT stopwatch_id, MAX(start_utc) FROM sessions GROUP BY stopwatch_id";
+        var result = new Dictionary<string, DateTimeOffset>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            result[reader.GetString(0)] = DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(1));
+        }
+
+        return result;
+    }
+
     public IReadOnlyList<Session> GetInRange(DateTimeOffset fromUtc, DateTimeOffset toUtc) =>
         Query(
             $"SELECT {Columns} FROM sessions WHERE start_utc >= $from AND start_utc < $to ORDER BY start_utc, id",
