@@ -94,7 +94,10 @@ public sealed partial class TimelineViewModel : ObservableObject
         CollectionSync.Resize(Segments, timeline.Segments.Count, CreateSegment);
         for (var i = 0; i < timeline.Segments.Count; i++)
         {
-            Segments[i].Update(timeline.Segments[i]);
+            var segment = Segments[i];
+            segment.Update(timeline.Segments[i]);
+            segment.ExtendsLeft = segment.IsRemaining && i > 0 && Segments[i - 1].IsRemaining;
+            segment.ZIndex = segment.IsRemaining ? timeline.Segments.Count - i : 0;
         }
 
         CollectionSync.Resize(Pins, timeline.Pins.Count, CreatePin);

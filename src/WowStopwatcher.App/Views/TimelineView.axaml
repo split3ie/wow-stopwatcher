@@ -65,13 +65,23 @@
               <Style Selector="ContentPresenter" x:DataType="vm:SegmentViewModel">
                 <Setter Property="(c:TrackPanel.Start)" Value="{Binding Start}" />
                 <Setter Property="(c:TrackPanel.SpanWidth)" Value="{Binding Width}" />
+                <Setter Property="ZIndex" Value="{Binding ZIndex}" />
               </Style>
             </ItemsControl.Styles>
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:SegmentViewModel">
                 <c:HoverBorder Classes="segment" Background="Transparent" IsActive="{Binding IsHovered, Mode=TwoWay}">
                   <Grid>
-                    <Border Background="{Binding Brush}" />
+                    <!-- Opaque base under a goal piece so the next piece's fill does not show through it -->
+                    <Border IsVisible="{Binding IsRemaining}"
+                            Background="{DynamicResource PageBrush}"
+                            CornerRadius="{Binding CornerRadius}"
+                            Margin="{Binding FillMargin}" />
+                    <Border Background="{Binding Brush}"
+                            CornerRadius="{Binding CornerRadius}"
+                            Margin="{Binding FillMargin}"
+                            BorderBrush="{Binding EdgeBrush}"
+                            BorderThickness="0,0,1.5,0" />
                     <ItemsControl IsVisible="{Binding HasLanes}" ItemsSource="{Binding Lanes}">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -84,7 +94,6 @@
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <Border IsVisible="{Binding IsRemaining}" Background="{DynamicResource StripeBrush}" />
                     <Line IsVisible="{Binding IsCapped}"
                           StartPoint="1,0" EndPoint="1,40"
                           HorizontalAlignment="Left"
@@ -93,6 +102,7 @@
                           StrokeThickness="2"
                           StrokeDashArray="2,2" />
                     <Rectangle Width="1"
+                               IsVisible="{Binding !IsRemaining}"
                                HorizontalAlignment="Right"
                                Fill="{DynamicResource SegmentSeamBrush}" />
                   </Grid>
