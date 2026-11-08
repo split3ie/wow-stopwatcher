@@ -27,6 +27,7 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
         _color = definition.Color;
         _brush = ParseBrush(definition.Color);
         _hasGoal = definition.HasGoal;
+        _isIndependent = definition.IsIndependent;
         _goalText = definition.HasGoal ? TimeFormat.FormatGoal(definition.Goal!.Value) : SettingsGoalMask.Empty;
         _shortcut = definition.Shortcut ?? string.Empty;
         Swatches =
@@ -48,6 +49,7 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
     private string _name;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ColorName), nameof(ColorLabel))]
     private string _color;
 
     [ObservableProperty]
@@ -55,6 +57,10 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _hasGoal;
+
+    /// <summary>True when this stopwatch runs alongside the others instead of replacing the running one.</summary>
+    [ObservableProperty]
+    private bool _isIndependent;
 
     /// <summary>Goal as "hh:mm:ss". Kept when the goal checkbox is cleared.</summary>
     [ObservableProperty]
@@ -87,6 +93,14 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isDropTarget;
+
+    /// <summary>Palette name of the current color, or "Custom" when it is not a palette color.</summary>
+    public string ColorName => SettingsSwatchViewModel.Palette
+        .Where(p => string.Equals(p.Hex, Color, StringComparison.OrdinalIgnoreCase))
+        .Select(p => p.Name)
+        .FirstOrDefault("Custom");
+
+    public string ColorLabel => "Color, " + ColorName;
 
     public string DisplayName => string.IsNullOrWhiteSpace(Name) ? NoNameLabel : Name;
 
@@ -135,6 +149,8 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
 
     partial void OnHasGoalChanged(bool value) => _owner.Save(this);
 
+    partial void OnIsIndependentChanged(bool value) => _owner.SaveType(this);
+
     partial void OnGoalTextChanged(string value)
     {
         if (HasGoal)
@@ -163,6 +179,37 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
 
         _owner.Save(this);
     }
+
+    /// <summary>True while the flyout shows the custom color picker instead of the swatches.</summary>
+    [ObservableProperty]
+    private bool _isCustomColorOpen;
+
+    /// <summary>The color being edited in the custom picker. Saved only by <see cref="ApplyCustomColor"/>.</summary>
+    [ObservableProperty]
+    private Avalonia.Media.Color _pendingColor;
+
+    [RelayCommand]
+    private void OpenCustomColor()
+    {
+        PendingColor = Avalonia.Media.Color.TryParse(Color, out var current) ? current : default;
+        IsCustomColorOpen = true;
+    }
+
+    [RelayCommand]
+    private void ApplyCustomColor()
+    {
+        var c = PendingColor;
+        SelectColor($"#{c.R:X2}{c.G:X2}{c.B:X2}");
+        IsCustomColorOpen = false;
+        ColorFlyoutCloseRequested?.Invoke();
+    }
+
+    /// <summary>Raised when the flyout should close after a custom color was applied.</summary>
+    public event Action? ColorFlyoutCloseRequested;
+
+    /// <summary>Goes back from the custom picker to the swatches without saving.</summary>
+    [RelayCommand]
+    public void CancelCustomColor() => IsCustomColorOpen = false;
 
     /// <summary>Starts listening for a shortcut.</summary>
     public void BeginRecording()

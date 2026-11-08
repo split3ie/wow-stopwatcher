@@ -22,6 +22,21 @@ public class SessionRepositoryTests
     }
 
     [Fact]
+    public void GetLatestForStopwatches_OnlyConsidersGivenIds()
+    {
+        using var db = new TempDatabase();
+        db.AddStopwatch("a");
+        db.AddStopwatch("b", 1);
+        db.Sessions.InsertOpen("a", T0);
+        db.Sessions.InsertOpen("b", T0.AddHours(1));
+
+        Assert.Null(db.Sessions.GetLatestForStopwatches([]));
+        Assert.Null(db.Sessions.GetLatestForStopwatches(["missing"]));
+        Assert.Equal("a", db.Sessions.GetLatestForStopwatches(["a"])!.StopwatchId);
+        Assert.Equal("b", db.Sessions.GetLatestForStopwatches(["a", "b"])!.StopwatchId);
+    }
+
+    [Fact]
     public void GetLatest_IsNullWhenEmpty_ElseLatestStart()
     {
         using var db = new TempDatabase();

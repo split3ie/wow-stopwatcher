@@ -16,6 +16,16 @@ public sealed partial class SettingsSwatchViewModel : ObservableObject
         ("Purple", "#7C4DDB"),
         ("Pink", "#D6407A"),
         ("Teal", "#0E8C8C"),
+        ("Red", "#D92D20"),
+        ("Amber", "#B8860B"),
+        ("Lime", "#5C9E1B"),
+        ("Cyan", "#0891B2"),
+        ("Indigo", "#4F46E5"),
+        ("Slate", "#475569"),
+        ("Brown", "#8B5A2B"),
+        ("Magenta", "#B5179E"),
+        ("Olive", "#6B7A1F"),
+        ("Navy", "#1E3A8A"),
     ];
 
     private readonly SettingsStopwatchViewModel _owner;

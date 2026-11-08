@@ -17,6 +17,12 @@ public sealed partial class SegmentViewModel : ObservableObject
     private IBrush? _brush;
 
     [ObservableProperty]
+    private bool _hasLanes;
+
+    /// <summary>Stripes of an overlap segment; empty for a single-stopwatch segment.</summary>
+    public System.Collections.ObjectModel.ObservableCollection<LaneViewModel> Lanes { get; } = [];
+
+    [ObservableProperty]
     private bool _isRemaining;
 
     [ObservableProperty]
@@ -58,6 +64,8 @@ public sealed partial class SegmentViewModel : ObservableObject
             : segment.IsLive
                 ? TimeFormat.Clock(segment.Duration, withMs: true)
                 : TimeFormat.Human(segment.Duration);
+
+        HasLanes = LaneViewModel.Sync(Lanes, segment.Lanes);
 
         if (_color != segment.Color)
         {

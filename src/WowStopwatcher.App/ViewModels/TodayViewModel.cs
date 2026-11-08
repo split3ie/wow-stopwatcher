@@ -192,7 +192,9 @@ public sealed partial class TodayViewModel : ObservableObject
         _confirmText = snapshot =>
         {
             var sessions = snapshot.TodaySessions.Count;
-            var running = snapshot.RunningId is { } id ? snapshot.Find(id)?.Name : null;
+            var running = snapshot.IsAnyRunning
+                ? string.Join(", ", snapshot.RunningSessions.Select(s => snapshot.Find(s.StopwatchId)?.Name).Where(n => n is not null))
+                : null;
             var what = sessions == 1 ? "the 1 session" : $"all {sessions} sessions";
             var body = $"This deletes {what} logged today ({TimeFormat.Human(snapshot.GrandTotal)})"
                 + (running is not null ? $" and stops {running}" : string.Empty)
@@ -297,19 +299,21 @@ public sealed partial class TodayViewModel : ObservableObject
         TotalText = TimeFormat.Clock(snapshot.GrandTotal);
         TotalHuman = $"{TimeFormat.Human(snapshot.GrandTotal)} across {count} {(count == 1 ? "stopwatch" : "stopwatches")}";
 
-        var running = snapshot.RunningId is { } runningId ? snapshot.Find(runningId) : null;
-        IsAnyRunning = running is not null;
+        // Shows the running normal stopwatch; when only independent ones run, the first of them.
+        var runningSession = snapshot.RunningSession ?? snapshot.RunningSessions.FirstOrDefault();
+        var running = runningSession is null ? null : snapshot.Find(runningSession.StopwatchId);
+        IsAnyRunning = snapshot.IsAnyRunning;
         RunningText = running is null
             ? "Nothing is running"
             : $"{running.Name} is running";
-        RunningElapsedText = running is null ? string.Empty : TimeFormat.Clock(snapshot.RunningElapsed);
+        RunningElapsedText = runningSession is null ? string.Empty : TimeFormat.Clock(snapshot.GetDuration(runningSession));
         if (_runningColor != running?.Color)
         {
             _runningColor = running?.Color;
             RunningBrush = _runningColor is null ? null : Brush.Parse(_runningColor);
         }
 
-        MainActionLabel = running is null ? "Start" : "Stop";
+        MainActionLabel = snapshot.IsAnyRunning ? "Stop" : "Start";
 
         // Same choice as StopwatchEngine.StartNext when nothing runs: the last used stopwatch, else the first.
         var lastUsed = snapshot.LastUsedId is { } last ? snapshot.Stopwatches.FirstOrDefault(s => s.Id == last) : null;

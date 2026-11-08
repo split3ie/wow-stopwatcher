@@ -24,8 +24,15 @@ public sealed record TimelineSegment(
     string? SubText,
     double Start,
     double Width,
-    bool Capped)
+    bool Capped,
+    IReadOnlyList<TimelineLane>? Lanes = null)
 {
+    /// <summary>
+    /// The stopwatches running during a logged piece, one stripe each (normal first). More than one when they overlap.
+    /// Empty for the remaining section. <see cref="StopwatchId"/> and <see cref="Color"/> repeat the first lane.
+    /// </summary>
+    public IReadOnlyList<TimelineLane> Lanes { get; } = Lanes ?? [];
+
     /// <summary>Center fraction of the segment.</summary>
     public double Center => Start + Width / 2;
 }

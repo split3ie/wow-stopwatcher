@@ -21,6 +21,13 @@ public partial class SettingsStopwatchView : UserControl
         NameBox.Loaded += OnNameBoxLoaded;
         NameBox.LostFocus += (_, _) => Vm?.CommitName();
 
+        SwatchList.AddHandler(Button.ClickEvent, OnSwatchClick);
+        if (ColorButton.Flyout is { } colorFlyout)
+        {
+            colorFlyout.Closed += (_, _) => Vm?.CancelCustomColor();
+        }
+        DataContextChanged += OnDataContextChanged;
+
         Recorder.GotFocus += (_, _) => Vm?.BeginRecording();
         Recorder.LostFocus += (_, _) => Vm?.EndRecording();
         Recorder.PointerPressed += OnRecorderPointerPressed;
@@ -29,6 +36,28 @@ public partial class SettingsStopwatchView : UserControl
     }
 
     private SettingsStopwatchViewModel? Vm => DataContext as SettingsStopwatchViewModel;
+
+    // Click is raised before the button runs its Command. Hiding the flyout right away detaches the swatch
+    // and its binding, so PickCommand never ran. Hide after the command has executed.
+    private void OnSwatchClick(object? sender, RoutedEventArgs e) => HideColorFlyoutLater();
+
+    private void HideColorFlyoutLater() => Dispatcher.UIThread.Post(() => ColorButton.Flyout?.Hide());
+
+    private SettingsStopwatchViewModel? _subscribed;
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.ColorFlyoutCloseRequested -= HideColorFlyoutLater;
+        }
+
+        _subscribed = Vm;
+        if (_subscribed is not null)
+        {
+            _subscribed.ColorFlyoutCloseRequested += HideColorFlyoutLater;
+        }
+    }
 
     private void OnNameBoxLoaded(object? sender, RoutedEventArgs e)
     {

@@ -10,6 +10,8 @@ namespace WowStopwatcher.Core;
 /// <param name="Shortcut">Optional global shortcut text such as "Ctrl+F1" or "Ctrl+Alt+Shift+K".</param>
 /// <param name="SortOrder">Position in lists; lower comes first.</param>
 /// <param name="IsDeleted">True when the stopwatch was deleted in Settings.</param>
+/// <param name="IsIndependent">True when the stopwatch runs alongside the others (starting or stopping it affects no other)
+/// and its time is not counted in totals.</param>
 public sealed record StopwatchDefinition(
     string Id,
     string Name,
@@ -17,7 +19,8 @@ public sealed record StopwatchDefinition(
     TimeSpan? Goal,
     string? Shortcut,
     int SortOrder,
-    bool IsDeleted = false)
+    bool IsDeleted = false,
+    bool IsIndependent = false)
 {
     /// <summary>True when a positive daily goal is set.</summary>
     public bool HasGoal => Goal is { } goal && goal > TimeSpan.Zero;

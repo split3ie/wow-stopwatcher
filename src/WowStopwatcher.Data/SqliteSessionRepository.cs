@@ -37,6 +37,20 @@ public sealed class SqliteSessionRepository(SqliteDatabase database) : ISessionR
     public Session? GetLatest() =>
         Query($"SELECT {Columns} FROM sessions ORDER BY start_utc DESC, id DESC LIMIT 1").FirstOrDefault();
 
+    public Session? GetLatestForStopwatches(IReadOnlyCollection<string> stopwatchIds)
+    {
+        if (stopwatchIds.Count == 0)
+        {
+            return null;
+        }
+
+        var names = stopwatchIds.Select((_, i) => "$id" + i).ToArray();
+        var parameters = stopwatchIds.Select((id, i) => (names[i], (object)id)).ToArray();
+        return Query(
+            $"SELECT {Columns} FROM sessions WHERE stopwatch_id IN ({string.Join(", ", names)}) ORDER BY start_utc DESC, id DESC LIMIT 1",
+            parameters).FirstOrDefault();
+    }
+
     public IReadOnlyList<Session> GetInRange(DateTimeOffset fromUtc, DateTimeOffset toUtc) =>
         Query(
             $"SELECT {Columns} FROM sessions WHERE start_utc >= $from AND start_utc < $to ORDER BY start_utc, id",

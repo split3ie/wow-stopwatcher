@@ -56,6 +56,8 @@
                 l:FlexWrapPanel.Basis="380"
                 l:FlexWrapPanel.Grow="1"
                 Command="{Binding ToggleCommand}"
+                IsEnabled="{Binding CanToggle}"
+                ToolTip.Tip="{Binding ToggleTip}"
                 AutomationProperties.Name="{Binding ToggleLabel}">
           <Border Classes="rowFrame"
                   Classes.running="{Binding IsRunning}"
@@ -73,6 +75,12 @@
                   </Grid.ColumnDefinitions>
                   <Border Background="{Binding FillBrush}" />
                 </Grid>
+              </Border>
+
+              <!-- Independent mark: line along the bottom edge, following the rounded corners -->
+              <Border ClipToBounds="True" CornerRadius="9" IsHitTestVisible="False"
+                      IsVisible="{Binding IsIndependent}">
+                <Border Height="3" VerticalAlignment="Bottom" Background="{Binding Brush}" />
               </Border>
 
               <Grid Margin="18,14" ColumnDefinitions="Auto,*,Auto">

@@ -1,7 +1,7 @@
 namespace WowStopwatcher.Core;
 
 /// <summary>
-/// Runs the stopwatches: at most one runs at a time, every run is a persisted session.
+/// Runs the stopwatches: at most one normal stopwatch runs at a time, plus any number of independent ones; every run is a persisted session.
 /// Thread-safe (a single lock), so a UI thread and a hotkey callback can both call it.
 /// The <see cref="Changed"/> event is raised after the lock is released, on the calling thread.
 /// </summary>
@@ -16,7 +16,11 @@ public sealed class StopwatchEngine
     private IReadOnlyList<Session> _todaySessions = [];
     private DateOnly _today;
     private Session? _running;
+    private readonly Dictionary<string, Session> _independent = [];
     private string? _lastUsedId;
+
+    /// <summary>Most stopwatches (normal and independent together) that may run at the same time.</summary>
+    public const int MaxConcurrent = 3;
 
     public StopwatchEngine(IStopwatchRepository stopwatches, ISessionRepository sessions, TimeProvider time)
     {
@@ -38,20 +42,22 @@ public sealed class StopwatchEngine
         }
     }
 
-    /// <summary>Starts the stopwatch (stopping the running one). Does nothing if it is unknown, deleted or already running.</summary>
+    /// <summary>
+    /// Starts the stopwatch. A normal stopwatch stops the running normal one; an independent stopwatch
+    /// touches no other. Does nothing if it is unknown, deleted or already running.
+    /// </summary>
     public void Start(string id) => Mutate(now =>
     {
-        if (!IsStartable(id) || _running?.StopwatchId == id)
+        if (!IsStartable(id) || IsRunningId(id) || !HasRoomFor(id))
         {
             return false;
         }
 
-        StopRunning(now);
-        StartNew(id, now);
+        StartStopwatch(id, now);
         return true;
     });
 
-    /// <summary>Stops the stopwatch if it is running, otherwise starts it (stopping any other running one).</summary>
+    /// <summary>Stops the stopwatch if it is running, otherwise starts it (see <see cref="Start"/>).</summary>
     public void Toggle(string id) => Mutate(now =>
     {
         if (_running?.StopwatchId == id)
@@ -60,27 +66,38 @@ public sealed class StopwatchEngine
             return true;
         }
 
-        if (!IsStartable(id))
+        if (_independent.ContainsKey(id))
+        {
+            StopIndependent(id, now);
+            return true;
+        }
+
+        if (!IsStartable(id) || !HasRoomFor(id))
         {
             return false;
         }
 
-        StopRunning(now);
-        StartNew(id, now);
+        StartStopwatch(id, now);
         return true;
     });
 
-    /// <summary>Stops the running stopwatch, if any.</summary>
-    public void StopAll() => Mutate(now => StopRunning(now));
+    /// <summary>Stops the running normal stopwatch and all running independent stopwatches.</summary>
+    public void StopAll() => Mutate(now => StopEverything(now));
 
     /// <summary>
-    /// If something runs, stops it and starts the next non-deleted stopwatch by SortOrder (wrapping around).
-    /// If nothing runs, starts the last used stopwatch, else the first.
+    /// Cycles over the non-deleted, non-independent stopwatches only; independent ones are untouched.
+    /// If a normal one runs, stops it and starts the next by SortOrder (wrapping around).
+    /// If none runs, starts the last used normal stopwatch, else the first. Does nothing without normal stopwatches.
     /// </summary>
     public void StartNext() => Mutate(now =>
     {
-        var active = _definitions.Where(d => !d.IsDeleted).ToArray();
+        var active = _definitions.Where(d => !d.IsDeleted && !d.IsIndependent).ToArray();
         if (active.Length == 0)
+        {
+            return false;
+        }
+
+        if (_running is null && OpenCount() >= MaxConcurrent)
         {
             return false;
         }
@@ -111,34 +128,67 @@ public sealed class StopwatchEngine
             _running = null;
         }
 
-        _lastUsedId = _sessions.GetLatest()?.StopwatchId;
+        _independent.Remove(id);
+        RefreshLastUsed();
         return true;
     });
 
-    /// <summary>Deletes all of today's sessions and stops the running stopwatch.</summary>
+    /// <summary>Deletes all of today's sessions and stops every running stopwatch.</summary>
     public void ResetAllToday() => Mutate(now =>
     {
         _sessions.DeleteForLocalDays([_today], _time.LocalTimeZone);
         _running = null;
-        _lastUsedId = _sessions.GetLatest()?.StopwatchId;
+        _independent.Clear();
+        RefreshLastUsed();
         return true;
     });
 
     /// <summary>
-    /// Call every ~50 ms to 1 s. Splits a running session that crossed local midnight and
+    /// Call every ~50 ms to 1 s. Splits running sessions that crossed local midnight and
     /// switches "today" when the date changed. Raises <see cref="Changed"/> only if something changed.
     /// </summary>
     public void Tick() => Mutate(now => SplitAtMidnight(now));
 
-    /// <summary>Re-reads the definitions after a Settings change. Stops the running stopwatch if it was deleted.</summary>
+    /// <summary>
+    /// Re-reads the definitions after a Settings change. Stops deleted stopwatches, re-sorts open sessions into
+    /// normal and independent by the current flags, and keeps only the most recently started normal one.
+    /// </summary>
     public void ReloadDefinitions() => Mutate(now =>
     {
         _definitions = _stopwatches.GetAll(includeDeleted: true);
-        if (_running is { } running && !IsStartable(running.StopwatchId))
+        var open = AllOpen().ToList();
+        _running = null;
+        _independent.Clear();
+
+        var normal = new List<Session>();
+        foreach (var session in open)
         {
-            StopRunning(now);
+            if (!IsStartable(session.StopwatchId))
+            {
+                CloseAt(session, now);
+            }
+            else if (IsIndependent(session.StopwatchId))
+            {
+                _independent[session.StopwatchId] = session;
+            }
+            else
+            {
+                normal.Add(session);
+            }
         }
 
+        foreach (var session in normal.OrderBy(s => s.StartUtc).ThenBy(s => s.Id))
+        {
+            if (_running is { } previous)
+            {
+                CloseAt(previous, now);
+            }
+
+            _running = session;
+        }
+
+        EnforceLimit(now);
+        RefreshLastUsed();
         return true;
     });
 
@@ -148,25 +198,42 @@ public sealed class StopwatchEngine
         {
             var now = Now();
             _definitions = _stopwatches.GetAll(includeDeleted: true);
-            _lastUsedId = _sessions.GetLatest()?.StopwatchId;
 
-            // More than one open session should not happen; keep the latest and close the others where the next began.
-            var open = _sessions.GetOpen();
-            for (var i = 0; i < open.Count - 1; i++)
+            // More than one open session per slot should not happen; keep the latest and close the others where the next began.
+            var open = _sessions.GetOpen().OrderBy(s => s.StartUtc).ThenBy(s => s.Id).ToList();
+            _running = KeepLatest(open.Where(s => !IsIndependent(s.StopwatchId)).ToList());
+            foreach (var group in open.Where(s => IsIndependent(s.StopwatchId)).GroupBy(s => s.StopwatchId))
             {
-                _sessions.Close(open[i].Id, open[i + 1].StartUtc);
+                _independent[group.Key] = KeepLatest(group.ToList())!;
             }
 
-            _running = open.Count > 0 ? open[^1] : null;
             if (_running is { } running && !IsStartable(running.StopwatchId))
             {
                 StopRunning(now);
             }
 
+            foreach (var session in _independent.Values.Where(s => !IsStartable(s.StopwatchId)).ToList())
+            {
+                StopIndependent(session.StopwatchId, now);
+            }
+
+            EnforceLimit(now);
+            RefreshLastUsed();
             _today = LocalDays.ToLocalDate(now, _time.LocalTimeZone);
             SplitAtMidnight(now);
             RefreshToday();
         }
+    }
+
+    // Sessions are ordered by start. Closes every one but the last at the start of the next and returns the last.
+    private Session? KeepLatest(List<Session> ordered)
+    {
+        for (var i = 0; i < ordered.Count - 1; i++)
+        {
+            _sessions.Close(ordered[i].Id, ordered[i + 1].StartUtc);
+        }
+
+        return ordered.Count > 0 ? ordered[^1] : null;
     }
 
     private void Mutate(Func<DateTimeOffset, bool> action)
@@ -189,7 +256,7 @@ public sealed class StopwatchEngine
         }
     }
 
-    // Closes a running session at each local midnight it crossed and reopens it at that midnight.
+    // Closes each open session at every local midnight it crossed and reopens it at that midnight.
     private bool SplitAtMidnight(DateTimeOffset now)
     {
         var zone = _time.LocalTimeZone;
@@ -197,21 +264,45 @@ public sealed class StopwatchEngine
         var changed = today != _today;
         _today = today;
 
-        while (_running is { } running && LocalDays.ToLocalDate(running.StartUtc, zone) < today)
+        if (_running is { } running)
         {
-            var boundary = LocalDays.StartOfDayUtc(LocalDays.ToLocalDate(running.StartUtc, zone).AddDays(1), zone);
-            if (boundary <= running.StartUtc || boundary > now)
+            var split = SplitSession(running, now, today, zone);
+            if (split != running)
+            {
+                _running = split;
+                changed = true;
+            }
+        }
+
+        foreach (var (id, session) in _independent.ToArray())
+        {
+            var split = SplitSession(session, now, today, zone);
+            if (split != session)
+            {
+                _independent[id] = split;
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
+
+    private Session SplitSession(Session session, DateTimeOffset now, DateOnly today, TimeZoneInfo zone)
+    {
+        while (LocalDays.ToLocalDate(session.StartUtc, zone) < today)
+        {
+            var boundary = LocalDays.StartOfDayUtc(LocalDays.ToLocalDate(session.StartUtc, zone).AddDays(1), zone);
+            if (boundary <= session.StartUtc || boundary > now)
             {
                 break;
             }
 
-            _sessions.Close(running.Id, boundary);
-            var id = _sessions.InsertOpen(running.StopwatchId, boundary);
-            _running = new Session(id, running.StopwatchId, boundary, null);
-            changed = true;
+            _sessions.Close(session.Id, boundary);
+            var id = _sessions.InsertOpen(session.StopwatchId, boundary);
+            session = new Session(id, session.StopwatchId, boundary, null);
         }
 
-        return changed;
+        return session;
     }
 
     private bool StopRunning(DateTimeOffset now)
@@ -221,9 +312,44 @@ public sealed class StopwatchEngine
             return false;
         }
 
-        _sessions.Close(running.Id, now < running.StartUtc ? running.StartUtc : now);
+        CloseAt(running, now);
         _running = null;
         return true;
+    }
+
+    private void StopIndependent(string id, DateTimeOffset now)
+    {
+        if (_independent.Remove(id, out var session))
+        {
+            CloseAt(session, now);
+        }
+    }
+
+    private bool StopEverything(DateTimeOffset now)
+    {
+        var changed = StopRunning(now);
+        foreach (var id in _independent.Keys.ToArray())
+        {
+            StopIndependent(id, now);
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private void CloseAt(Session session, DateTimeOffset now) =>
+        _sessions.Close(session.Id, now < session.StartUtc ? session.StartUtc : now);
+
+    private void StartStopwatch(string id, DateTimeOffset now)
+    {
+        if (IsIndependent(id))
+        {
+            _independent[id] = new Session(_sessions.InsertOpen(id, now), id, now, null);
+            return;
+        }
+
+        StopRunning(now);
+        StartNew(id, now);
     }
 
     private void StartNew(string id, DateTimeOffset now)
@@ -233,15 +359,54 @@ public sealed class StopwatchEngine
         _lastUsedId = id;
     }
 
+    private int OpenCount() => (_running is null ? 0 : 1) + _independent.Count;
+
+    // A normal start replaces the running normal one, so it needs no free slot then.
+    private bool HasRoomFor(string id) => OpenCount() < MaxConcurrent || (_running is not null && !IsIndependent(id));
+
+    // Should not happen; if more than MaxConcurrent sessions are open, keeps the most recently started ones.
+    private void EnforceLimit(DateTimeOffset now)
+    {
+        foreach (var session in AllOpen().OrderByDescending(o => o.StartUtc).ThenByDescending(o => o.Id).Skip(MaxConcurrent).ToList())
+        {
+            if (_running?.Id == session.Id)
+            {
+                _running = null;
+                CloseAt(session, now);
+            }
+            else
+            {
+                StopIndependent(session.StopwatchId, now);
+            }
+        }
+    }
+
+    private bool IsIndependent(string id) => _definitions.Any(d => d.Id == id && d.IsIndependent);
+
+    private bool IsRunningId(string id) => _running?.StopwatchId == id || _independent.ContainsKey(id);
+
+    private IEnumerable<Session> AllOpen() =>
+        (_running is { } running ? [running] : Enumerable.Empty<Session>()).Concat(_independent.Values);
+
+    // The most recently used NORMAL stopwatch (independent ones are ignored).
+    private void RefreshLastUsed()
+    {
+        var normalIds = _definitions.Where(d => !d.IsIndependent).Select(d => d.Id).ToArray();
+        _lastUsedId = _sessions.GetLatestForStopwatches(normalIds)?.StopwatchId;
+    }
+
     private bool IsStartable(string id) => _definitions.Any(d => d.Id == id && !d.IsDeleted);
 
     private void RefreshToday()
     {
         var (from, to) = LocalDays.DayRangeUtc(_today, _time.LocalTimeZone);
         _todaySessions = _sessions.GetInRange(from, to);
-        if (_running is { } running && _todaySessions.All(s => s.Id != running.Id))
+        foreach (var open in AllOpen())
         {
-            _todaySessions = [.. _todaySessions, running];
+            if (_todaySessions.All(s => s.Id != open.Id))
+            {
+                _todaySessions = [.. _todaySessions, open];
+            }
         }
     }
 
@@ -253,10 +418,10 @@ public sealed class StopwatchEngine
             // The date rolled over since the last Tick; show the new day without writing anything.
             var (from, to) = LocalDays.DayRangeUtc(today, _time.LocalTimeZone);
             var sessions = _sessions.GetInRange(from, to);
-            return new StopwatchEngineSnapshot(now, today, _definitions, sessions, _running, _lastUsedId);
+            return new StopwatchEngineSnapshot(now, today, _definitions, sessions, AllOpen().OrderBy(o => o.StartUtc).ToArray(), _lastUsedId);
         }
 
-        return new StopwatchEngineSnapshot(now, _today, _definitions, _todaySessions, _running, _lastUsedId);
+        return new StopwatchEngineSnapshot(now, _today, _definitions, _todaySessions, AllOpen().OrderBy(o => o.StartUtc).ToArray(), _lastUsedId);
     }
 
     // Millisecond precision, matching what the database stores.

@@ -109,7 +109,7 @@ public sealed partial class StatisticsViewModel : ObservableObject
 
         var snapshot = _engine.GetSnapshot();
         var includesToday = selected.Contains(snapshot.Today);
-        var stopsRunning = includesToday && snapshot.RunningId is not null;
+        var stopsRunning = includesToday && snapshot.IsAnyRunning;
         var body = $"This deletes every logged session from the {(selected.Count == 1 ? "selected day" : $"{selected.Count} selected days")}"
             + (stopsRunning ? " and stops the running stopwatch" : string.Empty)
             + ". This can’t be undone.";

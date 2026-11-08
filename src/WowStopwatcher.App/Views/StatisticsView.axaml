@@ -237,6 +237,18 @@
                                   <c:HoverBorder Background="Transparent" IsActive="{Binding IsHovered, Mode=TwoWay}">
                                     <Grid>
                                       <Border Background="{Binding Brush}" />
+                                      <ItemsControl IsVisible="{Binding HasLanes}" ItemsSource="{Binding Lanes}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <UniformGrid Columns="1" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:LaneViewModel">
+                          <Border Background="{Binding Brush}" />
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                                       <Border IsVisible="{Binding IsHovered}"
                                               IsHitTestVisible="False"
                                               Opacity="0.18"

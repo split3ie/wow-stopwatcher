@@ -199,7 +199,17 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         var sortOrder = _stopwatches.Get(item.Id)?.SortOrder ?? index;
         _stopwatches.Update(new StopwatchDefinition(
-            item.Id, item.SavedName, item.Color, item.Goal, item.StoredShortcut, sortOrder));
+            item.Id, item.SavedName, item.Color, item.Goal, item.StoredShortcut, sortOrder, IsIndependent: item.IsIndependent));
+    }
+
+    /// <summary>
+    /// Saves a change of the independent flag and tells the engine right away, so a stopwatch that is running
+    /// (or started by a shortcut or the tray while Settings is open) follows its new type.
+    /// </summary>
+    internal void SaveType(SettingsStopwatchViewModel item)
+    {
+        Save(item);
+        _engine.ReloadDefinitions();
     }
 
     /// <summary>The other stopwatch that already uses <paramref name="shortcut"/>, if any.</summary>

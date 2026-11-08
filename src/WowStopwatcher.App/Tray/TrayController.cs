@@ -80,7 +80,9 @@ public sealed class TrayController : IDisposable
         }
 
         var snapshot = _engine.GetSnapshot();
-        var running = snapshot.RunningId is { } id ? snapshot.Find(id) : null;
+        // The running normal stopwatch; when only independent ones run, the first of them.
+        var runningSession = snapshot.RunningSession ?? snapshot.RunningSessions.FirstOrDefault();
+        var running = runningSession is null ? null : snapshot.Find(runningSession.StopwatchId);
 
         if (_stopwatchMenu is not null)
         {
@@ -89,7 +91,7 @@ public sealed class TrayController : IDisposable
 
         var tooltip = running is null
             ? "WowStopwatcher"
-            : $"WowStopwatcher · {running.Name} {TimeFormat.Clock(snapshot.RunningElapsed)}";
+            : $"WowStopwatcher · {running.Name} {TimeFormat.Clock(snapshot.GetDuration(runningSession!))}";
         if (_tray.ToolTipText != tooltip)
         {
             _tray.ToolTipText = tooltip;
@@ -109,7 +111,7 @@ public sealed class TrayController : IDisposable
 
     private void UpdateNativeMenu(StopwatchEngineSnapshot snapshot)
     {
-        var signature = string.Join('|', snapshot.Stopwatches.Select(s => $"{s.Id}:{s.Name}:{s.Color}"));
+        var signature = string.Join('|', snapshot.Stopwatches.Select(s => $"{s.Id}:{s.Name}:{s.Color}:{s.IsIndependent}"));
         if (signature != _menuSignature)
         {
             _menuSignature = signature;
@@ -130,10 +132,17 @@ public sealed class TrayController : IDisposable
                 item.Header = header;
             }
 
-            var isRunning = snapshot.RunningId == stopwatchId;
+            var isRunning = snapshot.IsRunning(stopwatchId);
             if (item.IsChecked != isRunning)
             {
                 item.IsChecked = isRunning;
+            }
+
+            // A running stopwatch stays stoppable; a stopped one cannot start past the concurrent limit.
+            var canToggle = isRunning || snapshot.CanStart(stopwatchId);
+            if (item.IsEnabled != canToggle)
+            {
+                item.IsEnabled = canToggle;
             }
         }
     }
