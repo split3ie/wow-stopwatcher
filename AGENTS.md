@@ -7,13 +7,20 @@ Guidance for AI coding agents working in this repository.
 WowStopwatcher is a personal desktop app for Windows, macOS and Linux that tracks time across multiple stopwatches with optional daily goals
 (for example "English, goal 5h", plus "YouTube" and "Walking" without goals).
 
-- **Only one stopwatch runs at a time.** Starting another stops the running one and logs its session.
+- **Only one regular stopwatch runs at a time.** Starting another stops the running one and logs its session.
+- A stopwatch can be marked **independent**: it runs alongside the regular one and other independent ones,
+  and starting or stopping it does not affect the others. At most 3 stopwatches run at once (`StopwatchEngine.MaxConcurrent`).
+  Independent rows on Today have a bottom line in the stopwatch's color.
 - Every run is stored as a session: `Date | Stopwatch Name | Start | Stop`. All statistics are derived from sessions.
+- Totals (Today and each Statistics day) are wall-clock time when any stopwatch ran: overlapping time counts once.
+  Per-stopwatch totals are each stopwatch's full time. In the timeline bars, overlapping time is drawn as
+  stacked stripes, one per running stopwatch (`SessionSlicer`).
 - Screens: **Today** (timeline, stopwatch rows, total, Stop all, goals), **Statistics** (one timeline per day,
-  expandable per-stopwatch totals, select/clear days), **Settings** (autostart, stopwatches: name, color, goal,
-  shortcut, order, delete; version and update check).
-- **System tray**: icon with a menu listing stopwatches with live times, the active one highlighted, switch on click,
-  Stop all, Open, Quit. Double-clicking the tray icon stops the current stopwatch and starts the next one in order.
+  expandable per-stopwatch totals, select/clear days), **Settings** (autostart, stopwatches: name, color
+  (16 presets or a custom color), goal, independent, shortcut, order, delete; version and update check).
+- **System tray**: icon with a menu listing stopwatches with live times, running ones highlighted, switch on click,
+  Stop all (stops every running stopwatch), Open, Quit. Double-clicking the tray icon stops the current regular
+  stopwatch and starts the next regular one in order (independent ones are skipped).
 - Global keyboard shortcuts (for example `Ctrl+F1`) start or stop a stopwatch while the app is in the background.
   On Linux they work on X11 only (not pure Wayland); the tray needs a StatusNotifierItem host (GNOME: AppIndicator extension).
 - Autostart: Windows HKCU Run key; macOS `~/Library/LaunchAgents/com.split3ie.wowstopwatcher.plist`;
