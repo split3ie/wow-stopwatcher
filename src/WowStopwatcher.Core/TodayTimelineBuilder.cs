@@ -9,8 +9,6 @@ public static class TodayTimelineBuilder
     /// <summary>Pins closer than this (fraction of the track) on the same level are moved up a level.</summary>
     public const double PinSpacing = 0.026;
 
-    private const string RemainingColor = "#C9CED6";
-
     public static TodayTimeline Build(StopwatchEngineSnapshot snapshot) =>
         Build(snapshot.AllStopwatches, snapshot.TodaySessions, snapshot.NowUtc);
 
@@ -91,13 +89,23 @@ public static class TodayTimelineBuilder
 
         if (remainingShare > 0)
         {
-            var count = remainingGoals.Count;
-            var title = $"Left to {count} goal{(count == 1 ? "" : "s")}";
-            var parts = remainingGoals.Take(3).Select(g => $"{g.Name} {RemainingText(g.Remaining)}").ToList();
-            var sub = string.Join(" · ", parts) + (count > 3 ? $" · +{count - 3} more" : "");
-            segments.Add(new TimelineSegment(
-                TimelineSegmentKind.Remaining, null, RemainingColor, remaining, false,
-                title, sub, loggedShare, remainingShare, capped));
+            // One segment per unfinished goal, nearest goal first; the share is split in proportion to what is left.
+            var ordered = remainingGoals
+                .OrderBy(g => g.Remaining)
+                .ThenBy(g => byId[g.StopwatchId].SortOrder)
+                .ThenBy(g => g.StopwatchId, StringComparer.Ordinal)
+                .ToList();
+            var start = loggedShare;
+            for (var i = 0; i < ordered.Count; i++)
+            {
+                var goal = ordered[i];
+                var width = remainingShare * (goal.Remaining / remaining);
+                segments.Add(new TimelineSegment(
+                    TimelineSegmentKind.Remaining, goal.StopwatchId, goal.Color, goal.Remaining, false,
+                    $"{goal.Name} · left to goal", $"Goal {TimeFormat.GoalLabel(byId[goal.StopwatchId].Goal!.Value)}",
+                    start, width, capped && i == 0));
+                start += width;
+            }
         }
 
         var pins = BuildPins(stopwatches, pieces, slices, starts, widths);
@@ -174,9 +182,6 @@ public static class TodayTimelineBuilder
 
         return (pins, pins.Count == 0 ? 0 : pins.Max(p => p.Level));
     }
-
-    private static string RemainingText(TimeSpan value) =>
-        value < TimeSpan.FromSeconds(30) ? TimeFormat.Human(value) : TimeFormat.HoursMinutes(value);
 
     private static TimeSpan Sum(IEnumerable<TimeSpan> values) =>
         values.Aggregate(TimeSpan.Zero, (a, b) => a + b);

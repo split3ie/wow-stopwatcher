@@ -22,6 +22,7 @@ WowStopwatcher is a personal desktop app for Windows, macOS and Linux that track
   Stop all (stops every running stopwatch), Open, Quit. Double-clicking the tray icon stops the current regular
   stopwatch and starts the next regular one in order (independent ones are skipped).
 - Global keyboard shortcuts (for example `Ctrl+F1`) start or stop a stopwatch while the app is in the background.
+  A new stopwatch gets the first free default shortcut (`Ctrl+F1`..`F12`, then `Ctrl+Shift+`, `Ctrl+Alt+`, `Ctrl+Alt+Shift+`; `DefaultShortcuts`).
   On Linux they work on X11 only (not pure Wayland); the tray needs a StatusNotifierItem host (GNOME: AppIndicator extension).
 - Autostart: Windows HKCU Run key; macOS `~/Library/LaunchAgents/com.split3ie.wowstopwatcher.plist`;
   Linux `~/.config/autostart/wowstopwatcher.desktop`.

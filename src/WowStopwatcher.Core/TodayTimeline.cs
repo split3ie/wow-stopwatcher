@@ -23,7 +23,7 @@ public sealed class TodayTimeline
         RemainingCapped = remainingCapped;
     }
 
-    /// <summary>Logged pieces in chronological order, then the remaining section (if any).</summary>
+    /// <summary>Logged pieces in chronological order, then one remaining piece per unfinished goal, nearest goal first.</summary>
     public IReadOnlyList<TimelineSegment> Segments { get; }
 
     /// <summary>Position of the "now" marker (fraction): the share of the track taken by logged time.</summary>

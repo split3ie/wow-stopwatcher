@@ -4,7 +4,7 @@ using WowStopwatcher.Core;
 
 namespace WowStopwatcher.App.ViewModels;
 
-/// <summary>One piece of the timeline track (a logged session or the remaining-to-goals section).</summary>
+/// <summary>One piece of the timeline track (a logged session or the time left to one goal).</summary>
 public sealed partial class SegmentViewModel : ObservableObject
 {
     [ObservableProperty]
@@ -48,6 +48,7 @@ public sealed partial class SegmentViewModel : ObservableObject
     public double Center { get; private set; }
 
     private string? _color;
+    private bool _brushIsRemaining;
 
     public void Update(TimelineSegment segment)
     {
@@ -67,10 +68,19 @@ public sealed partial class SegmentViewModel : ObservableObject
 
         HasLanes = LaneViewModel.Sync(Lanes, segment.Lanes);
 
-        if (_color != segment.Color)
+        if (_color != segment.Color || _brushIsRemaining != IsRemaining)
         {
             _color = segment.Color;
-            Brush = IsRemaining ? null : Avalonia.Media.Brush.Parse(segment.Color);
+            _brushIsRemaining = IsRemaining;
+            if (IsRemaining)
+            {
+                var tint = Color.Parse(segment.Color);
+                Brush = new SolidColorBrush(Color.FromArgb(0x40, tint.R, tint.G, tint.B));
+            }
+            else
+            {
+                Brush = Avalonia.Media.Brush.Parse(segment.Color);
+            }
         }
     }
 }
