@@ -45,7 +45,18 @@ public static class TodayTimelineBuilder
             .Where(g => g.Remaining > TimeSpan.Zero)
             .OrderByDescending(g => g.Remaining)
             .ToList();
-        var remaining = Sum(remainingGoals.Select(g => g.Remaining));
+        var goalsTotal = Sum(remainingGoals.Select(g => g.Remaining));
+
+        // Independent stopwatches run alongside the regular ones, so their remaining time fits inside the regular
+        // goals' time: wall-clock remaining is the regular sum, or the longest independent goal if that is longer.
+        var independentIds = stopwatches.Where(s => s.IsIndependent).Select(s => s.Id).ToHashSet();
+        var regularRemaining = Sum(remainingGoals.Where(g => !independentIds.Contains(g.StopwatchId)).Select(g => g.Remaining));
+        var independentRemaining = remainingGoals
+            .Where(g => independentIds.Contains(g.StopwatchId))
+            .Select(g => g.Remaining)
+            .DefaultIfEmpty(TimeSpan.Zero)
+            .Max();
+        var remaining = Max(regularRemaining, independentRemaining);
 
         double remainingShare;
         var capped = false;
@@ -99,7 +110,7 @@ public static class TodayTimelineBuilder
             for (var i = 0; i < ordered.Count; i++)
             {
                 var goal = ordered[i];
-                var width = remainingShare * (goal.Remaining / remaining);
+                var width = remainingShare * (goal.Remaining / goalsTotal);
                 segments.Add(new TimelineSegment(
                     TimelineSegmentKind.Remaining, goal.StopwatchId, goal.Color, goal.Remaining, false,
                     $"{goal.Name} · left to goal", $"Goal {TimeFormat.GoalLabel(byId[goal.StopwatchId].Goal!.Value)}",

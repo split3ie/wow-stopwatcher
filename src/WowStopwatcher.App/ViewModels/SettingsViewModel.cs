@@ -3,6 +3,7 @@ using System.Reflection;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using WowStopwatcher.App.Notifications;
 using WowStopwatcher.App.Services;
 using WowStopwatcher.Core;
 
@@ -16,6 +17,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly StopwatchEngine _engine;
     private readonly IStopwatchRepository _stopwatches;
     private readonly ISessionRepository _sessions;
+    private readonly ISettingsRepository _settings;
     private readonly TimeProvider _time;
     private readonly ConfirmDialogViewModel _dialog;
     private readonly GlobalHotkeyService _hotkeys;
@@ -27,10 +29,13 @@ public sealed partial class SettingsViewModel : ObservableObject
         StopwatchEngine engine,
         IStopwatchRepository stopwatches,
         ISessionRepository sessions,
+        ISettingsRepository settings,
         TimeProvider time,
         ConfirmDialogViewModel dialog,
         GlobalHotkeyService hotkeys)
     {
+        _settings = settings;
+        _goalNotificationsEnabled = GoalNotificationSetting.IsEnabled(settings);
         _engine = engine;
         _stopwatches = stopwatches;
         _sessions = sessions;
@@ -83,6 +88,12 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private string _autostartError = string.Empty;
+
+    [ObservableProperty]
+    private bool _goalNotificationsEnabled;
+
+    partial void OnGoalNotificationsEnabledChanged(bool value) =>
+        GoalNotificationSetting.SetEnabled(_settings, value);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]

@@ -16,11 +16,14 @@ WowStopwatcher is a personal desktop app for Windows, macOS and Linux that track
   Per-stopwatch totals are each stopwatch's full time. In the timeline bars, overlapping time is drawn as
   stacked stripes, one per running stopwatch (`SessionSlicer`).
 - Screens: **Today** (timeline, stopwatch rows, total, Stop all, goals), **Statistics** (one timeline per day,
-  expandable per-stopwatch totals, select/clear days), **Settings** (autostart, stopwatches: name, color
+  expandable per-stopwatch totals, select/clear days), **Settings** (autostart, goal notification toggle, stopwatches: name, color
   (16 presets or a custom color), goal, independent, shortcut, order, delete; version and update check).
 - **System tray**: icon with a menu listing stopwatches with live times, running ones highlighted, switch on click,
   Stop all (stops every running stopwatch), Open, Quit. Double-clicking the tray icon stops the current regular
   stopwatch and starts the next regular one in order (independent ones are skipped).
+- **Goal-reached popup**: a small non-activating window in the taskbar-side corner of the primary screen (auto-closes after 8 s, click opens the app).
+  Shown only when a stopwatch crosses its daily goal while the app runs (`GoalTracker`), not for goals already reached at start.
+  Settings switch "Notify when a goal is reached" (setting `notify_goal_reached`, on by default).
 - Global keyboard shortcuts (for example `Ctrl+F1`) start or stop a stopwatch while the app is in the background.
   A new stopwatch gets the first free default shortcut (`Ctrl+F1`..`F12`, then `Ctrl+Shift+`, `Ctrl+Alt+`, `Ctrl+Alt+Shift+`; `DefaultShortcuts`).
   On Linux they work on X11 only (not pure Wayland); the tray needs a StatusNotifierItem host (GNOME: AppIndicator extension).

@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using WowStopwatcher.App.Notifications;
 using WowStopwatcher.App.Services;
 using WowStopwatcher.App.Tray;
 using WowStopwatcher.App.ViewModels;
@@ -29,19 +30,23 @@ public partial class App : Application
             var database = SqliteDatabase.OpenDefault();
             var stopwatches = new SqliteStopwatchRepository(database);
             var sessions = new SqliteSessionRepository(database);
+            var settings = new SqliteSettingsRepository(database);
             var time = TimeProvider.System;
             var engine = new StopwatchEngine(stopwatches, sessions, time);
 
             var hotkeys = new GlobalHotkeyService(engine);
             _mainWindow = new MainWindow
             {
-                DataContext = new MainViewModel(engine, stopwatches, sessions, time, hotkeys),
+                DataContext = new MainViewModel(engine, stopwatches, sessions, settings, time, hotkeys),
             };
 
             hotkeys.Start();
 
             var tray = new TrayController(engine, ShowMainWindow, () => desktop.Shutdown());
             tray.Start();
+
+            var goalNotifier = new GoalNotifier(engine, settings, ShowMainWindow);
+            goalNotifier.Start();
 
             Program.Instance?.StartListening(() => Dispatcher.UIThread.Post(ShowMainWindow));
 
@@ -50,6 +55,7 @@ public partial class App : Application
             {
                 hotkeys.Dispose();
                 tray.Dispose();
+                goalNotifier.Dispose();
                 engine.StopAll();
             };
 

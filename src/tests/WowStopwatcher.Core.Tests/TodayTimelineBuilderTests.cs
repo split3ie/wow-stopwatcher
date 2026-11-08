@@ -77,6 +77,33 @@ public class TodayTimelineBuilderTests
     }
 
     [Fact]
+    public void Remaining_IndependentGoalFitsInsideRegularGoals()
+    {
+        // regular A 300 left, independent B 120 left -> wall-clock remaining is 300, not 420
+        var defs = new[] { Def("a", "A", 0, 300), Def("b", "B", 1, 120) with { IsIndependent = true } };
+        var timeline = TodayTimelineBuilder.Build(defs, [], T0);
+
+        Assert.Equal(TimeSpan.FromMinutes(300), timeline.Remaining);
+        var remaining = timeline.Segments.Where(x => x.Kind == TimelineSegmentKind.Remaining).ToList();
+        Assert.Equal(1.0, remaining.Sum(x => x.Width), 6);
+    }
+
+    [Fact]
+    public void Remaining_LongerIndependentGoalWins()
+    {
+        // regular A 60 left, independent B 120 and C 90 left -> 120
+        var defs = new[]
+        {
+            Def("a", "A", 0, 60),
+            Def("b", "B", 1, 120) with { IsIndependent = true },
+            Def("c", "C", 2, 90) with { IsIndependent = true },
+        };
+        var timeline = TodayTimelineBuilder.Build(defs, [], T0);
+
+        Assert.Equal(TimeSpan.FromMinutes(120), timeline.Remaining);
+    }
+
+    [Fact]
     public void Remaining_TiesAreOrderedByStopwatchOrder()
     {
         var defs = new[] { Def("a", "A", 1, 60), Def("b", "B", 0, 60) };
