@@ -17,6 +17,10 @@ public sealed partial class SegmentViewModel : ObservableObject
     [ObservableProperty]
     private IBrush? _brush;
 
+    /// <summary>Solid stopwatch color for the rounded right edge of a goal piece; null for logged pieces.</summary>
+    [ObservableProperty]
+    private IBrush? _edgeBrush;
+
     [ObservableProperty]
     private bool _hasLanes;
 
@@ -94,10 +98,12 @@ public sealed partial class SegmentViewModel : ObservableObject
             if (IsRemaining)
             {
                 Brush = CreateRemainingBrush(Color.Parse(segment.Color));
+                EdgeBrush = Avalonia.Media.Brush.Parse(segment.Color);
             }
             else
             {
                 Brush = Avalonia.Media.Brush.Parse(segment.Color);
+                EdgeBrush = null;
             }
         }
     }

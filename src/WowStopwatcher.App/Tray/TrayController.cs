@@ -89,9 +89,13 @@ public sealed class TrayController : IDisposable
             UpdateNativeMenu(snapshot);
         }
 
-        var tooltip = running is null
-            ? "WowStopwatcher"
-            : $"WowStopwatcher · {running.Name} {TimeFormat.Clock(snapshot.GetDuration(runningSession!))}";
+        // One line per running stopwatch with its total for today, the normal one first.
+        var lines = snapshot.RunningSessions
+            .OrderBy(s => s == snapshot.RunningSession ? 0 : 1)
+            .Select(s => (Session: s, Definition: snapshot.Find(s.StopwatchId)))
+            .Where(x => x.Definition is not null)
+            .Select(x => $"{x.Definition!.Name} {TimeFormat.Clock(snapshot.GetTodayTotal(x.Session.StopwatchId))}");
+        var tooltip = string.Join(Environment.NewLine, lines.Prepend("WowStopwatcher"));
         if (_tray.ToolTipText != tooltip)
         {
             _tray.ToolTipText = tooltip;

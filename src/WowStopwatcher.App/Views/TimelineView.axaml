@@ -77,7 +77,11 @@
                             Background="{DynamicResource PageBrush}"
                             CornerRadius="{Binding CornerRadius}"
                             Margin="{Binding FillMargin}" />
-                    <Border Background="{Binding Brush}" CornerRadius="{Binding CornerRadius}" Margin="{Binding FillMargin}" />
+                    <Border Background="{Binding Brush}"
+                            CornerRadius="{Binding CornerRadius}"
+                            Margin="{Binding FillMargin}"
+                            BorderBrush="{Binding EdgeBrush}"
+                            BorderThickness="0,0,1.5,0" />
                     <ItemsControl IsVisible="{Binding HasLanes}" ItemsSource="{Binding Lanes}">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
