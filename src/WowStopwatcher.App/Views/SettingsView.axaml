@@ -149,6 +149,21 @@
                             AutomationProperties.Name="Run with computer start" />
             </Grid>
           </Border>
+          <Border Classes="card" Padding="20,16">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="3" Margin="0,0,16,0" VerticalAlignment="Center">
+                <TextBlock Text="Notify when a goal is reached" FontWeight="SemiBold" />
+                <TextBlock Classes="muted"
+                           FontSize="13"
+                           TextWrapping="Wrap"
+                           Text="Shows a small popup when a stopwatch reaches its daily goal." />
+              </StackPanel>
+              <ToggleButton Grid.Column="1"
+                            Classes="switch"
+                            IsChecked="{Binding GoalNotificationsEnabled}"
+                            AutomationProperties.Name="Notify when a goal is reached" />
+            </Grid>
+          </Border>
         </StackPanel>
 
         <!-- Stopwatches -->

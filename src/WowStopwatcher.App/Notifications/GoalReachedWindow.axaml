@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WowStopwatcher.App.Notifications.GoalReachedWindow"
+        Title="WowStopwatcher"
+        Width="404"
+        SizeToContent="Height"
+        CanResize="False"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="True"
+        Opacity="0"
+        WindowDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        Foreground="{DynamicResource TextBrush}"
+        FontFamily="{DynamicResource UiFont}"
+        FontSize="14">
+
+  <Window.Styles>
+    <Style Selector="Button.closeX">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Width" Value="24" />
+      <Setter Property="Height" Value="24" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.closeX:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.closeX:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource LineSoftBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    </Style>
+  </Window.Styles>
+
+  <!-- The 32 px margin leaves room for the shadow inside the transparent window. -->
+  <Border x:Name="Card"
+          Margin="32"
+          Padding="16,14"
+          Background="{DynamicResource CardBrush}"
+          BorderBrush="{DynamicResource LineBrush}"
+          BorderThickness="1"
+          CornerRadius="10"
+          BoxShadow="0 16 40 0 #38151821"
+          Cursor="Hand">
+    <Grid ColumnDefinitions="*,Auto">
+      <StackPanel Spacing="6">
+        <TextBlock Text="Goal reached" FontWeight="SemiBold" />
+        <StackPanel x:Name="Lines" Spacing="4" />
+      </StackPanel>
+      <Button Grid.Column="1"
+              Classes="closeX"
+              VerticalAlignment="Top"
+              Margin="8,-4,-6,0"
+              AutomationProperties.Name="Close"
+              Click="OnCloseClick">
+        <TextBlock Text="×" FontSize="18" LineHeight="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Button>
+    </Grid>
+  </Border>
+</Window>

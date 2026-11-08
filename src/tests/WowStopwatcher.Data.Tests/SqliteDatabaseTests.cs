@@ -55,7 +55,7 @@ public class SqliteDatabaseTests
 
             var database = new SqliteDatabase(path);
 
-            Assert.Equal(2, database.GetSchemaVersion());
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
             var def = Assert.Single(new SqliteStopwatchRepository(database).GetAll());
             Assert.Equal(new StopwatchDefinition("a", "English", "#2F6FEB", TimeSpan.FromHours(5), "Ctrl+F1", 0), def);
             Assert.Single(new SqliteSessionRepository(database).GetInRange(DateTimeOffset.FromUnixTimeMilliseconds(0), DateTimeOffset.FromUnixTimeMilliseconds(5000)));

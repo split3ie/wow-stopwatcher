@@ -13,6 +13,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly StopwatchEngine _engine;
     private readonly IStopwatchRepository _stopwatches;
     private readonly ISessionRepository _sessions;
+    private readonly ISettingsRepository _settings;
     private readonly TimeProvider _time;
     private readonly GlobalHotkeyService _hotkeys;
 
@@ -20,12 +21,14 @@ public sealed partial class MainViewModel : ObservableObject
         StopwatchEngine engine,
         IStopwatchRepository stopwatches,
         ISessionRepository sessions,
+        ISettingsRepository settings,
         TimeProvider time,
         GlobalHotkeyService hotkeys)
     {
         _engine = engine;
         _stopwatches = stopwatches;
         _sessions = sessions;
+        _settings = settings;
         _time = time;
         _hotkeys = hotkeys;
 
@@ -82,7 +85,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             AppPage.Today => Today,
             AppPage.Statistics => new StatisticsViewModel(_engine, _stopwatches, _sessions, _time, Dialog),
-            AppPage.Settings => new SettingsViewModel(_engine, _stopwatches, _sessions, _time, Dialog, _hotkeys),
+            AppPage.Settings => new SettingsViewModel(_engine, _stopwatches, _sessions, _settings, _time, Dialog, _hotkeys),
             _ => throw new ArgumentOutOfRangeException(nameof(page)),
         };
 
