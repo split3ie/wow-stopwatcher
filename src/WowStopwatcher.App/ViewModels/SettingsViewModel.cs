@@ -81,7 +81,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     /// <summary>Version of the running app without any "+commit" suffix, for example "0.1.0".</summary>
     public static string CurrentVersion { get; } = ReadVersion();
 
-    public string VersionText => "v" + CurrentVersion;
+    public string VersionText { get; } = ReadVersionText();
 
     [ObservableProperty]
     private bool _autostartEnabled;
@@ -324,6 +324,14 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private static bool IsHttpsUrl(string? url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
+
+    private static string ReadVersionText()
+    {
+        var assembly = Assembly.GetEntryAssembly() ?? typeof(SettingsViewModel).Assembly;
+        var official = assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Any(a => a.Key == "OfficialBuild" && a.Value == "true");
+        return official ? "v" + CurrentVersion : "local build";
+    }
 
     private static string ReadVersion()
     {

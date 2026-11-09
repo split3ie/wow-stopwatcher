@@ -86,6 +86,7 @@ The build must finish with no errors and no new warnings. Run the tests after an
   Assets, each with a `.sha256`: `WowStopwatcher-X.Y.Z-win-x64.zip` (exe + LICENSE), `-linux-x64.tar.gz` (binary + LICENSE),
   `-osx-arm64.zip` and `-osx-x64.zip` (ad-hoc signed `WowStopwatcher.app`, Info.plist template in `build/macos/`; icon `build/macos/WowStopwatcher.icns`, generated from `app.ico`).
   A tag with a hyphen becomes a pre-release.
+- The release workflow passes `-p:OfficialBuild=true`; builds without it show "local build" instead of the version in Settings.
 - Agents never create tags or releases; the owner does.
 
 ## Conventions

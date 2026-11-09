@@ -97,7 +97,7 @@ jobs:
 
       - name: Publish
         shell: bash
-        run: dotnet publish src/WowStopwatcher.App -c Release -r "$RID" -p:Version="$VERSION" -o publish
+        run: dotnet publish src/WowStopwatcher.App -c Release -r "$RID" -p:Version="$VERSION" -p:OfficialBuild=true -o publish
 
       - name: Package (win-x64)
         if: matrix.rid == 'win-x64'
