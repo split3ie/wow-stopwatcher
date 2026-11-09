@@ -1,0 +1,121 @@
+<Project>
+  <!--
+    Build-time feature flags, all on by default. Turn one off on the command line, for example:
+      dotnet build -p:FeatureTray=false
+      dotnet publish -c Release -p:FeatureUpdateCheck=false -p:FeatureStatistics=false
+    A flag that is on adds the define FEATURE_<NAME> (used only in Composition/FeatureModules.cs).
+
+    Two kinds of flags:
+      Folder flags (pages and system features): a flag that is off also removes Features/<Folder>/ from Compile,
+        AvaloniaXaml and AvaloniaResource. Flag -> define -> folder, for example FeatureTray -> FEATURE_TRAY -> Tray.
+      Capability flags (stopwatches: Independent, Goals, Permanent): define only, no folder. They switch off a stopwatch
+        property for the whole app (see StopwatchCapabilities).
+
+    Groups:
+      Pages:      FeatureToday, FeatureStatistics, FeatureSettings (at least one must stay on).
+      Stopwatches: FeatureIndependent, FeatureGoals, FeaturePermanent.
+      System:     FeatureTray, FeatureHotkeys, FeatureGoalNotifications, FeatureAutostart, FeatureUpdateCheck.
+
+    Dependencies (forced below, before the defines):
+      FeatureGoals=false          forces FeatureGoalNotifications=false.
+      FeatureSettings=false       forces FeatureAutostart=false and FeatureUpdateCheck=false.
+  -->
+  <PropertyGroup>
+    <!-- Pages -->
+    <FeatureToday Condition="'$(FeatureToday)' == ''">true</FeatureToday>
+    <FeatureStatistics Condition="'$(FeatureStatistics)' == ''">true</FeatureStatistics>
+    <FeatureSettings Condition="'$(FeatureSettings)' == ''">true</FeatureSettings>
+    <!-- Stopwatches -->
+    <FeatureIndependent Condition="'$(FeatureIndependent)' == ''">true</FeatureIndependent>
+    <FeatureGoals Condition="'$(FeatureGoals)' == ''">true</FeatureGoals>
+    <FeaturePermanent Condition="'$(FeaturePermanent)' == ''">true</FeaturePermanent>
+    <!-- System -->
+    <FeatureTray Condition="'$(FeatureTray)' == ''">true</FeatureTray>
+    <FeatureHotkeys Condition="'$(FeatureHotkeys)' == ''">true</FeatureHotkeys>
+    <FeatureGoalNotifications Condition="'$(FeatureGoalNotifications)' == ''">true</FeatureGoalNotifications>
+    <FeatureAutostart Condition="'$(FeatureAutostart)' == ''">true</FeatureAutostart>
+    <FeatureUpdateCheck Condition="'$(FeatureUpdateCheck)' == ''">true</FeatureUpdateCheck>
+  </PropertyGroup>
+
+  <!-- Dependencies. A conflicting value passed on the command line is reported by the targets below. -->
+  <PropertyGroup Condition="'$(FeatureGoals)' != 'true'">
+    <FeatureGoalNotifications>false</FeatureGoalNotifications>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(FeatureSettings)' != 'true'">
+    <FeatureAutostart>false</FeatureAutostart>
+    <FeatureUpdateCheck>false</FeatureUpdateCheck>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Pages -->
+    <DefineConstants Condition="'$(FeatureToday)' == 'true'">$(DefineConstants);FEATURE_TODAY</DefineConstants>
+    <DefineConstants Condition="'$(FeatureStatistics)' == 'true'">$(DefineConstants);FEATURE_STATISTICS</DefineConstants>
+    <DefineConstants Condition="'$(FeatureSettings)' == 'true'">$(DefineConstants);FEATURE_SETTINGS</DefineConstants>
+    <!-- Stopwatches -->
+    <DefineConstants Condition="'$(FeatureIndependent)' == 'true'">$(DefineConstants);FEATURE_INDEPENDENT</DefineConstants>
+    <DefineConstants Condition="'$(FeatureGoals)' == 'true'">$(DefineConstants);FEATURE_GOALS</DefineConstants>
+    <DefineConstants Condition="'$(FeaturePermanent)' == 'true'">$(DefineConstants);FEATURE_PERMANENT</DefineConstants>
+    <!-- System -->
+    <DefineConstants Condition="'$(FeatureTray)' == 'true'">$(DefineConstants);FEATURE_TRAY</DefineConstants>
+    <DefineConstants Condition="'$(FeatureHotkeys)' == 'true'">$(DefineConstants);FEATURE_HOTKEYS</DefineConstants>
+    <DefineConstants Condition="'$(FeatureGoalNotifications)' == 'true'">$(DefineConstants);FEATURE_GOAL_NOTIFICATIONS</DefineConstants>
+    <DefineConstants Condition="'$(FeatureAutostart)' == 'true'">$(DefineConstants);FEATURE_AUTOSTART</DefineConstants>
+    <DefineConstants Condition="'$(FeatureUpdateCheck)' == 'true'">$(DefineConstants);FEATURE_UPDATE_CHECK</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Pages: folder removal -->
+  <ItemGroup Condition="'$(FeatureToday)' != 'true'">
+    <Compile Remove="Features/Today/**" />
+    <AvaloniaXaml Remove="Features/Today/**" />
+    <AvaloniaResource Remove="Features/Today/**" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(FeatureStatistics)' != 'true'">
+    <Compile Remove="Features/Statistics/**" />
+    <AvaloniaXaml Remove="Features/Statistics/**" />
+    <AvaloniaResource Remove="Features/Statistics/**" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(FeatureSettings)' != 'true'">
+    <Compile Remove="Features/Settings/**" />
+    <AvaloniaXaml Remove="Features/Settings/**" />
+    <AvaloniaResource Remove="Features/Settings/**" />
+  </ItemGroup>
+
+  <!-- System: folder removal -->
+  <ItemGroup Condition="'$(FeatureTray)' != 'true'">
+    <Compile Remove="Features/Tray/**" />
+    <AvaloniaXaml Remove="Features/Tray/**" />
+    <AvaloniaResource Remove="Features/Tray/**" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(FeatureHotkeys)' != 'true'">
+    <Compile Remove="Features/Hotkeys/**" />
+    <AvaloniaXaml Remove="Features/Hotkeys/**" />
+    <AvaloniaResource Remove="Features/Hotkeys/**" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(FeatureGoalNotifications)' != 'true'">
+    <Compile Remove="Features/GoalNotifications/**" />
+    <AvaloniaXaml Remove="Features/GoalNotifications/**" />
+    <AvaloniaResource Remove="Features/GoalNotifications/**" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(FeatureAutostart)' != 'true'">
+    <Compile Remove="Features/Autostart/**" />
+    <AvaloniaXaml Remove="Features/Autostart/**" />
+    <AvaloniaResource Remove="Features/Autostart/**" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(FeatureUpdateCheck)' != 'true'">
+    <Compile Remove="Features/UpdateCheck/**" />
+    <AvaloniaXaml Remove="Features/UpdateCheck/**" />
+    <AvaloniaResource Remove="Features/UpdateCheck/**" />
+  </ItemGroup>
+
+  <Target Name="EnsureAtLeastOnePage" BeforeTargets="BeforeBuild;BeforeCompile;CoreCompile"
+          Condition="'$(FeatureToday)' != 'true' And '$(FeatureStatistics)' != 'true' And '$(FeatureSettings)' != 'true'">
+    <Error Text="At least one page must be enabled: FeatureToday, FeatureStatistics or FeatureSettings." />
+  </Target>
+
+  <Target Name="EnsureFeatureDependencies" BeforeTargets="BeforeBuild;BeforeCompile;CoreCompile">
+    <Error Condition="'$(FeatureGoals)' != 'true' And '$(FeatureGoalNotifications)' == 'true'"
+           Text="FeatureGoalNotifications requires FeatureGoals." />
+    <Error Condition="'$(FeatureSettings)' != 'true' And ('$(FeatureAutostart)' == 'true' Or '$(FeatureUpdateCheck)' == 'true')"
+           Text="FeatureAutostart and FeatureUpdateCheck require FeatureSettings." />
+  </Target>
+</Project>

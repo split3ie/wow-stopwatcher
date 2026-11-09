@@ -7,5 +7,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/WowStopwatcher.Core.Tests/WowStopwatcher.Core.Tests.csproj" />
     <Project Path="tests/WowStopwatcher.Data.Tests/WowStopwatcher.Data.Tests.csproj" />
+    <Project Path="tests/WowStopwatcher.App.Tests/WowStopwatcher.App.Tests.csproj" />
   </Folder>
 </Solution>

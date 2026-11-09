@@ -2,90 +2,59 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Avalonia.Threading;
-using WowStopwatcher.App.Notifications;
-using WowStopwatcher.App.Services;
-using WowStopwatcher.App.Tray;
-using WowStopwatcher.App.ViewModels;
-using WowStopwatcher.App.Views;
+using Microsoft.Extensions.DependencyInjection;
+using WowStopwatcher.App.Composition;
+using WowStopwatcher.App.Shell;
 using WowStopwatcher.Core;
-using WowStopwatcher.Data;
 
 namespace WowStopwatcher.App;
 
 public partial class App : Application
 {
-    private MainWindow? _mainWindow;
-
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // The app lives in the tray: closing the main window only hides it. Quit calls desktop.Shutdown().
-            desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            // Composition root: the only place that builds and uses the service provider directly.
+            var provider = AppComposition.Build(desktop);
+            var options = provider.GetRequiredService<ShellOptions>();
 
-            // Composition root: everything is wired by hand.
-            var database = SqliteDatabase.OpenDefault();
-            var stopwatches = new SqliteStopwatchRepository(database);
-            var sessions = new SqliteSessionRepository(database);
-            var settings = new SqliteSettingsRepository(database);
-            var time = TimeProvider.System;
-            var engine = new StopwatchEngine(stopwatches, sessions, time);
+            // One locator maps every registered view model to its view, app-wide.
+            DataTemplates.Add(provider.GetRequiredService<ViewLocator>());
 
-            var hotkeys = new GlobalHotkeyService(engine);
-            _mainWindow = new MainWindow
+            // With a tray the app lives there: closing the main window only hides it and Quit shuts down.
+            // Without it, closing the main window ends the app.
+            desktop.ShutdownMode = options.CloseHidesWindow ? ShutdownMode.OnExplicitShutdown : ShutdownMode.OnMainWindowClose;
+
+            var mainWindow = provider.GetRequiredService<IMainWindowService>();
+            var services = provider.GetServices<IAppService>().ToList();
+            foreach (var service in services)
             {
-                DataContext = new MainViewModel(engine, stopwatches, sessions, settings, time, hotkeys),
-            };
+                service.Start();
+            }
 
-            hotkeys.Start();
-
-            var tray = new TrayController(engine, ShowMainWindow, () => desktop.Shutdown());
-            tray.Start();
-
-            var goalNotifier = new GoalNotifier(engine, settings, ShowMainWindow);
-            goalNotifier.Start();
-
-            Program.Instance?.StartListening(() => Dispatcher.UIThread.Post(ShowMainWindow));
-
-            // On normal quit the running session is stopped and saved.
+            // On normal quit the services are disposed in reverse order, then running sessions are stopped and saved.
+            var control = provider.GetRequiredService<IStopwatchControl>();
             desktop.Exit += (_, _) =>
             {
-                hotkeys.Dispose();
-                tray.Dispose();
-                goalNotifier.Dispose();
-                engine.StopAll();
+                for (var i = services.Count - 1; i >= 0; i--)
+                {
+                    services[i].Dispose();
+                }
+
+                control.StopAll();
             };
 
             // "--minimized" (autostart): keep the main window hidden, only the tray icon is visible.
-            if (desktop.Args?.Contains("--minimized") != true)
+            // Without a tray the window must be shown, otherwise the app could not be reached.
+            if (!options.CloseHidesWindow || desktop.Args?.Contains("--minimized") != true)
             {
-                ShowMainWindow();
+                mainWindow.Show();
             }
         }
 
         base.OnFrameworkInitializationCompleted();
-    }
-
-    /// <summary>Shows, un-minimizes and activates the main window.</summary>
-    private void ShowMainWindow()
-    {
-        if (_mainWindow is not { } window)
-        {
-            return;
-        }
-
-        window.Show();
-        if (window.WindowState == WindowState.Minimized)
-        {
-            window.WindowState = WindowState.Normal;
-        }
-
-        // Toggling Topmost helps bring the window in front of other apps.
-        window.Topmost = true;
-        window.Activate();
-        window.Topmost = false;
     }
 }

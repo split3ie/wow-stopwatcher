@@ -272,4 +272,55 @@
     <Setter Property="Background" Value="{DynamicResource StarSoftBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource StarBrush}" />
   </Style>
+
+  <!-- On/off switch -->
+  <Style Selector="ToggleButton.switch">
+    <Setter Property="Width" Value="48" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border x:Name="Track"
+                CornerRadius="{DynamicResource RadiusPill}"
+                Background="{DynamicResource IdleBrush}">
+          <Ellipse x:Name="Knob"
+                   Width="22" Height="22"
+                   Margin="3,0,0,0"
+                   HorizontalAlignment="Left"
+                   Fill="{DynamicResource OnDarkBrush}" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="ToggleButton.switch:checked /template/ Border#Track">
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.switch:checked /template/ Ellipse#Knob">
+    <Setter Property="Margin" Value="0,0,3,0" />
+    <Setter Property="HorizontalAlignment" Value="Right" />
+  </Style>
+  <Style Selector="ToggleButton.switch:disabled">
+    <Setter Property="Opacity" Value="0.5" />
+  </Style>
+
+
+  <!-- Footer links -->
+  <Style Selector="Button.footerLink">
+    <Setter Property="Foreground" Value="{DynamicResource AccentStrongBrush}" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="FontWeight" Value="Medium" />
+  </Style>
+  <Style Selector="Button.footerLink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource AccentStrongBrush}" />
+  </Style>
+  <Style Selector="Button.footerLink TextBlock">
+    <Setter Property="TextDecorations" Value="Underline" />
+  </Style>
+  <Style Selector="Button.footerLink:pointerover TextBlock">
+    <Setter Property="Opacity" Value="0.8" />
+  </Style>
+
 </Styles>

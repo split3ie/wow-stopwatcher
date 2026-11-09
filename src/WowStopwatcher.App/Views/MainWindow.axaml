@@ -18,18 +18,6 @@
         FontFamily="{DynamicResource UiFont}"
         FontSize="14">
 
-  <Window.DataTemplates>
-    <DataTemplate DataType="vm:TodayViewModel">
-      <v:TodayView />
-    </DataTemplate>
-    <DataTemplate DataType="vm:StatisticsViewModel">
-      <v:StatisticsView />
-    </DataTemplate>
-    <DataTemplate DataType="vm:SettingsViewModel">
-      <v:SettingsView />
-    </DataTemplate>
-  </Window.DataTemplates>
-
   <Grid>
     <Grid RowDefinitions="Auto,*">
       <Border Grid.Row="0"
@@ -53,26 +41,28 @@
                        Classes="muted" />
           </StackPanel>
 
-          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-            <Button Classes="nav"
-                    Classes.active="{Binding IsTodayActive}"
-                    Command="{Binding ShowTodayCommand}"
-                    Content="Today" />
-            <Button Classes="nav"
-                    Classes.active="{Binding IsStatisticsActive}"
-                    Command="{Binding ShowStatisticsCommand}"
-                    Content="Statistics" />
-            <Button Classes="nav"
-                    Classes.active="{Binding IsSettingsActive}"
-                    Command="{Binding ShowSettingsCommand}">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <c:Icon Width="16" Height="16"
-                        Data="{StaticResource IconGear}"
-                        Stroke="{Binding $parent[Button].Foreground}" />
-                <TextBlock Text="Settings" />
-              </StackPanel>
-            </Button>
-          </StackPanel>
+          <ItemsControl Grid.Column="1" ItemsSource="{Binding NavItems}" VerticalAlignment="Center">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="4" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:NavItemViewModel">
+                <Button Classes="nav"
+                        Classes.active="{Binding IsActive}"
+                        Command="{Binding Command}">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <c:Icon Width="16" Height="16"
+                            IsVisible="{Binding HasIcon}"
+                            Data="{Binding IconKey, Converter={x:Static c:ResourceKeyToGeometryConverter.Instance}}"
+                            Stroke="{Binding $parent[Button].Foreground}" />
+                    <TextBlock Text="{Binding Title}" />
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
         </Grid>
       </Border>
 

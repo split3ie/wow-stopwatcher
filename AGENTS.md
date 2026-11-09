@@ -54,13 +54,65 @@ Sources of truth:
 src/
   WowStopwatcher.slnx
   Directory.Build.props    Shared build settings and <Version>.
-  WowStopwatcher.Core/     Domain models, stopwatch engine, time formatting, timeline and statistics math. No UI, no I/O.
+  Features.props (App)     Build flags `FeatureX` (see Architecture).
+  WowStopwatcher.Core/     Domain models, stopwatch engine (`StopwatchEngine` behind `IStopwatchState`, `IStopwatchControl`,
+                           `IStopwatchMaintenance`; expiry strategy `IStopwatchExpiryPolicy`), goal tracking, time formatting,
+                           timeline and statistics math. No UI, no I/O.
   WowStopwatcher.Data/     SQLite repositories and schema migrations. Depends on Core.
-  WowStopwatcher.App/      Avalonia app: views, view models, theme, tray, global hotkeys, autostart. Depends on Core and Data.
+  WowStopwatcher.App/      Avalonia app. Depends on Core and Data.
+    Composition/           Dependency injection setup: `AppComposition`, `IFeatureModule`, `FeatureModules`, `IAppService`.
+    Shell/                 Shell abstractions (window, lifetime, dispatcher, dialogs, version, `ShellOptions`, view locator,
+                           settings contribution interfaces, `IShortcutService`) and their default implementations.
+    Navigation/            `PageDescriptor`, `PageKeys`, `INavigationService`, `INavigationAware`.
+    Features/<Name>/       Feature modules: Autostart, GoalNotifications, Hotkeys, Settings, Statistics, Today, Tray, UpdateCheck.
+    ViewModels/, Views/, Controls/, Layout/, Theme/, Services/   Always-present UI (main window, timeline, dialogs) and helpers.
   tests/
     WowStopwatcher.Core.Tests/
     WowStopwatcher.Data.Tests/
+    WowStopwatcher.App.Tests/   Composition and navigation tests.
+  tools/
+    WowStopwatcher.BuildTool/  Source of the GUI to pick features and publish win/linux/macOS binaries (not in the solution; see src/tools/README.md).
+tools/                         Only the published `WowStopwatcher.BuildTool.exe` (framework-dependent, needs .NET 10).
 ```
+
+## Architecture
+
+- The App uses `Microsoft.Extensions.DependencyInjection`. `AppComposition.Build` registers Core, storage and the shell,
+  then calls `Register` on every module in `FeatureModules.All`, and builds the provider with `ValidateOnBuild`.
+- A **feature** is a folder `src/WowStopwatcher.App/Features/<Name>/` with a `<Name>Module : IFeatureModule`. The module registers
+  everything the feature contributes: pages (`PageDescriptor` + `ViewMapping`), settings items (`ISettingsGeneralItem`,
+  `ISettingsFooterItem` + their `ViewMapping`), and background services (`IAppService`).
+- `IAppService.Start` is called after the main window is created, in registration order; services are disposed in reverse order.
+- **Build flags** are in `src/WowStopwatcher.App/Features.props`; all default to true and a flag that is true defines `FEATURE_<NAME>`.
+  They come in three groups:
+  - Pages: `FeatureToday`, `FeatureStatistics`, `FeatureSettings`. **At least one page must be on**: a target fails the build with
+    "At least one page must be enabled: FeatureToday, FeatureStatistics or FeatureSettings." The app opens on the page with the lowest `Order`.
+  - Stopwatches (capability flags): `FeatureIndependent`, `FeatureGoals`, `FeaturePermanent`.
+  - System: `FeatureTray`, `FeatureHotkeys`, `FeatureGoalNotifications`, `FeatureAutostart`, `FeatureUpdateCheck`.
+- **Folder flags vs capability flags:** a page or system flag that is false removes the feature folder `Features/<Name>/` from the build
+  (Compile, AvaloniaXaml, AvaloniaResource). A capability flag has no folder: it only defines `FEATURE_<NAME>`, and `FeatureModules.Capabilities`
+  (a `StopwatchCapabilities`) is built from the three defines and registered as a singleton.
+- **Flag dependencies** (forced in `Features.props` before the defines): `FeatureGoals=false` forces `FeatureGoalNotifications=false`;
+  `FeatureSettings=false` forces `FeatureAutostart=false` and `FeatureUpdateCheck=false` (their UI lives on the Settings page).
+- **Capability decorator:** `AddStorage` registers `SqliteStopwatchRepository` wrapped in `CapabilityFilteredStopwatchRepository`; the engine and
+  all other code get the filtered one. Reads return disabled fields neutral (no goal, not independent, not permanent); updates keep the stored values,
+  so turning a flag back on restores them. UI for a disabled capability is hidden by injecting `StopwatchCapabilities`, never with `#if`.
+- **Adding a feature:** create the folder and module; add the flag (in its group), the define and, for a folder flag, the folder removal to `Features.props`;
+  add one `#if FEATURE_<NAME>` entry (and its `using`) in `Composition/FeatureModules.cs`; register its pages, settings items,
+  views and background services in the module. Check the minimal CI steps (see Commands), and add a checkbox for it to the
+  build tool: one entry in `src/tools/WowStopwatcher.BuildTool/Build/FeatureCatalog.cs` (the tool warns when `Features.props` and the catalog differ).
+- **Rules:** `FeatureModules.cs` is the only file with `#if FEATURE_*`. Nothing outside a feature folder references a type
+  inside it. Features talk to the rest of the app through Core and Shell/Navigation interfaces.
+- **Optional capabilities use a null object:** the shell registers a default that does nothing, and the feature replaces it.
+  Example: `IShortcutService` defaults to `NullShortcutService` (`IsAvailable` is false, so Settings hides the shortcut fields);
+  `HotkeysModule` registers the real one.
+- **Behavior with a feature off:** Today off: no Today page, the app opens on the first remaining page; Settings off: no Settings page,
+  no link to it from Today, and no Autostart or UpdateCheck; Goals off: no goal field on Settings cards, no Goals card on Today, no goal pins,
+  shading or notifications; Independent off: no independent toggle, every stopwatch is a normal one; Permanent off: no permanent toggle,
+  every stopwatch is temporary and auto-hides after a full unused day (the stored flag is kept). Tray off: `ShellOptions.CloseHidesWindow` stays false, so closing the main window quits the app
+  (the Tray module sets it to true); Hotkeys off: no shortcut fields in Settings; Statistics off: no Statistics page in the navigation;
+  GoalNotifications, Autostart, UpdateCheck off: their Settings card/button and background work are absent.
+  Autostart also registers nothing on an unsupported system or when the process path is unknown.
 
 ## Commands
 
@@ -68,9 +120,11 @@ src/
 dotnet build src/WowStopwatcher.slnx
 dotnet test src/WowStopwatcher.slnx
 dotnet run --project src/WowStopwatcher.App
+dotnet build src/WowStopwatcher.slnx -p:FeatureTray=false      # one feature off; same for dotnet test / publish
+dotnet build src/WowStopwatcher.slnx <every flag false except FeatureToday>   # minimal build; at least one page must stay on
 ```
 
-CI builds and tests on Windows, Linux and macOS.
+CI builds and tests on Windows, Linux and macOS, then builds and tests again with every flag off except `FeatureToday`, and once more with every flag off except `FeatureSettings`.
 
 The build must finish with no errors and no new warnings. Run the tests after any change to Core or Data.
 
@@ -92,6 +146,7 @@ The build must finish with no errors and no new warnings. Run the tests after an
 ## Conventions
 
 - Keep logic in Core so it can be unit tested. View models call Core; views only bind.
+- Dependencies come through the container (constructor injection); depend on interfaces from Core or Shell. Do not add `#if` outside `FeatureModules.cs`.
 - Time comes from `TimeProvider` (injected), never `DateTime.Now` directly, so tests can control the clock.
 - Store timestamps as UTC; group sessions into days by **local** date of the session start.
 - A running stopwatch is a session with no stop time. On normal quit, running sessions are stopped and saved.

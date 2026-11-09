@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:local="using:WowStopwatcher.App.Features.UpdateCheck"
+             x:Class="WowStopwatcher.App.Features.UpdateCheck.UpdateCheckFooterView"
+             x:DataType="local:UpdateCheckFooterViewModel">
+
+  <UserControl.Resources>
+    <SolidColorBrush x:Key="UpdateSuccessBrush" Color="#1F7A45" />
+    <StreamGeometry x:Key="UpdateIconRefresh">M21,12 A9,9 0 1 1 18,5.3 L21,8 M21,3 V8 H16</StreamGeometry>
+    <StreamGeometry x:Key="UpdateIconSpinner">M21,12 A9,9 0 1 1 14.8,3.4</StreamGeometry>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <Style Selector="Button.checkUpdates">
+      <Setter Property="Padding" Value="14,0" />
+      <Setter Property="FontSize" Value="13" />
+    </Style>
+    <Style Selector="TextBlock.updateMessage">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+    </Style>
+    <Style Selector="TextBlock.updateMessage.ok">
+      <Setter Property="Foreground" Value="{DynamicResource UpdateSuccessBrush}" />
+    </Style>
+    <Style Selector="TextBlock.updateMessage.error">
+      <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+    </Style>
+
+    <!-- Spinner -->
+    <Style Selector="c|Icon.spin">
+      <Setter Property="RenderTransform" Value="rotate(0deg)" />
+      <Style.Animations>
+        <Animation Duration="0:0:0.8" IterationCount="Infinite">
+          <KeyFrame Cue="0%">
+            <Setter Property="RotateTransform.Angle" Value="0" />
+          </KeyFrame>
+          <KeyFrame Cue="100%">
+            <Setter Property="RotateTransform.Angle" Value="360" />
+          </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+  </UserControl.Styles>
+
+  <StackPanel Orientation="Horizontal"
+              Spacing="12"
+              HorizontalAlignment="Right"
+              VerticalAlignment="Center">
+    <TextBlock Classes="updateMessage"
+               Classes.ok="{Binding IsUpdateOk}"
+               Classes.error="{Binding IsUpdateError}"
+               Text="{Binding UpdateMessage}"
+               IsVisible="{Binding HasUpdateMessage}" />
+    <Button Classes="link footerLink"
+            FontSize="13"
+            VerticalAlignment="Center"
+            Tag="{Binding UpdateUrl}"
+            IsVisible="{Binding HasUpdateLink}"
+            Click="OnLinkClick">
+      <TextBlock Text="{Binding UpdateMessage}" />
+    </Button>
+    <Button Classes="secondary checkUpdates"
+            Command="{Binding CheckUpdatesCommand}">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <c:Icon Classes="spin"
+                Width="14" Height="14"
+                IsVisible="{Binding IsBusy}"
+                Data="{StaticResource UpdateIconSpinner}"
+                Stroke="{Binding $parent[Button].Foreground}"
+                StrokeThickness="2.2" />
+        <c:Icon Width="14" Height="14"
+                IsVisible="{Binding IsIdle}"
+                Data="{StaticResource UpdateIconRefresh}"
+                Stroke="{Binding $parent[Button].Foreground}"
+                StrokeThickness="2" />
+        <TextBlock Text="Check for updates" IsVisible="{Binding IsIdle}" VerticalAlignment="Center" />
+        <TextBlock Text="Checking…" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+      </StackPanel>
+    </Button>
+  </StackPanel>
+</UserControl>

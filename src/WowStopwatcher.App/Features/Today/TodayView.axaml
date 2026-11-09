@@ -1,0 +1,239 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:l="using:WowStopwatcher.App.Layout"
+             xmlns:vm="using:WowStopwatcher.App.Features.Today"
+             xmlns:v="using:WowStopwatcher.App.Views"
+             x:Class="WowStopwatcher.App.Features.Today.TodayView"
+             x:DataType="vm:TodayViewModel">
+
+  <UserControl.Styles>
+    <!-- Timeline tooltips rise above the card, so the timeline view must not clip its content. -->
+    <Style Selector="v|TimelineView, v|TimelineView ContentPresenter">
+      <Setter Property="ClipToBounds" Value="False" />
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <Border MaxWidth="1200" Padding="28,24,28,40">
+      <!-- Main column and side column; the side column wraps above the main column when narrow (wrap-reverse). -->
+      <l:FlexWrapPanel Spacing="24" ReverseLines="True">
+
+        <!-- Main column -->
+        <StackPanel l:FlexWrapPanel.Basis="560"
+                    l:FlexWrapPanel.Grow="999"
+                    VerticalAlignment="Top"
+                    Spacing="14">
+          <v:TimelineView DataContext="{Binding Timeline}" />
+
+          <ItemsControl x:Name="RowsList" ItemsSource="{Binding Rows}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="14" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:StopwatchRowViewModel">
+                <vm:StopwatchRowView />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <!-- Empty state -->
+          <Border Classes="card"
+                  IsVisible="{Binding !HasStopwatches}"
+                  Padding="28">
+            <StackPanel Spacing="6">
+              <TextBlock Text="No stopwatches yet" FontSize="17" FontWeight="Bold" />
+              <TextBlock Classes="muted"
+                         Text="{Binding EmptyHint}"
+                         TextWrapping="Wrap" />
+              <Button Classes="primary"
+                      Margin="0,12,0,0"
+                      Width="180"
+                      IsVisible="{Binding CanOpenSettings}"
+                      HorizontalAlignment="Left"
+                      Command="{Binding OpenSettingsCommand}"
+                      Content="Open Settings" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- Side column -->
+        <l:FlexWrapPanel l:FlexWrapPanel.Basis="260"
+                         l:FlexWrapPanel.Grow="1"
+                         VerticalAlignment="Top"
+                         Spacing="14">
+
+          <!-- Total and global controls -->
+          <Border Classes="card"
+                  l:FlexWrapPanel.Basis="260"
+                  VerticalAlignment="Top"
+                  Padding="20,18">
+            <StackPanel Spacing="14">
+              <TextBlock Classes="section" Text="TOTAL TODAY" />
+              <StackPanel>
+                <TextBlock Classes="mono"
+                           FontSize="40"
+                           FontWeight="SemiBold"
+                           LetterSpacing="-1.2"
+                           Text="{Binding TotalText}" />
+                <TextBlock Classes="muted"
+                           Margin="0,4,0,0"
+                           FontSize="13"
+                           TextWrapping="Wrap"
+                           Text="{Binding TotalHuman}" />
+              </StackPanel>
+
+              <Border Padding="12,10"
+                      Background="{DynamicResource PageBrush}"
+                      CornerRadius="{DynamicResource RadiusControl}">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                  <Grid Width="9" Height="9" VerticalAlignment="Center">
+                    <Ellipse Fill="{DynamicResource IdleBrush}" />
+                    <Ellipse Classes.live="{Binding IsAnyRunning}" Fill="{Binding RunningBrush}" />
+                  </Grid>
+                  <TextBlock Grid.Column="1"
+                             Text="{Binding RunningText}"
+                             ToolTip.Tip="{Binding RunningText}"
+                             VerticalAlignment="Center"
+                             FontSize="13"
+                             Foreground="{DynamicResource SecondaryBrush}"
+                             TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="2"
+                             Classes="mono"
+                             IsVisible="{Binding IsAnyRunning}"
+                             Text="{Binding RunningElapsedText}"
+                             VerticalAlignment="Center"
+                             FontSize="13"
+                             Foreground="{DynamicResource SecondaryBrush}" />
+                </Grid>
+              </Border>
+
+              <StackPanel Spacing="6">
+                <Button Classes="primary"
+                        Command="{Binding MainActionCommand}"
+                        AutomationProperties.Name="{Binding MainActionLabel}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <c:Icon IsVisible="{Binding IsAnyRunning}"
+                            Width="14" Height="14"
+                            VerticalAlignment="Center"
+                            Data="{StaticResource IconStopSmall}"
+                            Fill="{Binding $parent[Button].Foreground}"
+                            StrokeThickness="0" />
+                    <c:Icon IsVisible="{Binding !IsAnyRunning}"
+                            Width="14" Height="14"
+                            VerticalAlignment="Center"
+                            Data="{StaticResource IconPlay}"
+                            Fill="{Binding $parent[Button].Foreground}"
+                            StrokeThickness="0" />
+                    <TextBlock Text="{Binding MainActionLabel}" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+                <StackPanel IsVisible="{Binding !IsAnyRunning}"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            Spacing="6">
+                  <Grid Width="8" Height="8" VerticalAlignment="Center">
+                    <Ellipse Fill="{DynamicResource IdleBrush}" />
+                    <Ellipse Fill="{Binding StartBrush}" />
+                  </Grid>
+                  <TextBlock Classes="muted"
+                             VerticalAlignment="Center"
+                             FontSize="12"
+                             Text="{Binding StartCaption}" />
+                </StackPanel>
+              </StackPanel>
+
+              <Button Classes="danger" Command="{Binding ResetAllCommand}" Content="Reset all" />
+            </StackPanel>
+          </Border>
+
+          <!-- Goals -->
+          <Border Classes="card"
+                  l:FlexWrapPanel.Basis="260"
+                  IsVisible="{Binding AreGoalsAvailable}"
+                  VerticalAlignment="Top"
+                  Padding="20,18">
+            <StackPanel Spacing="14">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="section" Text="GOALS" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1"
+                           Classes="muted"
+                           FontSize="12"
+                           VerticalAlignment="Center"
+                           Text="{Binding GoalsSummary}" />
+              </Grid>
+
+              <ItemsControl ItemsSource="{Binding Goals}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="14" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:GoalItemViewModel">
+                    <StackPanel Spacing="6">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{Binding Name}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="1"
+                                   Classes="mono"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource SecondaryBrush}"
+                                   Text="{Binding PercentText}" />
+                      </Grid>
+                      <Border Height="8"
+                              Background="{DynamicResource LineSoftBrush}"
+                              CornerRadius="{DynamicResource RadiusBar}"
+                              ClipToBounds="True">
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{Binding DoneWidth}" />
+                            <ColumnDefinition Width="{Binding LeftWidth}" />
+                          </Grid.ColumnDefinitions>
+                          <Border Background="{Binding Brush}" CornerRadius="{DynamicResource RadiusBar}" />
+                        </Grid>
+                      </Border>
+                      <TextBlock Classes="muted" FontSize="12" Text="{Binding SubText}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <Button Classes="link"
+                      HorizontalAlignment="Left"
+                      Padding="2,0"
+                      IsVisible="{Binding CanToggleGoals}"
+                      Command="{Binding ToggleGoalsCommand}"
+                      Content="{Binding ToggleGoalsLabel}" />
+
+              <Border IsVisible="{Binding HasReachedGoals}"
+                      Padding="12,10"
+                      Background="{DynamicResource ReachedBgBrush}"
+                      CornerRadius="{DynamicResource RadiusControl}">
+                <Grid ColumnDefinitions="Auto,*">
+                  <c:Icon Width="14" Height="14"
+                          Margin="0,1,8,0"
+                          VerticalAlignment="Top"
+                          Data="{StaticResource IconStar}"
+                          Fill="{DynamicResource StarBrush}"
+                          Stroke="{DynamicResource StarStrokeBrush}" />
+                  <TextBlock Grid.Column="1"
+                             FontSize="12"
+                             LineHeight="17"
+                             Foreground="{DynamicResource ReachedTextBrush}"
+                             TextWrapping="Wrap">
+                    <Run FontWeight="SemiBold" Text="Reached:" /><Run Text=" " /><Run Text="{Binding ReachedNames}" />
+                  </TextBlock>
+                </Grid>
+              </Border>
+            </StackPanel>
+          </Border>
+        </l:FlexWrapPanel>
+      </l:FlexWrapPanel>
+    </Border>
+  </ScrollViewer>
+</UserControl>

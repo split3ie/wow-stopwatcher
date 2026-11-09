@@ -1,10 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using WowStopwatcher.App.Shell;
 
 namespace WowStopwatcher.App.ViewModels;
 
 /// <summary>State of the in-window confirmation dialog (hosted by the main window, shared by pages).</summary>
-public sealed partial class ConfirmDialogViewModel : ObservableObject
+public sealed partial class ConfirmDialogViewModel : ObservableObject, IDialogService
 {
     private Action? _onConfirm;
 

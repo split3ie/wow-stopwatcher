@@ -1,0 +1,169 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:c="using:WowStopwatcher.App.Controls"
+                xmlns:l="using:WowStopwatcher.App.Layout"
+                xmlns:vm="using:WowStopwatcher.App.Features.Settings"
+                x:Class="WowStopwatcher.App.Features.Settings.SettingsView"
+                x:DataType="vm:SettingsViewModel">
+
+  <UserControl.Resources>
+    <StreamGeometry x:Key="SettingsIconPlus">M12,5 V19 M5,12 H19</StreamGeometry>
+    <StreamGeometry x:Key="SettingsIconGitHub">M9,19 c-4.3,1.4 -4.3,-2.5 -6,-3 m12,5 v-3.5 c0,-1 .1,-1.4 -.5,-2 c2.8,-.3 5.5,-1.4 5.5,-6 a4.6,4.6 0 0 0 -1.3,-3.2 a4.2,4.2 0 0 0 -.1,-3.2 s-1.1,-.3 -3.5,1.3 a12.3,12.3 0 0 0 -6.2,0 C6.5,2.8 5.4,3.1 5.4,3.1 a4.2,4.2 0 0 0 -.1,3.2 A4.6,4.6 0 0 0 4,9.5 c0,4.6 2.7,5.7 5.5,6 c-.6,.6 -.6,1.2 -.5,2 V21</StreamGeometry>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.h2">
+      <Setter Property="FontSize" Value="18" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="LetterSpacing" Value="-0.18" />
+    </Style>
+
+    <!-- "Add new stopwatch" dashed button -->
+    <Style Selector="Button.addDashed">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource SecondaryBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Height" Value="56" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Stretch" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.addDashed:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.addDashed:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <Border MaxWidth="920" Padding="28,28,28,32">
+      <StackPanel Spacing="16">
+        <TextBlock Text="Settings" FontSize="24" FontWeight="Bold" LetterSpacing="-0.48" />
+
+        <!-- General: cards contributed by features -->
+        <StackPanel Spacing="10" Margin="0,0,0,12" IsVisible="{Binding HasGeneralItems}">
+          <TextBlock Classes="h2" Text="General" />
+          <ItemsControl ItemsSource="{Binding GeneralItems}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="10" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </StackPanel>
+
+        <!-- Stopwatches -->
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="6">
+            <TextBlock Classes="h2" Text="Stopwatches" />
+            <TextBlock Classes="muted"
+                       TextWrapping="Wrap"
+                       Text="Name, color, goal and shortcut for each activity. Drag the handle to change the order." />
+          </StackPanel>
+          <Button Grid.Column="1"
+                  Classes="primary"
+                  HorizontalAlignment="Right"
+                  VerticalAlignment="Bottom"
+                  Margin="12,0,0,0"
+                  Padding="18,0"
+                  Command="{Binding AddStopwatchCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <c:Icon Width="16" Height="16"
+                      Data="{StaticResource SettingsIconPlus}"
+                      Stroke="{Binding $parent[Button].Foreground}"
+                      StrokeThickness="2.2" />
+              <TextBlock Text="Add stopwatch" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </Grid>
+
+        <TextBlock Foreground="{DynamicResource DangerBrush}"
+                   FontSize="13"
+                   TextWrapping="Wrap"
+                   Text="{Binding ShortcutsUnsupportedText}"
+                   IsVisible="{Binding AreShortcutsUnsupported}" />
+
+        <ItemsControl x:Name="ItemsList" ItemsSource="{Binding Items}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="16" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:SettingsStopwatchViewModel">
+              <vm:SettingsStopwatchView />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Button Classes="addDashed" Command="{Binding AddStopwatchCommand}">
+          <Grid>
+            <Rectangle RadiusX="12" RadiusY="12"
+                       Stroke="{DynamicResource IdleBrush}"
+                       StrokeThickness="1.5"
+                       StrokeDashArray="4,3" />
+            <StackPanel Orientation="Horizontal" Spacing="8"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+              <c:Icon Width="16" Height="16"
+                      Data="{StaticResource SettingsIconPlus}"
+                      Stroke="{Binding $parent[Button].Foreground}"
+                      StrokeThickness="2" />
+              <TextBlock Text="Add new stopwatch" FontWeight="Medium" VerticalAlignment="Center" />
+            </StackPanel>
+          </Grid>
+        </Button>
+
+        <!-- Footer -->
+        <Border Margin="0,20,0,0"
+                Padding="0,18,0,0"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,1,0,0">
+          <l:FlexWrapPanel Spacing="24">
+            <WrapPanel l:FlexWrapPanel.Basis="440" l:FlexWrapPanel.Grow="1" VerticalAlignment="Center">
+              <TextBlock Classes="muted" FontSize="13" Margin="0,0,14,0" VerticalAlignment="Center">
+                <Run Text="WowStopwatcher" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" /><Run Text=" " /><Run Classes="mono" Text="{Binding VersionText}" />
+              </TextBlock>
+              <StackPanel Orientation="Horizontal" Margin="0,0,14,0" VerticalAlignment="Center">
+                <TextBlock Classes="muted" FontSize="13" Text="Made by " VerticalAlignment="Center" />
+                <Button Classes="link footerLink"
+                        FontSize="13"
+                        FontWeight="SemiBold"
+                        Tag="https://github.com/split3ie"
+                        Click="OnLinkClick">
+                  <TextBlock Text="split3ie" />
+                </Button>
+              </StackPanel>
+              <Button Classes="link footerLink"
+                      FontSize="13"
+                      Tag="https://github.com/split3ie/wow-stopwatcher"
+                      Click="OnLinkClick">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <c:Icon Width="16" Height="16"
+                          Data="{StaticResource SettingsIconGitHub}"
+                          Stroke="{Binding $parent[Button].Foreground}" />
+                  <TextBlock Text="GitHub repository" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+            </WrapPanel>
+
+            <StackPanel l:FlexWrapPanel.Basis="340"
+                        l:FlexWrapPanel.Grow="0"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        IsVisible="{Binding HasFooterItems}">
+              <ItemsControl ItemsSource="{Binding FooterItems}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="12" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </StackPanel>
+          </l:FlexWrapPanel>
+        </Border>
+      </StackPanel>
+    </Border>
+  </ScrollViewer>
+</UserControl>

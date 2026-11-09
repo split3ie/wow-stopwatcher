@@ -1,0 +1,177 @@
+<wnd:FAAppWindow xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="using:FluentAvalonia.UI.Controls"
+        xmlns:wnd="using:FluentAvalonia.UI.Windowing"
+        xmlns:vm="using:WowStopwatcher.BuildTool.ViewModels"
+        x:Class="WowStopwatcher.BuildTool.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="WowStopwatcher Build Tool"
+        Width="1000" Height="720" MinWidth="720" MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        TransparencyLevelHint="Mica, None"
+        Background="Transparent">
+  <DockPanel>
+    <!-- Title bar area: the window content extends into it; the window draws the caption buttons. -->
+    <Grid DockPanel.Dock="Top" Height="32" Margin="12,0,0,0">
+      <TextBlock Text="WowStopwatcher Build Tool" FontSize="12" VerticalAlignment="Center"
+                 Foreground="{DynamicResource TextFillColorSecondaryBrush}" IsHitTestVisible="False" />
+    </Grid>
+
+    <!-- Bottom bar, visible on every page. -->
+    <Border DockPanel.Dock="Bottom" Padding="16,12"
+            Background="{DynamicResource LayerOnMicaBaseAltFillColorDefaultBrush}"
+            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+      <StackPanel Spacing="8">
+        <ui:FAInfoBar Severity="Error" IsOpen="{Binding HasProblems}" IsClosable="False"
+                      Title="Cannot build" Message="{Binding ProblemsText}" />
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+          <TextBlock Text="{Binding StatusText}" IsVisible="{Binding HasStatus}" VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis" />
+          <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelCommand}" MinWidth="88" />
+          <Button Grid.Column="2" Content="Build" Command="{Binding BuildCommand}" Classes="accent" MinWidth="88" />
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <ui:FANavigationView Name="Nav" PaneDisplayMode="Left" IsPaneOpen="True" OpenPaneLength="260"
+                         IsSettingsVisible="False" IsBackButtonVisible="False"
+                         MenuItemsSource="{Binding Groups}"
+                         FooterMenuItemsSource="{Binding FooterPages}"
+                         SelectedItem="{Binding SelectedPage, Mode=TwoWay}">
+      <ui:FANavigationView.MenuItemTemplate>
+        <DataTemplate x:DataType="vm:NavPageViewModel">
+          <ui:FANavigationViewItem Content="{Binding Title}">
+            <ui:FANavigationViewItem.InfoBadge>
+              <ui:FAInfoBadge Classes="Critical" IsVisible="{Binding HasError}" />
+            </ui:FANavigationViewItem.InfoBadge>
+          </ui:FANavigationViewItem>
+        </DataTemplate>
+      </ui:FANavigationView.MenuItemTemplate>
+
+      <Grid RowDefinitions="Auto,*">
+        <StackPanel Margin="24,8,24,0" Spacing="8">
+          <ui:FAInfoBar Severity="Error" IsOpen="{Binding HasError}" IsClosable="False"
+                        Title="Repository not found" Message="{Binding ErrorMessage}" />
+          <ui:FAInfoBar Severity="Warning" IsOpen="{Binding HasWarning}" IsClosable="False"
+                        Title="Feature lists differ" Message="{Binding WarningMessage}" />
+        </StackPanel>
+
+        <!-- Feature group page -->
+        <ContentControl Grid.Row="1" Content="{Binding SelectedGroup}" IsEnabled="{Binding IsIdle}">
+          <ContentControl.DataTemplates>
+            <DataTemplate x:DataType="vm:FeatureGroupViewModel">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="4" Margin="24,12,24,24">
+                  <TextBlock Text="{Binding Title}" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,12" />
+                  <ui:FAInfoBar Severity="Error" IsOpen="{Binding HasError}" IsClosable="False"
+                                Message="{Binding Error}" Margin="0,0,0,8" />
+                  <ui:FASettingsExpander Header="All features in this group" Description="{Binding SummaryText}"
+                                         Margin="0,0,0,8">
+                    <ui:FASettingsExpander.Footer>
+                      <CheckBox IsThreeState="True" IsChecked="{Binding IsChecked}" MinWidth="0" Padding="0"
+                                AutomationProperties.Name="All features in this group" />
+                    </ui:FASettingsExpander.Footer>
+                  </ui:FASettingsExpander>
+                  <ItemsControl ItemsSource="{Binding Options}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Spacing="4" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:FeatureOptionViewModel">
+                        <ui:FASettingsExpander Header="{Binding Title}" Description="{Binding DescriptionText}"
+                                               IsEnabled="{Binding IsAvailable}">
+                          <ui:FASettingsExpander.Footer>
+                            <ToggleSwitch IsChecked="{Binding IsEnabled}" OnContent="" OffContent=""
+                                          AutomationProperties.Name="{Binding Title}" />
+                          </ui:FASettingsExpander.Footer>
+                        </ui:FASettingsExpander>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </ScrollViewer>
+            </DataTemplate>
+          </ContentControl.DataTemplates>
+        </ContentControl>
+
+        <!-- Build page -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" IsVisible="{Binding IsBuildPageSelected}">
+          <StackPanel Spacing="4" Margin="24,12,24,24">
+            <TextBlock Text="Build" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,12" />
+
+            <StackPanel Spacing="4" IsEnabled="{Binding IsIdle}">
+              <TextBlock Text="Targets" FontWeight="SemiBold" Margin="0,0,0,4" />
+              <ItemsControl ItemsSource="{Binding Targets}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="4" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:TargetOptionViewModel">
+                    <ui:FASettingsExpander Header="{Binding Label}" Description="{Binding Rid}">
+                      <ui:FASettingsExpander.Footer>
+                        <ToggleSwitch IsChecked="{Binding IsSelected}" OnContent="" OffContent=""
+                                      AutomationProperties.Name="{Binding Label}" />
+                      </ui:FASettingsExpander.Footer>
+                    </ui:FASettingsExpander>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <TextBlock Text="Output" FontWeight="SemiBold" Margin="0,16,0,4" />
+              <ui:FASettingsExpander Header="Output folder" Description="One subfolder per target is created inside it.">
+                <ui:FASettingsExpander.Footer>
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBox Text="{Binding OutputFolder}" Width="320" />
+                    <Button Content="Browse..." Click="OnBrowseClick" />
+                  </StackPanel>
+                </ui:FASettingsExpander.Footer>
+              </ui:FASettingsExpander>
+              <ui:FASettingsExpander Header="Version" Description="Optional, passed as -p:Version.">
+                <ui:FASettingsExpander.Footer>
+                  <StackPanel Spacing="4" Width="320">
+                    <TextBox Text="{Binding Version}" PlaceholderText="for example 1.2.0" />
+                    <TextBlock Text="{Binding VersionError}" IsVisible="{Binding HasVersionError}" TextWrapping="Wrap"
+                               Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+                  </StackPanel>
+                </ui:FASettingsExpander.Footer>
+              </ui:FASettingsExpander>
+            </StackPanel>
+
+            <ItemsControl ItemsSource="{Binding Targets}" Margin="0,16,0,0">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:TargetOptionViewModel">
+                  <TextBlock IsVisible="{Binding HasStatus}" Margin="0,0,16,4">
+                    <Run Text="{Binding Label}" FontWeight="SemiBold" />
+                    <Run Text=": " />
+                    <Run Text="{Binding Status}" />
+                  </TextBlock>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,4">
+              <TextBlock Text="Log" FontWeight="SemiBold" VerticalAlignment="Center" />
+              <Button Grid.Column="1" Content="Copy log" Click="OnCopyLogClick" />
+            </Grid>
+            <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                    CornerRadius="{DynamicResource OverlayCornerRadius}" Padding="4">
+              <TextBox Name="LogBox" Text="{Binding Log}" IsReadOnly="True" AcceptsReturn="True"
+                       TextWrapping="NoWrap" Height="320" BorderThickness="0" Background="Transparent"
+                       FontFamily="Cascadia Mono, Consolas, Menlo, monospace" />
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </ui:FANavigationView>
+  </DockPanel>
+</wnd:FAAppWindow>

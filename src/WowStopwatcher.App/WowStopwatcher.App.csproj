@@ -9,6 +9,7 @@
     <Company>split3ie</Company>
     <Authors>split3ie</Authors>
   </PropertyGroup>
+  <Import Project="Features.props" />
   <!-- Applied only by "dotnet publish" (sets _IsPublishing); build and run are unaffected. -->
   <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
     <AssemblyName>WowStopwatcher</AssemblyName>
@@ -45,5 +46,6 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.5" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.5" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
   </ItemGroup>
 </Project>

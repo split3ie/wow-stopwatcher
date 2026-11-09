@@ -97,6 +97,14 @@ dotnet test src/WowStopwatcher.slnx
 dotnet run --project src/WowStopwatcher.App
 ```
 
+Optional features can be left out at build time, for example `dotnet build src/WowStopwatcher.slnx -p:FeatureTray=false`. The flags (all on by default) are in three groups:
+
+- Pages: `FeatureToday`, `FeatureStatistics`, `FeatureSettings`. At least one must stay on, otherwise the build fails.
+- Stopwatches: `FeatureIndependent`, `FeatureGoals`, `FeaturePermanent` (a stopwatch property is removed from the whole app; stored values are kept).
+- System: `FeatureTray`, `FeatureHotkeys`, `FeatureGoalNotifications`, `FeatureAutostart`, `FeatureUpdateCheck`.
+
+`FeatureGoals=false` also turns off `FeatureGoalNotifications`; `FeatureSettings=false` also turns off `FeatureAutostart` and `FeatureUpdateCheck`.
+
 Start hidden in the tray with `dotnet run --project src/WowStopwatcher.App -- --minimized`.
 
 Built with Avalonia 12, CommunityToolkit.Mvvm and Microsoft.Data.Sqlite. Project layout:
@@ -105,8 +113,8 @@ Built with Avalonia 12, CommunityToolkit.Mvvm and Microsoft.Data.Sqlite. Project
 | --- | --- |
 | `src/WowStopwatcher.Core` | Stopwatch engine, timeline and statistics calculations, time formatting. No UI or I/O. |
 | `src/WowStopwatcher.Data` | SQLite storage and schema migrations. |
-| `src/WowStopwatcher.App` | Avalonia app: pages, tray, global shortcuts, autostart. |
-| `src/tests/` | xUnit tests for Core and Data. |
+| `src/WowStopwatcher.App` | Avalonia app: pages, shell and the optional features (`Features/`: today, settings, tray, global shortcuts, autostart, statistics, goal notifications, update check). |
+| `src/tests/` | xUnit tests for Core, Data and the App composition and navigation. |
 
 ## Releasing
 

@@ -10,6 +10,9 @@ public partial class MainWindow : Window
 
     private bool _sized;
 
+    /// <summary>True when the close button only hides the window (the app keeps running); false when it quits the app.</summary>
+    public bool CloseHidesWindow { get; init; }
+
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
@@ -53,8 +56,8 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
-        // The close button hides to the tray; app shutdown and OS shutdown still close the window.
-        if (e.CloseReason == WindowCloseReason.WindowClosing)
+        // With CloseHidesWindow the close button hides to the tray; app shutdown and OS shutdown still close the window.
+        if (CloseHidesWindow && e.CloseReason == WindowCloseReason.WindowClosing)
         {
             e.Cancel = true;
             Hide();

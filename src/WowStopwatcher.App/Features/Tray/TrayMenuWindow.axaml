@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WowStopwatcher.App.Features.Tray.TrayMenuWindow"
+        Title="WowStopwatcher"
+        Width="364"
+        SizeToContent="Height"
+        CanResize="False"
+        ShowInTaskbar="False"
+        ShowActivated="True"
+        Topmost="True"
+        Opacity="0"
+        WindowDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        Foreground="{DynamicResource TextBrush}"
+        FontFamily="{DynamicResource UiFont}"
+        FontSize="14">
+
+  <Window.Styles>
+    <Style Selector="Button.trayItem">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Foreground" Value="{DynamicResource SecondaryBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="Button.trayItem:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.trayItem:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.trayItem:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource LineSoftBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource SecondaryBrush}" />
+    </Style>
+    <Style Selector="Button.trayItem.active /template/ ContentPresenter#PART_ContentPresenter, Button.trayItem.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.trayItem.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.trayItem.active:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+    </Style>
+  </Window.Styles>
+
+  <!-- The 32 px margin leaves room for the shadow inside the transparent window. -->
+  <Border Margin="32"
+          Padding="6"
+          Background="{DynamicResource CardBrush}"
+          BorderBrush="{DynamicResource LineBrush}"
+          BorderThickness="1"
+          CornerRadius="10"
+          BoxShadow="0 16 40 0 #38151821">
+    <StackPanel x:Name="Root" />
+  </Border>
+</Window>
