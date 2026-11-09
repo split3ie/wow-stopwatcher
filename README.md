@@ -105,6 +105,12 @@ Optional features can be left out at build time, for example `dotnet build src/W
 
 `FeatureGoals=false` also turns off `FeatureGoalNotifications`; `FeatureSettings=false` also turns off `FeatureAutostart` and `FeatureUpdateCheck`.
 
+### Build tool
+
+`tools/WowStopwatcher.BuildTool.exe` (Windows, needs the .NET 10 runtime) is a small GUI to pick the features and publish the app for
+Windows, Linux and macOS in one go. Its source is in `src/tools/WowStopwatcher.BuildTool/`; see `src/tools/README.md`.
+The tool is kept in sync with the feature flags: whenever a feature is added or removed, its list is updated and the exe in `tools/` is rebuilt.
+
 Start hidden in the tray with `dotnet run --project src/WowStopwatcher.App -- --minimized`.
 
 Built with Avalonia 12, CommunityToolkit.Mvvm and Microsoft.Data.Sqlite. Project layout:
@@ -115,6 +121,8 @@ Built with Avalonia 12, CommunityToolkit.Mvvm and Microsoft.Data.Sqlite. Project
 | `src/WowStopwatcher.Data` | SQLite storage and schema migrations. |
 | `src/WowStopwatcher.App` | Avalonia app: pages, shell and the optional features (`Features/`: today, settings, tray, global shortcuts, autostart, statistics, goal notifications, update check). |
 | `src/tests/` | xUnit tests for Core, Data and the App composition and navigation. |
+| `src/tools/WowStopwatcher.BuildTool` | Source of the build tool (feature picker and multi-platform publish). |
+| `tools/` | The published build tool exe only. |
 
 ## Releasing
 

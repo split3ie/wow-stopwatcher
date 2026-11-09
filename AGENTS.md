@@ -99,8 +99,8 @@ tools/                         Only the published `WowStopwatcher.BuildTool.exe`
   so turning a flag back on restores them. UI for a disabled capability is hidden by injecting `StopwatchCapabilities`, never with `#if`.
 - **Adding a feature:** create the folder and module; add the flag (in its group), the define and, for a folder flag, the folder removal to `Features.props`;
   add one `#if FEATURE_<NAME>` entry (and its `using`) in `Composition/FeatureModules.cs`; register its pages, settings items,
-  views and background services in the module. Check the minimal CI steps (see Commands), and add a checkbox for it to the
-  build tool: one entry in `src/tools/WowStopwatcher.BuildTool/Build/FeatureCatalog.cs` (the tool warns when `Features.props` and the catalog differ).
+  views and background services in the module. Check the minimal CI steps (see Commands), then update and rebuild the
+  build tool (see "Build tool" below).
 - **Rules:** `FeatureModules.cs` is the only file with `#if FEATURE_*`. Nothing outside a feature folder references a type
   inside it. Features talk to the rest of the app through Core and Shell/Navigation interfaces.
 - **Optional capabilities use a null object:** the shell registers a default that does nothing, and the feature replaces it.
@@ -127,6 +127,24 @@ dotnet build src/WowStopwatcher.slnx <every flag false except FeatureToday>   # 
 CI builds and tests on Windows, Linux and macOS, then builds and tests again with every flag off except `FeatureToday`, and once more with every flag off except `FeatureSettings`.
 
 The build must finish with no errors and no new warnings. Run the tests after any change to Core or Data.
+
+## Build tool
+
+`tools/WowStopwatcher.BuildTool.exe` is a GUI the owner uses to pick features (grouped like `Features.props`) and publish the app for
+win-x64, linux-x64, osx-arm64 and osx-x64. Source: `src/tools/WowStopwatcher.BuildTool/` (not in the solution); details in `src/tools/README.md`.
+
+**The tool must always match the app.** After any change that adds, removes or renames a feature flag, changes a flag's group or
+dependencies (`Features.props`), or changes the tool itself:
+
+1. Update `src/tools/WowStopwatcher.BuildTool/Build/FeatureCatalog.cs`: one entry per flag with its group, description and required flags.
+   A removed flag is removed from the catalog. A new group needs a `FeatureGroup` (it becomes a new navigation page automatically).
+2. Build it: `dotnet build src/tools/WowStopwatcher.BuildTool` (no errors, no new warnings).
+3. Publish it into `tools/` (PowerShell, from the repository root):
+   `dotnet publish src/tools/WowStopwatcher.BuildTool -c Release -o artifacts/tool-publish; Copy-Item artifacts/tool-publish/WowStopwatcher.BuildTool.exe tools/ -Force; Remove-Item artifacts/tool-publish -Recurse`
+   `tools/` contains only `WowStopwatcher.BuildTool.exe`; nothing else goes there.
+4. Commit the updated exe together with the feature change.
+
+If the exe is locked because the tool is running, ask the owner to close it; do not kill the process.
 
 ## Releases
 
