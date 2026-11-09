@@ -111,9 +111,6 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
     [ObservableProperty]
     private bool _isDragging;
 
-    [ObservableProperty]
-    private bool _isDropTarget;
-
     /// <summary>Palette name of the current color, or "Custom" when it is not a palette color.</summary>
     public string ColorName => SettingsSwatchViewModel.Palette
         .Where(p => string.Equals(p.Hex, Color, StringComparison.OrdinalIgnoreCase))

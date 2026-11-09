@@ -27,12 +27,6 @@
   </Style>
 
   <!-- Stopwatch row: drag feedback and goal sub-line -->
-  <Style Selector="Border.rowCard.dragging">
-    <Setter Property="Opacity" Value="0.45" />
-  </Style>
-  <Style Selector="Border.rowCard.drop">
-    <Setter Property="BoxShadow" Value="{DynamicResource ShadowDrop}" />
-  </Style>
   <Style Selector="Border.rowCard.lifted">
     <Setter Property="BoxShadow" Value="{DynamicResource ShadowLift}" />
   </Style>

@@ -142,8 +142,7 @@
   </UserControl.Styles>
 
   <Border Classes="card rowCard"
-          Classes.dragging="{Binding IsDragging}"
-          Classes.drop="{Binding IsDropTarget}">
+          Classes.lifted="{Binding IsDragging}">
     <Grid>
       <Button x:Name="GripButton"
               Classes="grip"
