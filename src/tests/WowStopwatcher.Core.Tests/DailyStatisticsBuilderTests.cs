@@ -72,9 +72,9 @@ public class DailyStatisticsBuilderTests
         Assert.Equal(0, stats.Totals[1].Share);
         Assert.True(stats.Totals[0].GoalReached);
         Assert.False(stats.Totals[1].GoalReached);
-        Assert.False(stats.Totals[3].GoalReached); // deleted
-        Assert.Equal(1, stats.GoalsMet);
-        Assert.Equal(2, stats.GoalCount);
+        Assert.True(stats.Totals[3].GoalReached); // deleted, but it has time that day
+        Assert.Equal(2, stats.GoalsMet);
+        Assert.Equal(3, stats.GoalCount);
         Assert.Equal(["a", "c", "d"], stats.Segments.Select(s => s.StopwatchId).Order(StringComparer.Ordinal).Take(3));
         Assert.Equal(60.0 / 540, stats.Segments.First(s => s.StopwatchId == "a").WidthFraction, 6);
     }
@@ -90,13 +90,32 @@ public class DailyStatisticsBuilderTests
     }
 
     [Fact]
-    public void OvertimeShare_IsZero_WhenGoalNotReached_NoGoal_OrDeleted()
+    public void OvertimeShare_IsZero_WhenGoalNotReached_OrNoGoal_AndCountedForDeletedGoal()
     {
         var day = new DateTimeOffset(2026, 3, 11, 9, 0, 0, TimeSpan.Zero);
         var defs = new[] { Def("a", 0, goalMinutes: 120), Def("b", 1), Def("c", 2, goalMinutes: 10, deleted: true) };
         var sessions = new[] { Sess(1, "a", day, 60), Sess(2, "b", day.AddHours(2), 60), Sess(3, "c", day.AddHours(4), 60) };
         var totals = DailyStatisticsBuilder.Build(sessions, defs, Now, Zone).Days.Single().Totals;
-        Assert.All(totals, t => Assert.Equal(0, t.OvertimeShare));
+        Assert.Equal(0, totals[0].OvertimeShare);
+        Assert.Equal(0, totals[1].OvertimeShare);
+        Assert.Equal(50.0 / 180, totals[2].OvertimeShare, 6);
+    }
+
+    [Fact]
+    public void DeletedGoalStopwatch_CountsOnlyOnDaysWithTime()
+    {
+        var d10 = new DateTimeOffset(2026, 3, 10, 9, 0, 0, TimeSpan.Zero);
+        var d11 = new DateTimeOffset(2026, 3, 11, 9, 0, 0, TimeSpan.Zero);
+        var defs = new[] { Def("a", 0), Def("g", 1, goalMinutes: 60, deleted: true) };
+        var sessions = new[] { Sess(1, "g", d10, 30), Sess(2, "a", d11, 30) };
+        var days = DailyStatisticsBuilder.Build(sessions, defs, Now, Zone).Days;
+        var withTime = days.Single(d => d.Date == new DateOnly(2026, 3, 10));
+        var without = days.Single(d => d.Date == new DateOnly(2026, 3, 11));
+        Assert.Equal(TimeSpan.FromMinutes(60), withTime.Totals.Single(t => t.StopwatchId == "g").Goal);
+        Assert.Equal(1, withTime.GoalCount);
+        Assert.Equal(0, withTime.GoalsMet);
+        Assert.DoesNotContain(without.Totals, t => t.StopwatchId == "g");
+        Assert.Equal(0, without.GoalCount);
     }
 
     [Fact]

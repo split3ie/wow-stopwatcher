@@ -72,13 +72,17 @@ public static class DailyStatisticsBuilder
         bool GoalListed(StopwatchDefinition s) =>
             !s.IsDeleted && s.HasGoal && (!existsFrom.TryGetValue(s.Id, out var from) || from <= date);
 
+        // A deleted goal stopwatch counts like a normal one on days where it has time.
+        bool GoalCounted(StopwatchDefinition s) =>
+            s.HasGoal && (s.IsDeleted ? perStopwatch.ContainsKey(s.Id) : GoalListed(s));
+
         var totals = stopwatches
             .Where(s => perStopwatch.ContainsKey(s.Id) || GoalListed(s))
             .OrderBy(s => s.SortOrder)
             .Select(s =>
             {
                 var total = perStopwatch.GetValueOrDefault(s.Id);
-                var reached = !s.IsDeleted && s.HasGoal && total >= s.Goal!.Value;
+                var reached = s.HasGoal && total >= s.Goal!.Value;
                 var share = dayTotal > TimeSpan.Zero ? Math.Clamp(total / dayTotal, 0, 1) : 0;
                 var overtime = reached && dayTotal > TimeSpan.Zero
                     ? Math.Clamp((total - s.Goal!.Value) / dayTotal, 0, share)
@@ -92,7 +96,7 @@ public static class DailyStatisticsBuilder
             segments,
             totals,
             totals.Count(t => t.GoalReached),
-            stopwatches.Count(GoalListed),
+            stopwatches.Count(GoalCounted),
             sessions.Count,
             dayTotal);
     }

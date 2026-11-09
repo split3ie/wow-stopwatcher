@@ -61,7 +61,7 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
         Name = total.Name;
         IsReached = total.GoalReached;
         TimeText = TimeFormat.HoursMinutes(total.Total)
-            + (total.Goal is { } goal && !total.IsDeleted ? " / " + TimeFormat.GoalLabel(goal) : string.Empty);
+            + (total.Goal is { } goal ? " / " + TimeFormat.GoalLabel(goal) : string.Empty);
         var overtime = Math.Clamp(total.OvertimeShare, 0, share);
         ShareWidth = new GridLength(share - overtime, GridUnitType.Star);
         OvertimeWidth = new GridLength(overtime, GridUnitType.Star);
