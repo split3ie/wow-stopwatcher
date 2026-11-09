@@ -93,6 +93,16 @@ if (-not $ExtractedFile) {
 $DestinationBinary = Join-Path $InstallDir "$BinaryName.exe"
 Copy-Item $ExtractedFile.FullName -Destination $DestinationBinary -Force
 
+# Create/overwrite a Start Menu shortcut so the app can be found via Start search
+$ShortcutPath = Join-Path ([Environment]::GetFolderPath('Programs')) "$BinaryName.lnk"
+$Shell = New-Object -ComObject WScript.Shell
+$Shortcut = $Shell.CreateShortcut($ShortcutPath)
+$Shortcut.TargetPath = $DestinationBinary
+$Shortcut.WorkingDirectory = $InstallDir
+$Shortcut.IconLocation = "$DestinationBinary,0"
+$Shortcut.Description = "WowStopwatcher time tracker"
+$Shortcut.Save()
+
 # Cleanup temp files
 Remove-Item -Path $TempDir -Recurse -Force
 
@@ -100,6 +110,8 @@ Remove-Item -Path $TempDir -Recurse -Force
 Write-Host "`n[SUCCESS] Installation complete!" -ForegroundColor Green
 Write-Host "Installed Executable Path:" -ForegroundColor Cyan
 Write-Host "  $DestinationBinary" -ForegroundColor Yellow
+Write-Host "Start Menu Shortcut:" -ForegroundColor Cyan
+Write-Host "  $ShortcutPath" -ForegroundColor Yellow
 
 # --- Ensure PATH is configured persistently ---
 $UserPath = [Environment]::GetEnvironmentVariable("PATH", "User")

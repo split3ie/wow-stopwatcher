@@ -50,7 +50,7 @@ Linux and macOS:
 curl -fsSL https://raw.githubusercontent.com/split3ie/wow-stopwatcher/main/scripts/install.sh | bash
 ```
 
-- Windows installs to `~\bin` and adds it to the user PATH.
+- Windows installs to `~\bin`, adds it to the user PATH and adds a Start Menu shortcut.
 - Linux installs to `~/.local/bin`.
 - macOS installs to `~/Applications`.
 
