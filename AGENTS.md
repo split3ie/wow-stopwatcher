@@ -20,7 +20,7 @@ WowStopwatcher is a personal desktop app for Windows, macOS and Linux that track
   and can be restored from Statistics (`StopwatchEngine.Restore`).
 - Screens: **Today** (timeline, stopwatch rows, total, Stop all, goals), **Statistics** (one timeline per day,
   expandable per-stopwatch totals (share bars; time past the goal is drawn darker) with a hover **Restore** button on hidden stopwatches, select/clear days), **Settings** (autostart, goal notification toggle, stopwatches: name, color
-  (16 presets or a custom color), goal, independent, permanent, shortcut, order, delete; version and update check).
+  (16 presets or a custom color), goal, independent, permanent, shortcut, order, delete; version and update check; an available update can be installed in place: it downloads the platform asset, verifies its `.sha256`, replaces the app and restarts with `--after-update`, and running stopwatches keep running).
 - **System tray**: icon with a menu listing stopwatches with live times, running ones highlighted, switch on click,
   Stop all (stops every running stopwatch), Open, Quit. Double-clicking the tray icon stops the current regular
   stopwatch and starts the next regular one in order (independent ones are skipped).

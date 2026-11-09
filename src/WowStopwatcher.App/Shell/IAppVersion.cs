@@ -8,4 +8,7 @@ public interface IAppVersion
 
     /// <summary>"v" + version for official builds, otherwise "local build".</summary>
     string DisplayText { get; }
+
+    /// <summary>True for release builds made by the release workflow (not local builds).</summary>
+    bool IsOfficialBuild { get; }
 }

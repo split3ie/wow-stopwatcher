@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WowStopwatcher.App.Shell;
@@ -9,11 +10,23 @@ public sealed partial class UpdateCheckFooterViewModel : ObservableObject, ISett
 {
     private readonly IUpdateChecker _updateChecker;
     private readonly IAppVersion _version;
+    private readonly IUpdateInstaller _installer;
+    private readonly IDialogService _dialog;
+    private readonly IAppLifetime _lifetime;
+    private UpdateCheckResult? _available;
 
-    public UpdateCheckFooterViewModel(IUpdateChecker updateChecker, IAppVersion version)
+    public UpdateCheckFooterViewModel(
+        IUpdateChecker updateChecker,
+        IAppVersion version,
+        IUpdateInstaller installer,
+        IDialogService dialog,
+        IAppLifetime lifetime)
     {
         _updateChecker = updateChecker;
         _version = version;
+        _installer = installer;
+        _dialog = dialog;
+        _lifetime = lifetime;
     }
 
     public int Order => 0;
@@ -24,6 +37,31 @@ public sealed partial class UpdateCheckFooterViewModel : ObservableObject, ISett
     private bool _isBusy;
 
     public bool IsIdle => !IsBusy;
+
+    /// <summary>True while an update is downloaded and installed.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(InstallButtonText))]
+    [NotifyCanExecuteChangedFor(nameof(CheckUpdatesCommand), nameof(InstallUpdateCommand))]
+    private bool _isInstalling;
+
+    /// <summary>True when the available update can be installed in place (shows the "Install update" button).</summary>
+    [ObservableProperty]
+    private bool _canInstallUpdate;
+
+    /// <summary>Release page shown as a fallback link when the install fails.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFailedReleaseUrl))]
+    private string? _failedReleaseUrl;
+
+    public bool HasFailedReleaseUrl => FailedReleaseUrl is not null;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(InstallButtonText))]
+    private int _installPercent;
+
+    public string InstallButtonText => IsInstalling
+        ? (InstallPercent > 0 ? $"Installing… {InstallPercent}%" : "Installing…")
+        : "Install update";
 
     /// <summary>Result text of the last update check (empty before the first check).</summary>
     [ObservableProperty]
@@ -41,15 +79,20 @@ public sealed partial class UpdateCheckFooterViewModel : ObservableObject, ISett
     [ObservableProperty]
     private bool _isUpdateError;
 
+    private bool CanCheck() => !IsBusy && !IsInstalling;
+
     public bool HasUpdateLink => UpdateUrl is not null;
 
     /// <summary>True when the message is plain text (not a link).</summary>
     public bool HasUpdateMessage => UpdateMessage.Length > 0 && UpdateUrl is null;
 
-    [RelayCommand(CanExecute = nameof(IsIdle))]
+    [RelayCommand(CanExecute = nameof(CanCheck))]
     private async Task CheckUpdatesAsync()
     {
         IsBusy = true;
+        CanInstallUpdate = false;
+        FailedReleaseUrl = null;
+        _available = null;
         IsUpdateOk = false;
         IsUpdateError = false;
         UpdateUrl = null;
@@ -66,6 +109,8 @@ public sealed partial class UpdateCheckFooterViewModel : ObservableObject, ISett
                 case UpdateStatus.Available when IsHttpsUrl(result.Url):
                     UpdateMessage = $"Version {result.Version} is available";
                     UpdateUrl = result.Url;
+                    _available = result;
+                    CanInstallUpdate = _installer.CanInstall(result);
                     break;
                 case UpdateStatus.NoReleases:
                     UpdateMessage = "No releases published yet";
@@ -80,6 +125,60 @@ public sealed partial class UpdateCheckFooterViewModel : ObservableObject, ISett
         {
             IsBusy = false;
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCheck))]
+    private void InstallUpdate()
+    {
+        if (_available is not { } update)
+        {
+            return;
+        }
+
+        _dialog.Show(
+            "Install update",
+            $"Version {update.Version} will be downloaded and installed, then the app restarts. Running stopwatches keep running.",
+            "Install and restart",
+            () => _ = InstallAsync(update));
+    }
+
+    private async Task InstallAsync(UpdateCheckResult update)
+    {
+        IsInstalling = true;
+        InstallPercent = 0;
+        IsUpdateError = false;
+        FailedReleaseUrl = null;
+        UpdateUrl = null;
+        UpdateMessage = "Installing…";
+        try
+        {
+            var progress = new Progress<double>(p => InstallPercent = (int)Math.Round(p * 100));
+            await _installer.InstallAsync(update, progress, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Update install failed: {ex}");
+            UpdateMessage = "Couldn’t install the update";
+            IsUpdateError = true;
+            FailedReleaseUrl = update.Url;
+            IsInstalling = false;
+            return;
+        }
+
+        try
+        {
+            _installer.StartNewInstance();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Could not start the updated app: {ex}");
+            UpdateMessage = "Update installed. Restart the app to use it";
+            IsUpdateOk = true;
+            IsInstalling = false;
+            return;
+        }
+
+        _lifetime.QuitKeepingRunningSessions();
     }
 
     private static bool IsHttpsUrl(string? url) =>

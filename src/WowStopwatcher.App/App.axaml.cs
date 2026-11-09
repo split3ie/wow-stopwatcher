@@ -36,7 +36,9 @@ public partial class App : Application
             }
 
             // On normal quit the services are disposed in reverse order, then running sessions are stopped and saved.
+            // After an update restart they stay open and the next start resumes them.
             var control = provider.GetRequiredService<IStopwatchControl>();
+            var lifetime = provider.GetRequiredService<IAppLifetime>();
             desktop.Exit += (_, _) =>
             {
                 for (var i = services.Count - 1; i >= 0; i--)
@@ -44,7 +46,10 @@ public partial class App : Application
                     services[i].Dispose();
                 }
 
-                control.StopAll();
+                if (!lifetime.KeepsRunningSessions)
+                {
+                    control.StopAll();
+                }
             };
 
             // "--minimized" (autostart): keep the main window hidden, only the tray icon is visible.

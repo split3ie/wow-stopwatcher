@@ -14,12 +14,14 @@ public sealed class AppVersion : IAppVersion
         var plus = text.IndexOf('+');
         Version = plus >= 0 ? text[..plus] : text;
 
-        var official = assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+        IsOfficialBuild = assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
             .Any(a => a.Key == "OfficialBuild" && a.Value == "true");
-        DisplayText = official ? "v" + Version : "local build";
+        DisplayText = IsOfficialBuild ? "v" + Version : "local build";
     }
 
     public string Version { get; }
 
     public string DisplayText { get; }
+
+    public bool IsOfficialBuild { get; }
 }

@@ -10,6 +10,8 @@ public sealed class UpdateCheckModule : IFeatureModule
     public void Register(IServiceCollection services)
     {
         services.AddSingleton<IUpdateChecker, UpdateChecker>();
+        services.AddSingleton<IUpdateInstaller, UpdateInstaller>();
+        services.AddSingleton<IAppService, UpdateLeftoverCleaner>();
         services.AddTransient<ISettingsFooterItem, UpdateCheckFooterViewModel>();
         services.AddSingleton(new ViewMapping(typeof(UpdateCheckFooterViewModel), () => new UpdateCheckFooterView()));
     }

@@ -34,6 +34,28 @@ the others; time when several run at once counts once in the day's total.
 
 ## Download
 
+### Install with a script
+
+The script downloads the latest release and installs it (the Linux/macOS script also verifies the SHA-256).
+
+Windows (PowerShell):
+
+```
+irm https://raw.githubusercontent.com/split3ie/wow-stopwatcher/main/scripts/Install-GhLatestRelease.ps1 | iex
+```
+
+Linux and macOS:
+
+```
+curl -fsSL https://raw.githubusercontent.com/split3ie/wow-stopwatcher/main/scripts/install.sh | bash
+```
+
+- Windows installs to `~\bin` and adds it to the user PATH.
+- Linux installs to `~/.local/bin`.
+- macOS installs to `~/Applications`.
+
+### Manual download
+
 Open [Releases](https://github.com/split3ie/wow-stopwatcher/releases) and download the file for your system:
 
 | System | File |

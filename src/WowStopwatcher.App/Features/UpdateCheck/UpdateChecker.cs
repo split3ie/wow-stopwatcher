@@ -40,9 +40,19 @@ public sealed class UpdateChecker : IUpdateChecker
                 return new UpdateCheckResult(UpdateStatus.Failed);
             }
 
-            return latest > current
-                ? new UpdateCheckResult(UpdateStatus.Available, latestText, url)
-                : new UpdateCheckResult(UpdateStatus.UpToDate);
+            if (latest <= current)
+            {
+                return new UpdateCheckResult(UpdateStatus.UpToDate);
+            }
+
+            UpdateAssets.Package? package = null;
+            if (UpdateAssets.CurrentPlatform() is { } platform && json.RootElement.TryGetProperty("assets", out var assets))
+            {
+                package = UpdateAssets.Select(assets, latestText, platform.Os, platform.Arch);
+            }
+
+            return new UpdateCheckResult(UpdateStatus.Available, latestText, url,
+                package?.Url, package?.FileName, package?.ChecksumUrl);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or OperationCanceledException
             or JsonException or KeyNotFoundException or InvalidOperationException)
