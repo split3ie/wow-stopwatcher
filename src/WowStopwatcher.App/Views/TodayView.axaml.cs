@@ -95,14 +95,23 @@ public partial class TodayView : UserControl
         var dy = Math.Clamp(e.GetPosition(panel).Y - _pressY, _minDy, _maxDy);
         SetOffset(_containers[_fromIndex], dy);
 
-        // The slot is decided by where the dragged row's center sits among the other rows' original midpoints.
-        var center = _tops[_fromIndex] + _heights[_fromIndex] / 2 + dy;
-        var target = 0;
-        for (var i = 0; i < _containers.Count; i++)
+        // The slot is decided by the dragged row's leading edge passing other rows' original midpoints.
+        var draggedTop = _tops[_fromIndex] + dy;
+        var draggedBottom = draggedTop + _heights[_fromIndex];
+        var target = _fromIndex;
+        for (var i = _fromIndex + 1; i < _containers.Count; i++)
         {
-            if (i != _fromIndex && _tops[i] + _heights[i] / 2 < center)
+            if (_tops[i] + _heights[i] / 2 < draggedBottom)
             {
                 target++;
+            }
+        }
+
+        for (var i = 0; i < _fromIndex; i++)
+        {
+            if (_tops[i] + _heights[i] / 2 > draggedTop)
+            {
+                target--;
             }
         }
 
