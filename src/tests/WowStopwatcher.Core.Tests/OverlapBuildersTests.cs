@@ -106,7 +106,7 @@ public class OverlapBuildersTests
     }
 
     [Fact]
-    public void Statistics_ScaleUsesUnionNotSum()
+    public void Statistics_ScaleFitsCombinedBarButDayTotalIsUnion()
     {
         StopwatchDefinition[] defs =
         [
@@ -114,14 +114,15 @@ public class OverlapBuildersTests
             new("i", "I", "#333333", null, null, 1, IsIndependent: true),
         ];
         var day = new DateTimeOffset(2026, 3, 10, 0, 0, 0, TimeSpan.Zero);
-        // Two fully overlapping 6h sessions: sum 12h would push the scale to 720, union 6h keeps 540.
+        // Two fully overlapping 6h sessions: the day total is the 6h union, but the combined bar is 12h long, so the scale is 720.
         var sessions = new[]
         {
             new Session(1, "a", day, day.AddHours(6)),
             new Session(2, "i", day, day.AddHours(6)),
         };
         var result = DailyStatisticsBuilder.Build(sessions, defs, day.AddDays(1), TimeZoneInfo.Utc);
-        Assert.Equal(DailyStatisticsBuilder.MinScaleMinutes, result.ScaleMinutes);
+        Assert.Equal(720, result.ScaleMinutes);
+        Assert.Equal(TimeSpan.FromHours(6), result.Days.Single().Total);
     }
 
     [Fact]

@@ -32,6 +32,18 @@ public class DailyStatisticsBuilderTests
     }
 
     [Fact]
+    public void Scale_FitsCombinedBar_WhereOverlapCountsPerStopwatch()
+    {
+        var day = new DateTimeOffset(2026, 3, 11, 0, 0, 0, TimeSpan.Zero);
+        // Wall clock 6h (below the 9h minimum), but the combined bar is 6h + 5h = 11h long.
+        var sessions = new[] { Sess(1, "a", day, 6 * 60), Sess(2, "b", day.AddHours(1), 5 * 60) };
+        var result = DailyStatisticsBuilder.Build(sessions, [Def("a", 0), Def("b", 1)], Now, Zone);
+
+        Assert.Equal(720, result.ScaleMinutes);
+        Assert.Equal(TimeSpan.FromHours(6), result.Days.Single().Total);
+    }
+
+    [Fact]
     public void Days_AreNewestFirst_AndGroupedByLocalStartDate()
     {
         var plus3 = TimeZoneInfo.CreateCustomTimeZone("p3", TimeSpan.FromHours(3), "p3", "p3");

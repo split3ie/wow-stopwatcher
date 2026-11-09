@@ -11,7 +11,7 @@ namespace WowStopwatcher.App.Features.Statistics;
 public sealed partial class DayViewModel : ObservableObject
 {
     private readonly StatisticsViewModel _owner;
-    private DaySegmentViewModel? _hoveredSegment;
+    private DayPieceViewModel? _hoveredPiece;
 
     public DayViewModel(StatisticsViewModel owner, DateOnly date)
     {
@@ -24,7 +24,7 @@ public sealed partial class DayViewModel : ObservableObject
     /// <summary>The page this card belongs to (for the shared select mode).</summary>
     public StatisticsViewModel Page => _owner;
 
-    public ObservableCollection<DaySegmentViewModel> Segments { get; } = [];
+    public ObservableCollection<DayPieceViewModel> Pieces { get; } = [];
 
     public ObservableCollection<DayStopwatchRowViewModel> Rows { get; } = [];
 
@@ -74,17 +74,57 @@ public sealed partial class DayViewModel : ObservableObject
     [ObservableProperty]
     private double _tipPosition;
 
+    /// <summary>Groups the bar's pieces by stopwatch (and overlap combination) instead of time order. Not saved.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CombineLabel))]
+    private bool _isCombined;
+
+    /// <summary>False when combining would not move any piece, so the button is hidden.</summary>
+    [ObservableProperty]
+    private bool _canCombine;
+
+    private bool _tipSuppressed;
+
+    public string CombineLabel => (IsCombined ? "Show sessions in time order for " : "Combine sessions for ") + Label;
+
     public string ToggleLabel => (IsExpanded ? "Hide" : "Show") + " details for " + Label;
 
     public string SelectLabel => "Select " + Label;
 
     partial void OnIsSelectedChanged(bool value) => _owner.OnSelectionChanged();
 
-    internal void OnSegmentHoverChanged()
+    partial void OnIsCombinedChanged(bool value)
     {
-        _hoveredSegment = Segments.FirstOrDefault(s => s.IsHovered);
+        foreach (var piece in Pieces)
+        {
+            piece.Apply(value);
+        }
+
+        // The pieces slide away from under the pointer: hide the tip until the hover changes again.
+        _tipSuppressed = true;
+        RefreshHover();
+    }
+
+    internal void OnPieceHoverChanged()
+    {
+        _tipSuppressed = false;
+        RefreshHover();
+    }
+
+    private void RefreshHover()
+    {
+        _hoveredPiece = Pieces.FirstOrDefault(p => p.IsHovered);
+        foreach (var piece in Pieces)
+        {
+            piece.IsHighlighted = _hoveredPiece is not null
+                && (IsCombined ? piece.Group == _hoveredPiece.Group : piece.SegmentIndex == _hoveredPiece.SegmentIndex);
+        }
+
         UpdateTip();
     }
+
+    [RelayCommand]
+    private void ToggleCombine() => IsCombined = !IsCombined;
 
     [RelayCommand]
     public void Toggle()
@@ -102,6 +142,7 @@ public sealed partial class DayViewModel : ObservableObject
         Label = Date.ToString(format, CultureInfo.InvariantCulture);
         OnPropertyChanged(nameof(ToggleLabel));
         OnPropertyChanged(nameof(SelectLabel));
+        OnPropertyChanged(nameof(CombineLabel));
         Sub = Date == today ? "Today" : string.Empty;
         HasSub = Sub.Length > 0;
 
@@ -117,14 +158,17 @@ public sealed partial class DayViewModel : ObservableObject
             Ticks = labels.Length == 4 ? labels : [.. labels, .. Enumerable.Repeat(string.Empty, Math.Max(0, 4 - labels.Length))];
         }
 
-        CollectionSync.Resize(Segments, day.Segments.Count, () => new DaySegmentViewModel(this));
-        var start = 0.0;
-        for (var i = 0; i < day.Segments.Count; i++)
+        var pieces = CombinedTimeline.Build(day.Segments);
+        CollectionSync.Resize(Pieces, pieces.Count, () => new DayPieceViewModel(this));
+        string NameOf(string id) => names.GetValueOrDefault(id, string.Empty);
+        for (var i = 0; i < pieces.Count; i++)
         {
-            var segment = day.Segments[i];
-            Segments[i].Update(segment, start, names, i + 1);
-            start += segment.WidthFraction;
+            var lanes = day.Segments[pieces[i].SegmentIndex].Lanes;
+            var together = lanes.Count > 1 ? $"{string.Join(" + ", lanes.Select(l => NameOf(l.StopwatchId)))} · together" : null;
+            Pieces[i].Update(pieces[i], NameOf(pieces[i].StopwatchId), together);
         }
+
+        CanCombine = Pieces.Any(p => p.MovesWhenCombined);
 
         CollectionSync.Resize(Rows, day.Totals.Count, () => new DayStopwatchRowViewModel(_owner));
         for (var i = 0; i < day.Totals.Count; i++)
@@ -132,21 +176,20 @@ public sealed partial class DayViewModel : ObservableObject
             Rows[i].Update(day.Totals[i]);
         }
 
-        _hoveredSegment = Segments.FirstOrDefault(s => s.IsHovered);
-        UpdateTip();
+        RefreshHover();
     }
 
     private void UpdateTip()
     {
-        if (_hoveredSegment is null)
+        if (_hoveredPiece is null || _tipSuppressed)
         {
             IsTipVisible = false;
             return;
         }
 
-        TipTitle = _hoveredSegment.Title;
-        TipTime = _hoveredSegment.TimeText;
-        TipPosition = _hoveredSegment.Center;
+        TipTitle = _hoveredPiece.Title;
+        TipTime = _hoveredPiece.TimeText;
+        TipPosition = _hoveredPiece.Center;
         IsTipVisible = true;
     }
 }

@@ -34,10 +34,26 @@ public class TrackPanel : Panel
     public static readonly AttachedProperty<double> RiseProperty =
         AvaloniaProperty.RegisterAttached<TrackPanel, Control, double>("Rise");
 
+    /// <summary>Span only: top of the child as a fraction of the track height.</summary>
+    public static readonly AttachedProperty<double> SpanTopProperty =
+        AvaloniaProperty.RegisterAttached<TrackPanel, Control, double>("SpanTop", 0.0);
+
+    /// <summary>Span only: height of the child as a fraction of the track height.</summary>
+    public static readonly AttachedProperty<double> SpanHeightProperty =
+        AvaloniaProperty.RegisterAttached<TrackPanel, Control, double>("SpanHeight", 1.0);
+
     static TrackPanel()
     {
-        AffectsParentArrange<TrackPanel>(PlacementProperty, StartProperty, SpanWidthProperty, RiseProperty);
+        AffectsParentArrange<TrackPanel>(PlacementProperty, StartProperty, SpanWidthProperty, RiseProperty, SpanTopProperty, SpanHeightProperty);
     }
+
+    public static double GetSpanTop(Control control) => control.GetValue(SpanTopProperty);
+
+    public static void SetSpanTop(Control control, double value) => control.SetValue(SpanTopProperty, value);
+
+    public static double GetSpanHeight(Control control) => control.GetValue(SpanHeightProperty);
+
+    public static void SetSpanHeight(Control control, double value) => control.SetValue(SpanHeightProperty, value);
 
     public static TrackPlacement GetPlacement(Control control) => control.GetValue(PlacementProperty);
 
@@ -83,7 +99,11 @@ public class TrackPanel : Panel
             switch (GetPlacement(child))
             {
                 case TrackPlacement.Span:
-                    child.Arrange(new Rect(start, 0, Math.Max(0, GetSpanWidth(child) * width), height));
+                    child.Arrange(new Rect(
+                        start,
+                        GetSpanTop(child) * height,
+                        Math.Max(0, GetSpanWidth(child) * width),
+                        Math.Max(0, GetSpanHeight(child) * height)));
                     break;
 
                 case TrackPlacement.Pin:

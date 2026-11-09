@@ -11,6 +11,8 @@ public static class DailyStatisticsBuilder
     /// <param name="stopwatches">All definitions including deleted ones.</param>
     /// <param name="nowUtc">Measures any open session.</param>
     /// <param name="zone">The local time zone (use <c>TimeProvider.LocalTimeZone</c>).</param>
+    /// <remarks>Day totals and segment widths are wall-clock based. The shared scale fits the longest day in either
+    /// wall-clock time or combined-bar length (overlap time counted once per stopwatch), so combined bars never overflow.</remarks>
     /// <param name="goalChanges">Recorded goal changes: a day uses the goal in effect at its end.
     /// Days without history use the current goal.</param>
     public static StatisticsResult Build(
@@ -47,10 +49,17 @@ public static class DailyStatisticsBuilder
             .Select(g => (Date: g.Key, Sessions: g.OrderBy(s => s.StartUtc).ThenBy(s => s.Id).ToList()))
             .ToList();
 
-        // The day total (and so the scale) is the union of all sessions: overlapping time counts once.
+        // The day total is the union of all sessions: overlapping time counts once. The scale must also fit the
+        // combined bar, where overlap time is drawn once per running stopwatch (duration x lane count).
         var maxMinutes = days.Count == 0
             ? 0
-            : days.Max(d => SessionSlicer.Total(SessionSlicer.Build(d.Sessions, stopwatches, nowUtc)).TotalMinutes);
+            : days.Max(d =>
+            {
+                var slices = SessionSlicer.Build(d.Sessions, stopwatches, nowUtc);
+                var wallClock = SessionSlicer.Total(slices).TotalMinutes;
+                var combined = slices.Sum(s => s.Duration.TotalMinutes * s.Lanes.Count);
+                return Math.Max(wallClock, combined);
+            });
         var scale = Math.Max(MinScaleMinutes, (int)Math.Ceiling(maxMinutes / ScaleStepMinutes) * ScaleStepMinutes);
 
         var result = days.Select(d => BuildDay(d.Date, d.Sessions, stopwatches, existsFrom, changesById, nowUtc, scale)).ToList();
