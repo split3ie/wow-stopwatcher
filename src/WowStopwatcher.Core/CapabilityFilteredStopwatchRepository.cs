@@ -35,6 +35,9 @@ public sealed class CapabilityFilteredStopwatchRepository(IStopwatchRepository i
     }
 
     /// <inheritdoc />
+    public IReadOnlyList<GoalChange> GetGoalChanges() => capabilities.Goals ? inner.GetGoalChanges() : [];
+
+    /// <inheritdoc />
     public void SoftDelete(string id) => inner.SoftDelete(id);
 
     /// <inheritdoc />

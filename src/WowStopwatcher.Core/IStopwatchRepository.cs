@@ -15,6 +15,9 @@ public interface IStopwatchRepository
     /// <summary>Overwrites all fields of an existing stopwatch (matched by Id).</summary>
     void Update(StopwatchDefinition stopwatch);
 
+    /// <summary>All recorded goal changes, ordered by time.</summary>
+    IReadOnlyList<GoalChange> GetGoalChanges();
+
     /// <summary>Marks the stopwatch as deleted; its sessions are kept.</summary>
     void SoftDelete(string id);
 

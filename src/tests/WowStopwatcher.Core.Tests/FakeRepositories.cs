@@ -15,6 +15,10 @@ public sealed class FakeStopwatchRepository : IStopwatchRepository
 
     public void Update(StopwatchDefinition stopwatch) => Items[Items.FindIndex(s => s.Id == stopwatch.Id)] = stopwatch;
 
+    public List<GoalChange> GoalChanges { get; } = [];
+
+    public IReadOnlyList<GoalChange> GetGoalChanges() => GoalChanges;
+
     public void SoftDelete(string id) => Update(Items.First(s => s.Id == id) with { IsDeleted = true });
 
     public void SaveSortOrder(IReadOnlyList<string> orderedIds)

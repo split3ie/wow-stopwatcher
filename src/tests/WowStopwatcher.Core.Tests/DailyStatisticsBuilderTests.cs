@@ -169,4 +169,66 @@ public class DailyStatisticsBuilderTests
         Assert.Contains(stats.Totals, t => t.StopwatchId == "g");
         Assert.Equal(1, stats.GoalCount);
     }
+
+    private static readonly DateTimeOffset Day1 = new(2026, 3, 9, 9, 0, 0, TimeSpan.Zero);
+
+    private static GoalChange Change(string sw, int day, int? previousMinutes) =>
+        new(sw, new DateTimeOffset(2026, 3, day, 12, 0, 0, TimeSpan.Zero), previousMinutes is { } m ? TimeSpan.FromMinutes(m) : null);
+
+    private static List<DayStatistics> GoalDays(IReadOnlyList<GoalChange> changes, StopwatchDefinition def) =>
+        DailyStatisticsBuilder.Build(
+            [Sess(1, "a", Day1, 400), Sess(2, "a", Day1.AddDays(1), 400), Sess(3, "a", Day1.AddDays(2), 400)],
+            [def], Now, Zone, changes).Days.OrderBy(d => d.Date).ToList();
+
+    [Fact]
+    public void GoalChange_EarlierDaysUseGoalInEffectThen()
+    {
+        // 6h -> 8h changed on March 10: March 9 used 6h, March 10 and later use 8h.
+        var days = GoalDays([Change("a", 10, 360)], Def("a", 0, goalMinutes: 480));
+        Assert.Equal(TimeSpan.FromHours(6), days[0].Totals.Single().Goal);
+        Assert.True(days[0].Totals.Single().GoalReached);
+        Assert.Equal(1, days[0].GoalsMet);
+        Assert.Equal(TimeSpan.FromHours(8), days[1].Totals.Single().Goal);
+        Assert.False(days[1].Totals.Single().GoalReached);
+        Assert.Equal(0, days[1].GoalsMet);
+        Assert.Equal(TimeSpan.FromHours(8), days[2].Totals.Single().Goal);
+    }
+
+    [Fact]
+    public void NoGoalChanges_UsesCurrentGoal()
+    {
+        var days = GoalDays([], Def("a", 0, goalMinutes: 480));
+        Assert.All(days, d => Assert.Equal(TimeSpan.FromHours(8), d.Totals.Single().Goal));
+    }
+
+    [Fact]
+    public void GoalAddedLater_EarlierDaysHaveNoGoal()
+    {
+        var days = GoalDays([Change("a", 10, null)], Def("a", 0, goalMinutes: 480));
+        Assert.Null(days[0].Totals.Single().Goal);
+        Assert.Equal(0, days[0].GoalCount);
+        Assert.Equal(0, days[0].GoalsMet);
+        Assert.Equal(TimeSpan.FromHours(8), days[1].Totals.Single().Goal);
+        Assert.Equal(1, days[1].GoalCount);
+    }
+
+    [Fact]
+    public void GoalRemovedLater_EarlierDaysKeepOldGoal()
+    {
+        var days = GoalDays([Change("a", 11, 360)], Def("a", 0));
+        Assert.Equal(TimeSpan.FromHours(6), days[0].Totals.Single().Goal);
+        Assert.Equal(TimeSpan.FromHours(6), days[1].Totals.Single().Goal);
+        Assert.Null(days[2].Totals.Single().Goal);
+        Assert.Equal(0, days[2].GoalCount);
+    }
+
+    [Fact]
+    public void TwoGoalChanges_EachDayGetsItsOwnGoal()
+    {
+        // 4h -> 6h on March 10, 6h -> 8h on March 11.
+        var days = GoalDays([Change("a", 10, 240), Change("a", 11, 360)], Def("a", 0, goalMinutes: 480));
+        Assert.Equal(TimeSpan.FromHours(4), days[0].Totals.Single().Goal);
+        Assert.Equal(TimeSpan.FromHours(6), days[1].Totals.Single().Goal);
+        Assert.Equal(TimeSpan.FromHours(8), days[2].Totals.Single().Goal);
+    }
 }

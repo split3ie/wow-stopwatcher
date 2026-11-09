@@ -11,11 +11,14 @@ public static class DailyStatisticsBuilder
     /// <param name="stopwatches">All definitions including deleted ones.</param>
     /// <param name="nowUtc">Measures any open session.</param>
     /// <param name="zone">The local time zone (use <c>TimeProvider.LocalTimeZone</c>).</param>
+    /// <param name="goalChanges">Recorded goal changes: a day uses the goal in effect at its end.
+    /// Days without history use the current goal.</param>
     public static StatisticsResult Build(
         IEnumerable<Session> sessions,
         IReadOnlyList<StopwatchDefinition> stopwatches,
         DateTimeOffset nowUtc,
-        TimeZoneInfo zone)
+        TimeZoneInfo zone,
+        IReadOnlyList<GoalChange>? goalChanges = null)
     {
         var byId = stopwatches.ToDictionary(s => s.Id);
         var sessionList = sessions.ToList();
@@ -31,6 +34,12 @@ public static class DailyStatisticsBuilder
                 existsFrom[s.Id] = dates.Min();
         }
 
+        var changesById = (goalChanges ?? [])
+            .GroupBy(c => c.StopwatchId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderBy(c => c.ChangedUtc).Select(c => (Date: LocalDays.ToLocalDate(c.ChangedUtc, zone), c.PreviousGoal)).ToList());
+
         var days = sessionList
             .Where(s => byId.ContainsKey(s.StopwatchId))
             .GroupBy(s => LocalDays.ToLocalDate(s.StartUtc, zone))
@@ -44,7 +53,7 @@ public static class DailyStatisticsBuilder
             : days.Max(d => SessionSlicer.Total(SessionSlicer.Build(d.Sessions, stopwatches, nowUtc)).TotalMinutes);
         var scale = Math.Max(MinScaleMinutes, (int)Math.Ceiling(maxMinutes / ScaleStepMinutes) * ScaleStepMinutes);
 
-        var result = days.Select(d => BuildDay(d.Date, d.Sessions, stopwatches, existsFrom, nowUtc, scale)).ToList();
+        var result = days.Select(d => BuildDay(d.Date, d.Sessions, stopwatches, existsFrom, changesById, nowUtc, scale)).ToList();
         var ticks = Enumerable.Range(0, 4)
             .Select(i => new StatisticsTick(i / 3.0, $"{scale * i / 3 / 60}h"))
             .ToList();
@@ -56,6 +65,7 @@ public static class DailyStatisticsBuilder
         List<Session> sessions,
         IReadOnlyList<StopwatchDefinition> stopwatches,
         Dictionary<string, DateOnly> existsFrom,
+        Dictionary<string, List<(DateOnly Date, TimeSpan? PreviousGoal)>> changesById,
         DateTimeOffset nowUtc,
         int scaleMinutes)
     {
@@ -69,12 +79,31 @@ public static class DailyStatisticsBuilder
             .ToDictionary(g => g.Key, g => g.Aggregate(TimeSpan.Zero, (a, s) => a + s.GetDuration(nowUtc)));
         var dayTotal = segments.Aggregate(TimeSpan.Zero, (a, s) => a + s.Duration);
 
+        // The goal at the end of this day: the previous goal of the first change after it, else the current goal.
+        TimeSpan? GoalOf(StopwatchDefinition s)
+        {
+            var goal = s.Goal;
+            if (changesById.TryGetValue(s.Id, out var changes))
+            {
+                foreach (var change in changes)
+                {
+                    if (change.Date > date)
+                    {
+                        goal = change.PreviousGoal;
+                        break;
+                    }
+                }
+            }
+
+            return goal is { } g && g > TimeSpan.Zero ? g : null;
+        }
+
         bool GoalListed(StopwatchDefinition s) =>
-            !s.IsDeleted && s.HasGoal && (!existsFrom.TryGetValue(s.Id, out var from) || from <= date);
+            !s.IsDeleted && GoalOf(s) is not null && (!existsFrom.TryGetValue(s.Id, out var from) || from <= date);
 
         // A deleted goal stopwatch counts like a normal one on days where it has time.
         bool GoalCounted(StopwatchDefinition s) =>
-            s.HasGoal && (s.IsDeleted ? perStopwatch.ContainsKey(s.Id) : GoalListed(s));
+            GoalOf(s) is not null && (s.IsDeleted ? perStopwatch.ContainsKey(s.Id) : GoalListed(s));
 
         var totals = stopwatches
             .Where(s => perStopwatch.ContainsKey(s.Id) || GoalListed(s))
@@ -82,12 +111,13 @@ public static class DailyStatisticsBuilder
             .Select(s =>
             {
                 var total = perStopwatch.GetValueOrDefault(s.Id);
-                var reached = s.HasGoal && total >= s.Goal!.Value;
+                var goal = GoalOf(s);
+                var reached = goal is { } g && total >= g;
                 var share = dayTotal > TimeSpan.Zero ? Math.Clamp(total / dayTotal, 0, 1) : 0;
                 var overtime = reached && dayTotal > TimeSpan.Zero
-                    ? Math.Clamp((total - s.Goal!.Value) / dayTotal, 0, share)
+                    ? Math.Clamp((total - goal!.Value) / dayTotal, 0, share)
                     : 0;
-                return new DayStopwatchTotal(s.Id, s.Name, s.Color, s.IsDeleted, total, share, s.Goal, reached, s.IsIndependent, overtime);
+                return new DayStopwatchTotal(s.Id, s.Name, s.Color, s.IsDeleted, total, share, goal, reached, s.IsIndependent, overtime);
             })
             .ToList();
 

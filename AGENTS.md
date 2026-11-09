@@ -170,6 +170,7 @@ If the exe is locked because the tool is running, ask the owner to close it; do 
 - A running stopwatch is a session with no stop time. On normal quit, running sessions are stopped and saved.
   After a crash, an open session is resumed on the next start.
 - Deleting a stopwatch is a soft delete (also used when a temporary stopwatch expires): its past sessions stay in statistics with their name and color.
+- Goal changes are stored in `goal_changes` (previous goal + time); each Statistics day uses the goal in effect at the end of that day, and days without history use the current goal.
 - Design tokens (colors, radii, fonts) live in one resource dictionary in the App project. Do not hard-code
   colors in views; reference the tokens.
 - Fonts: Inter (via `Avalonia.Fonts.Inter`) for text; `Cascadia Mono, Consolas` for times and numbers.

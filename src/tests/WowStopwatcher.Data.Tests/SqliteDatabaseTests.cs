@@ -98,8 +98,8 @@ public class SqliteDatabaseTests
             var database = new SqliteDatabase(path);
             var after = DateTimeOffset.UtcNow.AddSeconds(2);
 
-            Assert.Equal(4, SqliteDatabase.LatestSchemaVersion);
-            Assert.Equal(4, database.GetSchemaVersion());
+            Assert.Equal(5, SqliteDatabase.LatestSchemaVersion);
+            Assert.Equal(5, database.GetSchemaVersion());
             var all = new SqliteStopwatchRepository(database).GetAll(includeDeleted: true);
             Assert.Equal(2, all.Count);
             Assert.All(all, d =>

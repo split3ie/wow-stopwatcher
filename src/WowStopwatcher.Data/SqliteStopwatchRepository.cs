@@ -4,7 +4,7 @@ using WowStopwatcher.Core;
 namespace WowStopwatcher.Data;
 
 /// <summary>SQLite implementation of <see cref="IStopwatchRepository"/>.</summary>
-public sealed class SqliteStopwatchRepository(SqliteDatabase database) : IStopwatchRepository
+public sealed class SqliteStopwatchRepository(SqliteDatabase database, TimeProvider? time = null) : IStopwatchRepository
 {
     private const string Columns = "id, name, color, goal_seconds, shortcut, sort_order, is_deleted, is_independent, is_permanent, active_since_utc";
 
@@ -42,7 +42,10 @@ public sealed class SqliteStopwatchRepository(SqliteDatabase database) : IStopwa
     public void Update(StopwatchDefinition stopwatch)
     {
         using var connection = database.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+        RecordGoalChange(connection, transaction, stopwatch);
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             UPDATE stopwatches
             SET name = $name, color = $color, goal_seconds = $goal, shortcut = $shortcut,
@@ -52,6 +55,57 @@ public sealed class SqliteStopwatchRepository(SqliteDatabase database) : IStopwa
             """;
         Bind(command, stopwatch);
         command.ExecuteNonQuery();
+        transaction.Commit();
+    }
+
+    public IReadOnlyList<GoalChange> GetGoalChanges()
+    {
+        using var connection = database.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT stopwatch_id, changed_utc, previous_goal_seconds FROM goal_changes ORDER BY changed_utc, id";
+        var list = new List<GoalChange>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            list.Add(new GoalChange(
+                reader.GetString(0),
+                DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(1)),
+                reader.IsDBNull(2) ? null : TimeSpan.FromSeconds(reader.GetInt64(2))));
+        }
+
+        return list;
+    }
+
+    private void RecordGoalChange(SqliteConnection connection, SqliteTransaction transaction, StopwatchDefinition stopwatch)
+    {
+        long? previous;
+        using (var read = connection.CreateCommand())
+        {
+            read.Transaction = transaction;
+            read.CommandText = "SELECT goal_seconds FROM stopwatches WHERE id = $id";
+            read.Parameters.AddWithValue("$id", stopwatch.Id);
+            using var reader = read.ExecuteReader();
+            if (!reader.Read())
+            {
+                return;
+            }
+
+            previous = reader.IsDBNull(0) ? null : reader.GetInt64(0);
+        }
+
+        long? current = stopwatch.Goal is { } goal ? (long)goal.TotalSeconds : null;
+        if (previous == current)
+        {
+            return;
+        }
+
+        using var insert = connection.CreateCommand();
+        insert.Transaction = transaction;
+        insert.CommandText = "INSERT INTO goal_changes (stopwatch_id, changed_utc, previous_goal_seconds) VALUES ($id, $changed, $previous)";
+        insert.Parameters.AddWithValue("$id", stopwatch.Id);
+        insert.Parameters.AddWithValue("$changed", (time ?? TimeProvider.System).GetUtcNow().ToUnixTimeMilliseconds());
+        insert.Parameters.AddWithValue("$previous", previous is { } p ? (object)p : DBNull.Value);
+        insert.ExecuteNonQuery();
     }
 
     public void SoftDelete(string id)
