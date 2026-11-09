@@ -122,7 +122,7 @@ public sealed partial class DayViewModel : ObservableObject
         for (var i = 0; i < day.Segments.Count; i++)
         {
             var segment = day.Segments[i];
-            Segments[i].Update(segment, start, names.GetValueOrDefault(segment.StopwatchId, string.Empty), i + 1);
+            Segments[i].Update(segment, start, names, i + 1);
             start += segment.WidthFraction;
         }
 

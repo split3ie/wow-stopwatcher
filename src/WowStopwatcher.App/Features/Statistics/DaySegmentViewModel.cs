@@ -41,11 +41,14 @@ public sealed partial class DaySegmentViewModel : ObservableObject
 
     partial void OnIsHoveredChanged(bool value) => _owner.OnSegmentHoverChanged();
 
-    public void Update(DaySegment segment, double start, string stopwatchName, int number)
+    public void Update(DaySegment segment, double start, IReadOnlyDictionary<string, string> names, int number)
     {
         Start = start;
         Width = segment.WidthFraction;
-        Title = $"{stopwatchName} · session {number}";
+        var laneNames = segment.Lanes.Select(l => names.GetValueOrDefault(l.StopwatchId, string.Empty)).ToList();
+        Title = laneNames.Count > 1
+            ? $"{string.Join(" + ", laneNames)} · together"
+            : $"{(laneNames.Count == 1 ? laneNames[0] : names.GetValueOrDefault(segment.StopwatchId, string.Empty))} · session {number}";
         TimeText = TimeFormat.HoursMinutes(segment.Duration);
         HasLanes = LaneViewModel.Sync(Lanes, segment.Lanes);
         if (_color != segment.Color)
