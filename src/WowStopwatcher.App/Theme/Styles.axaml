@@ -33,6 +33,9 @@
   <Style Selector="Border.rowCard.drop">
     <Setter Property="BoxShadow" Value="{DynamicResource ShadowDrop}" />
   </Style>
+  <Style Selector="Border.rowCard.lifted">
+    <Setter Property="BoxShadow" Value="{DynamicResource ShadowLift}" />
+  </Style>
   <Style Selector="TextBlock.goalSub">
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />

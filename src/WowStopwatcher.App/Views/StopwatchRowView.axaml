@@ -29,8 +29,7 @@
   </UserControl.Styles>
 
   <Border Classes="card rowCard"
-          Classes.dragging="{Binding IsDragging}"
-          Classes.drop="{Binding IsDropTarget}"
+          Classes.lifted="{Binding IsDragging}"
           Padding="16,14">
     <StackPanel Spacing="10">
 
@@ -219,7 +218,7 @@
                 <DataTemplate x:DataType="vm:SessionItemViewModel">
                   <Grid ColumnDefinitions="22,96,*">
                     <TextBlock Classes="mono muted" FontSize="13" Text="{Binding Number}" />
-                    <TextBlock Grid.Column="1" Classes="mono" FontSize="13" Text="{Binding Duration}" />
+                    <TextBlock Grid.Column="1" Grid.ColumnSpan="2" Classes="mono" FontSize="13" Text="{Binding Duration}" />
                     <TextBlock Grid.Column="2" Classes="muted" FontSize="11" VerticalAlignment="Center" Text="{Binding Tag}" />
                   </Grid>
                 </DataTemplate>

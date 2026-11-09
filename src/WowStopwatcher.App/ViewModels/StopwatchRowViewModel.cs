@@ -96,13 +96,9 @@ public sealed partial class StopwatchRowViewModel : ObservableObject
     [ObservableProperty]
     private string _toggleLabel = string.Empty;
 
-    /// <summary>True while this row is being dragged (shown faded).</summary>
+    /// <summary>True while this row is being dragged (shown lifted).</summary>
     [ObservableProperty]
     private bool _isDragging;
-
-    /// <summary>True while a dragged row is over this one (shows the drop ring).</summary>
-    [ObservableProperty]
-    private bool _isDropTarget;
 
     public string DetailsLabel => IsOpen ? "Hide details" : "Show details";
 
