@@ -41,12 +41,19 @@ public sealed partial class MainViewModel : ObservableObject
         var hostRid = HostRid();
         Targets = new ObservableCollection<TargetOptionViewModel>(
             Rids.Select(r => new TargetOptionViewModel(r, r == hostRid)));
+        foreach (var target in Targets)
+        {
+            target.RunCommand = new AsyncRelayCommand(
+                () => BuildTargetsAsync([target]), () => CanBuild() && !string.IsNullOrWhiteSpace(target.Command));
+            target.PropertyChanged += OnTargetPropertyChanged;
+        }
 
         _repoRoot = RepoLocator.FindRoot(AppContext.BaseDirectory);
         if (_repoRoot is null)
         {
             ErrorMessage = "Repository root not found (no folder with src/WowStopwatcher.slnx above "
                 + AppContext.BaseDirectory + ").";
+            ResetCommands();
             return;
         }
 
@@ -64,6 +71,8 @@ public sealed partial class MainViewModel : ObservableObject
         {
             ErrorMessage = "Cannot read Features.props: " + ex.Message;
         }
+
+        ResetCommands();
     }
 
     public ObservableCollection<FeatureGroupViewModel> Groups { get; }
@@ -115,8 +124,11 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool IsIdle => !IsBuilding;
 
+    partial void OnIsBuildingChanged(bool value) => NotifyBuildStateChanged();
+
     partial void OnOutputFolderChanged(string value)
     {
+        ResetCommands();
         if (_settingsLoaded)
         {
             ToolSettingsStore.Save(_settingsPath, new ToolSettings { OutputFolder = value });
@@ -143,13 +155,63 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool HasVersionError => VersionError is not null;
 
+    private void OnTargetPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TargetOptionViewModel.IsSelected))
+        {
+            ResetCommands();
+        }
+        else if (e.PropertyName == nameof(TargetOptionViewModel.Command))
+        {
+            NotifyBuildStateChanged();
+        }
+    }
+
+    /// <summary>Regenerates every target's command line from the current settings.</summary>
+    [RelayCommand]
+    private void ResetCommands()
+    {
+        var disabled = _selection.DisabledFlags().ToList();
+        foreach (var target in Targets)
+        {
+            target.Command = PublishCommand.BuildCommandLine(
+                target.Rid, TargetDir(target.Rid), disabled, Version);
+        }
+
+        NotifyBuildStateChanged();
+    }
+
+    private string TargetDir(string rid)
+    {
+        string root;
+        try
+        {
+            root = Path.GetFullPath(OutputFolder);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            root = OutputFolder;
+        }
+
+        return Path.Combine(root, rid);
+    }
+
+    private void NotifyBuildStateChanged()
+    {
+        OnPropertyChanged(nameof(ProblemsText));
+        OnPropertyChanged(nameof(HasProblems));
+        BuildCommand.NotifyCanExecuteChanged();
+        foreach (var target in Targets)
+        {
+            target.RunCommand?.NotifyCanExecuteChanged();
+        }
+    }
+
     partial void OnVersionChanged(string value)
     {
         OnPropertyChanged(nameof(VersionError));
         OnPropertyChanged(nameof(HasVersionError));
-        OnPropertyChanged(nameof(ProblemsText));
-        OnPropertyChanged(nameof(HasProblems));
-        BuildCommand.NotifyCanExecuteChanged();
+        ResetCommands();
     }
 
     /// <summary>Blocking problems (group rules, version) joined for display next to Build, or null.</summary>
@@ -163,6 +225,10 @@ public sealed partial class MainViewModel : ObservableObject
                 problems.Add(VersionError);
             }
 
+            problems.AddRange(Targets
+                .Where(t => t.IsSelected && string.IsNullOrWhiteSpace(t.Command))
+                .Select(t => $"Command for {t.Rid} is empty"));
+
             return problems.Count == 0 ? null : string.Join("; ", problems);
         }
     }
@@ -170,7 +236,8 @@ public sealed partial class MainViewModel : ObservableObject
     public bool HasProblems => ProblemsText is not null;
 
     private bool CanBuild() =>
-        !IsBuilding && _repoRoot is not null && _selection.GroupErrors().Count == 0 && !HasVersionError;
+        !IsBuilding && _repoRoot is not null && _selection.GroupErrors().Count == 0 && !HasVersionError
+        && !Targets.Any(t => t.IsSelected && string.IsNullOrWhiteSpace(t.Command));
 
     /// <summary>Refreshes all feature checkboxes, group states and the Build button after a change.</summary>
     private void RefreshFeatures()
@@ -184,26 +251,22 @@ public sealed partial class MainViewModel : ObservableObject
             }
         }
 
-        OnPropertyChanged(nameof(ProblemsText));
-        OnPropertyChanged(nameof(HasProblems));
-        BuildCommand.NotifyCanExecuteChanged();
+        ResetCommands();
     }
 
     [RelayCommand(CanExecute = nameof(CanBuild))]
-    private async Task BuildAsync()
+    private Task BuildAsync() => BuildTargetsAsync(Targets.Where(t => t.IsSelected).ToList());
+
+    private async Task BuildTargetsAsync(IReadOnlyList<TargetOptionViewModel> selected)
     {
         // Show the Build page so the log and per-target status are visible.
         SelectedPage = BuildPage;
 
-        var selected = Targets.Where(t => t.IsSelected).ToList();
         if (selected.Count == 0 || _repoRoot is null)
         {
             Log = "No target selected." + Environment.NewLine;
             return;
         }
-
-        var disabled = _selection.DisabledFlags().ToList();
-        var output = Path.GetFullPath(OutputFolder);
 
         IsBuilding = true;
         using var cancellation = new CancellationTokenSource();
@@ -219,7 +282,7 @@ public sealed partial class MainViewModel : ObservableObject
             foreach (var (target, index) in selected.Select((t, i) => (t, i)))
             {
                 StatusText = $"Building {target.Label} ({index + 1} of {selected.Count})...";
-                await BuildTargetAsync(target, output, disabled, cancellation.Token);
+                await BuildTargetAsync(target, cancellation.Token);
             }
         }
         catch (OperationCanceledException)
@@ -235,15 +298,15 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     private async Task BuildTargetAsync(
-        TargetOptionViewModel target, string output, List<string> disabled, CancellationToken token)
+        TargetOptionViewModel target, CancellationToken token)
     {
         var repoRoot = _repoRoot!;
-        var targetDir = Path.Combine(output, target.Rid);
-        var args = PublishCommand.BuildArguments(repoRoot, target.Rid, targetDir, disabled, Version);
+        var targetDir = TargetDir(target.Rid);
+        var command = CommandLineSplitter.Split(target.Command);
         target.Status = "building...";
         AppendLog("");
         AppendLog("=== " + target.Rid + " ===");
-        AppendLog(PublishCommand.Format(args));
+        AppendLog(PublishCommand.Format(command));
 
         string? firstError = null;
         void OnOutput(string line)
@@ -254,11 +317,11 @@ public sealed partial class MainViewModel : ObservableObject
 
         try
         {
-            var exit = await ProcessRunner.RunAsync("dotnet", args, repoRoot, OnOutput, token);
+            var exit = await ProcessRunner.RunAsync(command[0], command.Skip(1), repoRoot, OnOutput, token);
             if (exit != 0)
             {
                 target.Status = "failed";
-                AppendLog($"dotnet publish exited with code {exit}.");
+                AppendLog($"The command exited with code {exit}.");
                 AppendLog(firstError is null
                     ? "No error line found in the output; see the log above."
                     : "First error: " + firstError);

@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace WowStopwatcher.BuildTool.ViewModels;
 
@@ -19,6 +20,13 @@ public sealed partial class TargetOptionViewModel(string rid, bool isSelected) :
 
     [ObservableProperty]
     private bool _isSelected = isSelected;
+
+    /// <summary>The editable publish command line for this target.</summary>
+    [ObservableProperty]
+    private string _command = "";
+
+    /// <summary>Runs only this target; assigned by the main view model.</summary>
+    public IRelayCommand? RunCommand { get; set; }
 
     /// <summary>Empty, "building...", "ok", "failed" or "cancelled".</summary>
     [NotifyPropertyChangedFor(nameof(HasStatus))]
