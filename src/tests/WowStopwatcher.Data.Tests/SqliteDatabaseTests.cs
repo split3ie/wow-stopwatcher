@@ -98,8 +98,8 @@ public class SqliteDatabaseTests
             var database = new SqliteDatabase(path);
             var after = DateTimeOffset.UtcNow.AddSeconds(2);
 
-            Assert.Equal(6, SqliteDatabase.LatestSchemaVersion);
-            Assert.Equal(6, database.GetSchemaVersion());
+            Assert.Equal(7, SqliteDatabase.LatestSchemaVersion);
+            Assert.Equal(7, database.GetSchemaVersion());
             var all = new SqliteStopwatchRepository(database).GetAll(includeDeleted: true);
             Assert.Equal(2, all.Count);
             Assert.All(all, d =>
@@ -148,12 +148,61 @@ public class SqliteDatabaseTests
 
             var database = new SqliteDatabase(path);
 
-            Assert.Equal(6, database.GetSchemaVersion());
+            Assert.Equal(7, database.GetSchemaVersion());
             var def = Assert.Single(new SqliteStopwatchRepository(database).GetAll());
             Assert.Equal("English", def.Name);
             Assert.Equal(TimeSpan.FromHours(5), def.Goal);
             Assert.Null(def.GoalSinceUtc);
             Assert.False(def.GoalPerCycle);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Migration_V6ToV7_KeepsNamesWithUnknownLanguage()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "wowstopwatcher-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "v6.db");
+        try
+        {
+            using (var connection = new SqliteConnection($"Data Source={path};Pooling=False"))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE stopwatches (
+                        id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, color TEXT NOT NULL,
+                        goal_seconds INTEGER NULL, shortcut TEXT NULL, sort_order INTEGER NOT NULL,
+                        is_deleted INTEGER NOT NULL DEFAULT 0, is_independent INTEGER NOT NULL DEFAULT 0,
+                        is_permanent INTEGER NOT NULL DEFAULT 0, active_since_utc INTEGER NULL,
+                        goal_since_utc INTEGER NULL, goal_per_cycle INTEGER NOT NULL DEFAULT 0);
+                    CREATE TABLE sessions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, stopwatch_id TEXT NOT NULL REFERENCES stopwatches(id),
+                        start_utc INTEGER NOT NULL, stop_utc INTEGER NULL);
+                    CREATE TABLE settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
+                    CREATE TABLE goal_changes (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, stopwatch_id TEXT NOT NULL REFERENCES stopwatches(id),
+                        changed_utc INTEGER NOT NULL, previous_goal_seconds INTEGER NULL);
+                    INSERT INTO stopwatches VALUES ('a', 'English', '#2F6FEB', 18000, 'Ctrl+F1', 0, 0, 0, 1, 1000, NULL, 0);
+                    PRAGMA user_version = 6;
+                    """;
+                command.ExecuteNonQuery();
+            }
+
+            var database = new SqliteDatabase(path);
+
+            Assert.Equal(7, database.GetSchemaVersion());
+            Assert.Equal("English", Assert.Single(new SqliteStopwatchRepository(database).GetAll()).Name);
+            var uk = new SqliteStopwatchRepository(database, null, () => "uk");
+            Assert.Equal("English", Assert.Single(uk.GetAll()).Name);
+
+            // The first rename claims the original and sets its language.
+            uk.Update(uk.Get("a")! with { Name = "Anhliiska" });
+            Assert.Equal("Anhliiska", new SqliteStopwatchRepository(database, null, () => "en").Get("a")!.Name);
         }
         finally
         {

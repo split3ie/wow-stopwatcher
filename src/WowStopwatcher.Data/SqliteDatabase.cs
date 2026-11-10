@@ -10,7 +10,7 @@ namespace WowStopwatcher.Data;
 public sealed class SqliteDatabase
 {
     /// <summary>Current schema version.</summary>
-    public const int LatestSchemaVersion = 6;
+    public const int LatestSchemaVersion = 7;
 
     private readonly string _connectionString;
 
@@ -152,6 +152,23 @@ public sealed class SqliteDatabase
             Execute(connection, "ALTER TABLE stopwatches ADD COLUMN goal_since_utc INTEGER NULL;", transaction);
             Execute(connection, "ALTER TABLE stopwatches ADD COLUMN goal_per_cycle INTEGER NOT NULL DEFAULT 0;", transaction);
             Execute(connection, "PRAGMA user_version = 6;", transaction);
+            transaction.Commit();
+            version = 6;
+        }
+
+        if (version < 7)
+        {
+            // name_language is the language of stopwatches.name (NULL = unknown, legacy rows).
+            using var transaction = connection.BeginTransaction();
+            Execute(connection, "ALTER TABLE stopwatches ADD COLUMN name_language TEXT NULL;", transaction);
+            Execute(connection, """
+                CREATE TABLE stopwatch_names (
+                    stopwatch_id TEXT NOT NULL REFERENCES stopwatches(id),
+                    language TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    PRIMARY KEY (stopwatch_id, language));
+                """, transaction);
+            Execute(connection, "PRAGMA user_version = 7;", transaction);
             transaction.Commit();
         }
     }

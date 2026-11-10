@@ -169,4 +169,90 @@ public class StopwatchRepositoryTests
 
         Assert.Empty(db.Stopwatches.GetGoalChanges());
     }
+
+    private static SqliteStopwatchRepository InLanguage(TempDatabase db, string language) =>
+        new(db.Database, null, () => language);
+
+    private static StopwatchDefinition Def(string name) => new("a", name, "#2F6FEB", null, null, 0);
+
+    [Fact]
+    public void Names_CreatedInLanguage_FallBackToOriginalInOtherLanguage()
+    {
+        using var db = new TempDatabase();
+        InLanguage(db, "en").Add(Def("English"));
+
+        Assert.Equal("English", InLanguage(db, "en").Get("a")!.Name);
+        Assert.Equal("English", InLanguage(db, "uk").Get("a")!.Name);
+        Assert.Equal("English", Assert.Single(InLanguage(db, "uk").GetAll()).Name);
+    }
+
+    [Fact]
+    public void Names_RenameInOtherLanguage_KeepsOriginal()
+    {
+        using var db = new TempDatabase();
+        InLanguage(db, "en").Add(Def("English"));
+        var uk = InLanguage(db, "uk");
+
+        uk.Update(Def("Anhliiska"));
+        uk.Update(Def("Anhliiska 2"));
+
+        Assert.Equal("Anhliiska 2", uk.Get("a")!.Name);
+        Assert.Equal("Anhliiska 2", Assert.Single(uk.GetAll()).Name);
+        Assert.Equal("English", InLanguage(db, "en").Get("a")!.Name);
+        Assert.Equal("English", InLanguage(db, "de").Get("a")!.Name);
+    }
+
+    [Fact]
+    public void Names_SavingOtherFieldInOtherLanguage_DoesNotPinFallbackName()
+    {
+        using var db = new TempDatabase();
+        InLanguage(db, "en").Add(Def("English"));
+        var uk = InLanguage(db, "uk");
+
+        uk.Update(uk.Get("a")! with { Color = "#111111" });
+        InLanguage(db, "en").Update(Def("Learning"));
+
+        Assert.Equal("Learning", uk.Get("a")!.Name);
+    }
+
+    [Fact]
+    public void Names_RenameInOriginalLanguage_UpdatesFallback()
+    {
+        using var db = new TempDatabase();
+        InLanguage(db, "en").Add(Def("English"));
+        InLanguage(db, "uk").Update(Def("Anhliiska"));
+
+        InLanguage(db, "en").Update(Def("Learning"));
+
+        Assert.Equal("Learning", InLanguage(db, "en").Get("a")!.Name);
+        Assert.Equal("Learning", InLanguage(db, "de").Get("a")!.Name);
+        Assert.Equal("Anhliiska", InLanguage(db, "uk").Get("a")!.Name);
+    }
+
+    [Fact]
+    public void Names_LegacyUnknownLanguage_FirstRenameClaimsOriginal()
+    {
+        using var db = new TempDatabase();
+        db.Stopwatches.Add(Def("English"));
+
+        InLanguage(db, "uk").Update(Def("Anhliiska"));
+
+        Assert.Equal("Anhliiska", InLanguage(db, "uk").Get("a")!.Name);
+        Assert.Equal("Anhliiska", InLanguage(db, "en").Get("a")!.Name);
+
+        InLanguage(db, "en").Update(Def("English again"));
+        Assert.Equal("English again", InLanguage(db, "en").Get("a")!.Name);
+        Assert.Equal("Anhliiska", InLanguage(db, "uk").Get("a")!.Name);
+    }
+
+    [Fact]
+    public void Names_WithoutLanguageFunc_UseOnlyOriginalName()
+    {
+        using var db = new TempDatabase();
+        db.Stopwatches.Add(Def("English"));
+        db.Stopwatches.Update(Def("Renamed"));
+
+        Assert.Equal("Renamed", db.Stopwatches.Get("a")!.Name);
+        Assert.Equal("Renamed", InLanguage(db, "uk").Get("a")!.Name);
+    }
 }
