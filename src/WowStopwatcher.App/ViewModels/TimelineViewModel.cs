@@ -35,6 +35,9 @@ public sealed partial class TimelineViewModel : ObservableObject
     private string _remainingText = string.Empty;
 
     [ObservableProperty]
+    private string _remainingSuffix = " to goals";
+
+    [ObservableProperty]
     private bool _isSegmentTipVisible;
 
     [ObservableProperty]
@@ -110,6 +113,7 @@ public sealed partial class TimelineViewModel : ObservableObject
         HeaderMargin = new Thickness(0, 0, 0, HeaderGap + timeline.MaxPinLevel * PinViewModel.RisePerLevel);
         LoggedText = TimeFormat.Human(timeline.Logged);
         RemainingText = TimeFormat.HoursMinutes(timeline.Remaining);
+        RemainingSuffix = snapshot.Stopwatches.Count(s => s.HasGoal) == 1 ? " to goal" : " to goals";
 
         UpdateTooltips();
     }

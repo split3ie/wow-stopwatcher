@@ -215,7 +215,7 @@
                    FontSize="12"
                    HorizontalAlignment="Right"
                    TextWrapping="Wrap">
-          <Run Text="{Binding LoggedText}" /><Run Text=" logged · " /><Run Text="{Binding RemainingText}" /><Run Text=" to goals" />
+          <Run Text="{Binding LoggedText}" /><Run Text=" logged · " /><Run Text="{Binding RemainingText}" /><Run Text="{Binding RemainingSuffix}" />
         </TextBlock>
       </Grid>
     </StackPanel>
