@@ -4,14 +4,13 @@ using CommunityToolkit.Mvvm.Input;
 using WowStopwatcher.App.Navigation;
 using WowStopwatcher.App.Shell;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.Settings;
 
 /// <summary>The Settings page: general items and footer items contributed by features, stopwatch editing (saved immediately) and the version.</summary>
 public sealed partial class SettingsViewModel : ObservableObject, INavigationAware
 {
-    private const string NewStopwatchName = "New stopwatch";
-
     private readonly IStopwatchMaintenance _maintenance;
     private readonly IStopwatchRepository _stopwatches;
     private readonly ISessionRepository _sessions;
@@ -56,7 +55,7 @@ public sealed partial class SettingsViewModel : ObservableObject, INavigationAwa
         UpdateShortcutFailures();
     }
 
-    public string Title => "Settings";
+    public string Title => Loc.T("settings.title");
 
     public ObservableCollection<SettingsStopwatchViewModel> Items { get; } = [];
 
@@ -74,8 +73,8 @@ public sealed partial class SettingsViewModel : ObservableObject, INavigationAwa
     public bool AreShortcutsUnsupported => _hotkeys.IsAvailable && !_hotkeys.IsSupported;
 
     public string ShortcutsUnsupportedText => OperatingSystem.IsLinux()
-        ? "Global shortcuts aren't available in this session (Wayland). They work on X11."
-        : "Global shortcuts aren't available on this system.";
+        ? Loc.T("settings.shortcutsUnsupportedWayland")
+        : Loc.T("settings.shortcutsUnsupported");
 
     public string VersionText => _version.DisplayText;
 
@@ -88,7 +87,7 @@ public sealed partial class SettingsViewModel : ObservableObject, INavigationAwa
             ?? palette[Items.Count % palette.Count].Hex;
 
         var definition = new StopwatchDefinition(
-            StopwatchDefinition.NewId(), NewStopwatchName, color, null,
+            StopwatchDefinition.NewId(), Loc.T("settings.newStopwatchName"), color, null,
             DefaultShortcuts.Next(Items.Select(i => i.StoredShortcut)), Items.Count,
             ActiveSinceUtc: _time.GetUtcNow());
         _stopwatches.Add(definition);
@@ -218,11 +217,11 @@ public sealed partial class SettingsViewModel : ObservableObject, INavigationAwa
 
     internal void ConfirmDelete(SettingsStopwatchViewModel item)
     {
-        var title = string.IsNullOrWhiteSpace(item.Name) ? "Delete this stopwatch?" : $"Delete {item.Name}?";
+        var title = string.IsNullOrWhiteSpace(item.Name) ? Loc.T("settings.delete.titleUnnamed") : Loc.T("settings.delete.title", ("name", item.Name));
         _dialog.Show(
             title,
-            "The stopwatch, its goal and its shortcut are removed. Statistics already logged for it are kept.",
-            "Delete",
+            Loc.T("settings.delete.body"),
+            Loc.T("settings.delete.confirm"),
             () =>
             {
                 item.EndRecording();

@@ -153,6 +153,10 @@ Optional features can be left out at build time, for example `dotnet build src/W
 
 `FeatureGoals=false` also turns off `FeatureGoalNotifications`; `FeatureSettings=false` also turns off `FeatureAutostart` and `FeatureUpdateCheck`.
 
+### Translating
+
+To add or improve a language, see [src/WowStopwatcher.Core/Localization/Translations/README.md](src/WowStopwatcher.Core/Localization/Translations/README.md).
+
 ### Build tool
 
 `tools/WowStopwatcher.BuildTool.exe` (Windows, needs the .NET 10 runtime) is a small GUI to pick features and publish the app for Windows, Linux and macOS in one go. Its source is in `src/tools/WowStopwatcher.BuildTool/`; see `src/tools/README.md`. It is kept in sync with the feature flags: when a feature is added or removed, its list is updated and the exe in `tools/` is rebuilt.

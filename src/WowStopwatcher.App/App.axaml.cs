@@ -19,6 +19,10 @@ public partial class App : Application
         {
             // Composition root: the only place that builds and uses the service provider directly.
             var provider = AppComposition.Build(desktop);
+
+            // The language must be set before any window or view model is created.
+            StartupLanguage.Apply(provider.GetRequiredService<ISettingsRepository>());
+
             var options = provider.GetRequiredService<ShellOptions>();
 
             // One locator maps every registered view model to its view, app-wide.

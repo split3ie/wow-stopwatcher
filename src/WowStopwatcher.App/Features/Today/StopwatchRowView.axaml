@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
              xmlns:l="using:WowStopwatcher.App.Layout"
              xmlns:vm="using:WowStopwatcher.App.Features.Today"
              x:Class="WowStopwatcher.App.Features.Today.StopwatchRowView"
@@ -115,7 +116,7 @@
                             Stroke="{DynamicResource StarStrokeBrush}"
                             Classes="goalStar"
                             Classes.reached="{Binding IsGoalReached}"
-                            AutomationProperties.Name="Has a goal" />
+                            AutomationProperties.Name="{loc:T today.row.hasGoal}" />
                     <Border IsVisible="{Binding IsRunning}"
                             Padding="8,2"
                             VerticalAlignment="Center"
@@ -126,7 +127,7 @@
                                  Width="7" Height="7"
                                  VerticalAlignment="Center"
                                  Fill="{Binding Brush}" />
-                        <TextBlock Text="Running"
+                        <TextBlock Text="{loc:T today.row.running}"
                                    FontSize="11"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource SecondaryBrush}" />
@@ -134,7 +135,7 @@
                     </Border>
                   </StackPanel>
                   <TextBlock FontSize="12" Classes="muted">
-                    <Run Text="Total today " /><Run Classes="mono"
+                    <Run Text="{loc:T today.row.totalToday}" /><Run Text=" " /><Run Classes="mono"
                                                      FontWeight="SemiBold"
                                                      Foreground="{DynamicResource TextBrush}"
                                                      Text="{Binding TotalText}" />
@@ -159,26 +160,27 @@
               l:FlexWrapPanel.Grow="0"
               RowDefinitions="*,Auto">
           <StackPanel Spacing="0">
-            <TextBlock FontSize="12" LineHeight="18" Classes="muted" Text="{Binding GoalLine}" />
+            <TextBlock FontSize="12" LineHeight="18" Classes="muted" TextWrapping="Wrap" Text="{Binding GoalLine}" />
             <TextBlock Classes="goalSub"
                        Classes.reached="{Binding IsGoalReached}"
                        Classes.nogoal="{Binding !HasGoal}"
                        FontSize="12"
                        LineHeight="18"
+                       TextWrapping="Wrap"
                        Text="{Binding GoalSub}" />
           </StackPanel>
           <Button Grid.Row="1"
                   Classes="danger small"
                   Margin="0,8,0,0"
                   Command="{Binding ResetCommand}"
-                  Content="Reset" />
+                  Content="{loc:T today.row.reset}" />
         </Grid>
       </l:FlexWrapPanel>
 
       <!-- Footer: shortcut hint and details toggle -->
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" IsVisible="{Binding HasShortcut}">
-          <TextBlock Text="Start / Stop" FontSize="12" VerticalAlignment="Center" Classes="muted" />
+          <TextBlock Text="{loc:T today.row.startStop}" FontSize="12" VerticalAlignment="Center" Classes="muted" />
           <Border Classes="kbd" Margin="4,0,0,0" VerticalAlignment="Center">
             <TextBlock Text="{Binding Shortcut}" />
           </Border>
@@ -207,7 +209,7 @@
               BorderThickness="0,1,0,0">
         <l:FlexWrapPanel Spacing="24">
           <StackPanel l:FlexWrapPanel.Basis="220" l:FlexWrapPanel.Grow="1" Spacing="6">
-            <TextBlock Classes="section" FontSize="11" Text="SESSIONS TODAY" />
+            <TextBlock Classes="section" FontSize="11" Text="{loc:T today.row.sessionsToday}" />
             <ItemsControl ItemsSource="{Binding Sessions}">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -230,7 +232,7 @@
                 VerticalAlignment="Top"
                 ColumnDefinitions="Auto,*"
                 RowDefinitions="Auto,Auto">
-            <TextBlock Classes="muted" FontSize="13" Margin="0,0,16,4" Text="Total" />
+            <TextBlock Classes="muted" FontSize="13" Margin="0,0,16,4" Text="{loc:T today.row.total}" />
             <TextBlock Grid.Column="1" Classes="mono" FontSize="13" FontWeight="SemiBold"
                        HorizontalAlignment="Right" Text="{Binding TotalHuman}" />
             <TextBlock Grid.Row="1" Classes="muted" FontSize="13" Margin="0,0,16,0" Text="{Binding ToGoalLabel}" />

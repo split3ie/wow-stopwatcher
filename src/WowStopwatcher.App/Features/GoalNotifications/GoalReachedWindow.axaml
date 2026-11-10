@@ -1,4 +1,5 @@
 <Window xmlns="https://github.com/avaloniaui"
+        xmlns:loc="using:WowStopwatcher.App.Localization"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="WowStopwatcher.App.Features.GoalNotifications.GoalReachedWindow"
         Title="WowStopwatcher"
@@ -46,14 +47,14 @@
           Cursor="Hand">
     <Grid ColumnDefinitions="*,Auto">
       <StackPanel Spacing="6">
-        <TextBlock Text="Goal reached" FontWeight="SemiBold" />
+        <TextBlock Text="{loc:T goalNotify.reached}" FontWeight="SemiBold" />
         <StackPanel x:Name="Lines" Spacing="4" />
       </StackPanel>
       <Button Grid.Column="1"
               Classes="closeX"
               VerticalAlignment="Top"
               Margin="8,-4,-6,0"
-              AutomationProperties.Name="Close"
+              AutomationProperties.Name="{loc:T goalNotify.close}"
               Click="OnCloseClick">
         <TextBlock Text="×" FontSize="18" LineHeight="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
       </Button>

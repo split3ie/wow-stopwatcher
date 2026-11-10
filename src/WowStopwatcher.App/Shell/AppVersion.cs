@@ -1,4 +1,5 @@
 using System.Reflection;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Shell;
 
@@ -16,7 +17,7 @@ public sealed class AppVersion : IAppVersion
 
         IsOfficialBuild = assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
             .Any(a => a.Key == "OfficialBuild" && a.Value == "true");
-        DisplayText = IsOfficialBuild ? "v" + Version : "local build";
+        DisplayText = IsOfficialBuild ? "v" + Version : Loc.T("settings.localBuild");
     }
 
     public string Version { get; }

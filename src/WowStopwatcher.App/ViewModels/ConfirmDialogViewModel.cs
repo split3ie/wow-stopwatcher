@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WowStopwatcher.App.Shell;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.ViewModels;
 
@@ -19,7 +20,7 @@ public sealed partial class ConfirmDialogViewModel : ObservableObject, IDialogSe
     private string _body = string.Empty;
 
     [ObservableProperty]
-    private string _confirmLabel = "Confirm";
+    private string _confirmLabel = Loc.T("common.confirm");
 
     /// <summary>Opens the dialog; <paramref name="onConfirm"/> runs only if the user confirms.</summary>
     public void Show(string title, string body, string confirmLabel, Action onConfirm)

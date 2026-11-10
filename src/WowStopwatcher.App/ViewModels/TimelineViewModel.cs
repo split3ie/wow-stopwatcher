@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.ViewModels;
 
@@ -28,11 +29,9 @@ public sealed partial class TimelineViewModel : ObservableObject
     [ObservableProperty]
     private double _nowPosition;
 
+    /// <summary>The footer line: time logged and time left to the goals.</summary>
     [ObservableProperty]
-    private string _loggedText = string.Empty;
-
-    [ObservableProperty]
-    private string _remainingText = string.Empty;
+    private string _footerText = string.Empty;
 
     [ObservableProperty]
     private bool _isSegmentTipVisible;
@@ -82,8 +81,8 @@ public sealed partial class TimelineViewModel : ObservableObject
                 Legend.Add(new LegendItemViewModel());
             }
 
-            Legend.Add(new LegendItemViewModel(LegendKind.Remaining) { Name = "Left to goal" });
-            Legend.Add(new LegendItemViewModel(LegendKind.Goal) { Name = "Goal reached" });
+            Legend.Add(new LegendItemViewModel(LegendKind.Remaining) { Name = Loc.T("timeline.legend.leftToGoal") });
+            Legend.Add(new LegendItemViewModel(LegendKind.Goal) { Name = Loc.T("timeline.legend.goalReached") });
         }
 
         for (var i = 0; i < stopwatches.Count; i++)
@@ -108,8 +107,11 @@ public sealed partial class TimelineViewModel : ObservableObject
 
         NowPosition = timeline.NowPosition;
         HeaderMargin = new Thickness(0, 0, 0, HeaderGap + timeline.MaxPinLevel * PinViewModel.RisePerLevel);
-        LoggedText = TimeFormat.Human(timeline.Logged);
-        RemainingText = TimeFormat.HoursMinutes(timeline.Remaining);
+        FooterText = Loc.Plural(
+            "timeline.footer",
+            snapshot.Stopwatches.Count(s => s.HasGoal),
+            ("logged", TimeFormat.Human(timeline.Logged)),
+            ("remaining", TimeFormat.HoursMinutes(timeline.Remaining)));
 
         UpdateTooltips();
     }

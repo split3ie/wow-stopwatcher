@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                 xmlns:c="using:WowStopwatcher.App.Controls"
+                xmlns:loc="using:WowStopwatcher.App.Localization"
                 xmlns:l="using:WowStopwatcher.App.Layout"
                 xmlns:vm="using:WowStopwatcher.App.Features.Settings"
                 x:Class="WowStopwatcher.App.Features.Settings.SettingsView"
@@ -39,11 +40,11 @@
   <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
     <Border MaxWidth="920" Padding="28,28,28,32">
       <StackPanel Spacing="16">
-        <TextBlock Text="Settings" FontSize="24" FontWeight="Bold" LetterSpacing="-0.48" />
+        <TextBlock Text="{loc:T settings.title}" FontSize="24" FontWeight="Bold" LetterSpacing="-0.48" />
 
         <!-- General: cards contributed by features -->
         <StackPanel Spacing="10" Margin="0,0,0,12" IsVisible="{Binding HasGeneralItems}">
-          <TextBlock Classes="h2" Text="General" />
+          <TextBlock Classes="h2" Text="{loc:T settings.general}" />
           <ItemsControl ItemsSource="{Binding GeneralItems}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
@@ -54,29 +55,12 @@
         </StackPanel>
 
         <!-- Stopwatches -->
-        <Grid ColumnDefinitions="*,Auto">
-          <StackPanel Spacing="6">
-            <TextBlock Classes="h2" Text="Stopwatches" />
-            <TextBlock Classes="muted"
-                       TextWrapping="Wrap"
-                       Text="Name, color, goal and shortcut for each activity. Drag the handle to change the order." />
-          </StackPanel>
-          <Button Grid.Column="1"
-                  Classes="primary"
-                  HorizontalAlignment="Right"
-                  VerticalAlignment="Bottom"
-                  Margin="12,0,0,0"
-                  Padding="18,0"
-                  Command="{Binding AddStopwatchCommand}">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <c:Icon Width="16" Height="16"
-                      Data="{StaticResource SettingsIconPlus}"
-                      Stroke="{Binding $parent[Button].Foreground}"
-                      StrokeThickness="2.2" />
-              <TextBlock Text="Add stopwatch" VerticalAlignment="Center" />
-            </StackPanel>
-          </Button>
-        </Grid>
+        <StackPanel Spacing="6">
+          <TextBlock Classes="h2" Text="{loc:T settings.stopwatches.title}" />
+          <TextBlock Classes="muted"
+                     TextWrapping="Wrap"
+                     Text="{loc:T settings.stopwatches.description}" />
+        </StackPanel>
 
         <TextBlock Foreground="{DynamicResource DangerBrush}"
                    FontSize="13"
@@ -109,7 +93,7 @@
                       Data="{StaticResource SettingsIconPlus}"
                       Stroke="{Binding $parent[Button].Foreground}"
                       StrokeThickness="2" />
-              <TextBlock Text="Add new stopwatch" FontWeight="Medium" VerticalAlignment="Center" />
+              <TextBlock Text="{loc:T settings.stopwatches.addNew}" FontWeight="Medium" VerticalAlignment="Center" />
             </StackPanel>
           </Grid>
         </Button>
@@ -125,7 +109,7 @@
                 <Run Text="WowStopwatcher" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" /><Run Text=" " /><Run Classes="mono" Text="{Binding VersionText}" />
               </TextBlock>
               <StackPanel Orientation="Horizontal" Margin="0,0,14,0" VerticalAlignment="Center">
-                <TextBlock Classes="muted" FontSize="13" Text="Made by " VerticalAlignment="Center" />
+                <TextBlock Classes="muted" FontSize="13" Margin="0,0,4,0" Text="{loc:T settings.footer.madeBy}" VerticalAlignment="Center" />
                 <Button Classes="link footerLink"
                         FontSize="13"
                         FontWeight="SemiBold"
@@ -142,7 +126,7 @@
                   <c:Icon Width="16" Height="16"
                           Data="{StaticResource SettingsIconGitHub}"
                           Stroke="{Binding $parent[Button].Foreground}" />
-                  <TextBlock Text="GitHub repository" VerticalAlignment="Center" />
+                  <TextBlock Text="{loc:T settings.footer.repository}" VerticalAlignment="Center" />
                 </StackPanel>
               </Button>
             </WrapPanel>

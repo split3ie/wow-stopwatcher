@@ -12,9 +12,9 @@ internal static class Program
     public static void Main(string[] args)
     {
         Instance = SingleInstanceGuard.TryAcquire();
-        if (Instance is null && args.Contains("--after-update"))
+        if (Instance is null && (args.Contains("--after-update") || args.Contains("--restart")))
         {
-            // Started by an update: wait for the old instance to exit (TryAcquire disposes its mutex on failure).
+            // Started by an update or a restart (language change): wait for the old instance to exit (TryAcquire disposes its mutex on failure).
             for (var i = 0; i < 60 && Instance is null; i++)
             {
                 Thread.Sleep(250);

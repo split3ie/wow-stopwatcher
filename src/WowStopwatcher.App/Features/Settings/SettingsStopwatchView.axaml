@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
              xmlns:l="using:WowStopwatcher.App.Layout"
              xmlns:vm="using:WowStopwatcher.App.Features.Settings"
              x:Class="WowStopwatcher.App.Features.Settings.SettingsStopwatchView"
@@ -184,18 +185,18 @@
       <l:FlexWrapPanel Margin="52,14,72,14" Spacing="28">
         <!-- Basics -->
         <StackPanel l:FlexWrapPanel.Basis="340" l:FlexWrapPanel.Grow="2" Spacing="8">
-          <TextBlock Classes="section" Text="BASICS" />
+          <TextBlock Classes="section" Text="{loc:T settings.stopwatch.basics}" />
           <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="12">
             <!-- Name -->
-            <TextBlock Classes="fieldLabel" VerticalAlignment="Center" Text="Name" />
+            <TextBlock Classes="fieldLabel" VerticalAlignment="Center" Text="{loc:T settings.stopwatch.name}" />
             <TextBox x:Name="NameBox"
                      Grid.Column="1"
                      Classes="field"
                      Text="{Binding Name}"
-                     AutomationProperties.Name="Name" />
+                     AutomationProperties.Name="{loc:T settings.stopwatch.name}" />
 
             <!-- Color -->
-            <TextBlock Grid.Row="1" Classes="fieldLabel" VerticalAlignment="Center" Text="Color" />
+            <TextBlock Grid.Row="1" Classes="fieldLabel" VerticalAlignment="Center" Text="{loc:T settings.stopwatch.color}" />
             <Button x:Name="ColorButton"
                     Grid.Row="1" Grid.Column="1"
                     Classes="colorPick"
@@ -227,7 +228,7 @@
                               HorizontalAlignment="Stretch"
                               HorizontalContentAlignment="Center"
                               Command="{Binding OpenCustomColorCommand}"
-                              Content="Custom color…" />
+                              Content="{loc:T settings.stopwatch.customColor}" />
                     </StackPanel>
                     <StackPanel Width="260" Spacing="10" Margin="0,0,6,6"
                                 IsVisible="{Binding IsCustomColorOpen}">
@@ -241,10 +242,10 @@
                       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
                         <Button Classes="secondary"
                                 Command="{Binding CancelCustomColorCommand}"
-                                Content="Back" />
+                                Content="{loc:T settings.stopwatch.back}" />
                         <Button Classes="primary"
                                 Command="{Binding ApplyCustomColorCommand}"
-                                Content="Apply" />
+                                Content="{loc:T settings.stopwatch.apply}" />
                       </StackPanel>
                     </StackPanel>
                   </StackPanel>
@@ -269,15 +270,15 @@
             <!-- Shortcut -->
             <TextBlock Grid.Row="2" Classes="fieldLabel" VerticalAlignment="Center"
                        IsVisible="{Binding AreShortcutsAvailable}"
-                       Text="Shortcut" />
+                       Text="{loc:T settings.stopwatch.shortcut}" />
             <Border x:Name="Recorder"
                     Grid.Row="2" Grid.Column="1"
                     Classes="recorder"
                     Classes.recording="{Binding IsRecording}"
                     Classes.warn="{Binding HasShortcutWarning}"
                     IsVisible="{Binding AreShortcutsAvailable}"
-                    ToolTip.Tip="Click, then press the keys. Esc cancels, Backspace clears."
-                    AutomationProperties.Name="Start / Stop shortcut">
+                    ToolTip.Tip="{loc:T settings.stopwatch.shortcutTip}"
+                    AutomationProperties.Name="{loc:T settings.stopwatch.shortcutLabel}">
               <Grid>
                 <TextBlock Text="{Binding ShortcutText}"
                            IsVisible="{Binding ShortcutText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
@@ -315,13 +316,13 @@
           </StackPanel.IsVisible>
           <!-- Goal -->
           <StackPanel Spacing="8" IsVisible="{Binding AreGoalsAvailable}">
-            <TextBlock Classes="section" Text="GOAL" />
+            <TextBlock Classes="section" Text="{loc:T settings.stopwatch.goal}" />
             <WrapPanel Orientation="Horizontal">
               <CheckBox IsChecked="{Binding HasGoal}"
                         Margin="0,0,16,0"
                         MinHeight="20"
-                        AutomationProperties.Name="Daily goal">
-                <TextBlock Classes="fieldLabel" Text="Daily goal" />
+                        AutomationProperties.Name="{loc:T settings.stopwatch.dailyGoal}">
+                <TextBlock Classes="fieldLabel" Text="{loc:T settings.stopwatch.dailyGoal}" />
               </CheckBox>
 
               <!-- Carry goal over -->
@@ -330,13 +331,13 @@
                 <CheckBox IsChecked="{Binding GoalPerCycle}"
                           IsEnabled="{Binding HasGoal}"
                           MinHeight="20"
-                          AutomationProperties.Name="Carry goal over">
-                  <TextBlock Classes="fieldLabel" Text="Carry goal over" />
+                          AutomationProperties.Name="{loc:T settings.stopwatch.carryOver}">
+                  <TextBlock Classes="fieldLabel" Text="{loc:T settings.stopwatch.carryOver}" />
                 </CheckBox>
                 <Border Classes="info"
-                        ToolTip.Tip="Keeps filling across days until reached; then a new goal starts"
-                        AutomationProperties.Name="Carry goal over info"
-                        AutomationProperties.HelpText="Keeps filling across days until reached; then a new goal starts">
+                        ToolTip.Tip="{loc:T settings.stopwatch.carryOverInfo}"
+                        AutomationProperties.Name="{loc:T settings.stopwatch.carryOverInfoLabel}"
+                        AutomationProperties.HelpText="{loc:T settings.stopwatch.carryOverInfo}">
                   <c:Icon Width="14" Height="14"
                           Data="{StaticResource IconInfo}"
                           Stroke="{DynamicResource MutedBrush}" />
@@ -353,25 +354,25 @@
                        Text="{Binding GoalText, Mode=OneWay}"
                        ContextFlyout="{x:Null}"
                        AutomationProperties.Name="{Binding GoalLabel}" />
-              <TextBlock Text="hh:mm:ss" FontSize="12" VerticalAlignment="Center" Classes="muted" />
+              <TextBlock Text="{loc:T settings.stopwatch.goalFormat}" FontSize="12" VerticalAlignment="Center" Classes="muted" />
             </StackPanel>
           </StackPanel>
 
           <!-- Behavior -->
           <StackPanel Spacing="8" IsVisible="{Binding AreBehaviorOptionsAvailable}">
-            <TextBlock Classes="section" Text="BEHAVIOR" />
+            <TextBlock Classes="section" Text="{loc:T settings.stopwatch.behavior}" />
             <StackPanel Spacing="6">
               <!-- Independent -->
               <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsIndependentAvailable}">
                 <CheckBox IsChecked="{Binding IsIndependent}"
                           MinHeight="20"
-                          AutomationProperties.Name="Independent">
-                  <TextBlock Classes="fieldLabel" Text="Independent" />
+                          AutomationProperties.Name="{loc:T settings.stopwatch.independent}">
+                  <TextBlock Classes="fieldLabel" Text="{loc:T settings.stopwatch.independent}" />
                 </CheckBox>
                 <Border Classes="info"
-                        ToolTip.Tip="Runs alongside other stopwatches"
-                        AutomationProperties.Name="Independent info"
-                        AutomationProperties.HelpText="Runs alongside other stopwatches">
+                        ToolTip.Tip="{loc:T settings.stopwatch.independentInfo}"
+                        AutomationProperties.Name="{loc:T settings.stopwatch.independentInfoLabel}"
+                        AutomationProperties.HelpText="{loc:T settings.stopwatch.independentInfo}">
                   <c:Icon Width="14" Height="14"
                           Data="{StaticResource IconInfo}"
                           Stroke="{DynamicResource MutedBrush}" />
@@ -382,13 +383,13 @@
               <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsPermanentAvailable}">
                 <CheckBox IsChecked="{Binding IsPermanent}"
                           MinHeight="20"
-                          AutomationProperties.Name="Permanent">
-                  <TextBlock Classes="fieldLabel" Text="Permanent" />
+                          AutomationProperties.Name="{loc:T settings.stopwatch.permanent}">
+                  <TextBlock Classes="fieldLabel" Text="{loc:T settings.stopwatch.permanent}" />
                 </CheckBox>
                 <Border Classes="info"
-                        ToolTip.Tip="Kept every day. Temporary stopwatches disappear after a full day without use."
-                        AutomationProperties.Name="Permanent info"
-                        AutomationProperties.HelpText="Kept every day. Temporary stopwatches disappear after a full day without use.">
+                        ToolTip.Tip="{loc:T settings.stopwatch.permanentInfo}"
+                        AutomationProperties.Name="{loc:T settings.stopwatch.permanentInfoLabel}"
+                        AutomationProperties.HelpText="{loc:T settings.stopwatch.permanentInfo}">
                   <c:Icon Width="14" Height="14"
                           Data="{StaticResource IconInfo}"
                           Stroke="{DynamicResource MutedBrush}" />

@@ -1,10 +1,10 @@
-using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WowStopwatcher.App.ViewModels;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.Statistics;
 
@@ -27,7 +27,7 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isActive;
 
-    public string RestoreLabel => "Restore " + Name;
+    public string RestoreLabel => Loc.T("stats.restore.label", ("name", Name));
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RestoreLabel))]
@@ -84,7 +84,7 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
         var parts = new List<string>();
         if (total.GoalsReachedCount > 1)
         {
-            parts.Add("×" + total.GoalsReachedCount.ToString(CultureInfo.InvariantCulture));
+            parts.Add(Loc.T("stats.note.timesReached", ("count", total.GoalsReachedCount)));
         }
 
         if (total.GoalReachedUtc is { } reachedUtc)
@@ -92,13 +92,13 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
             var local = TimeZoneInfo.ConvertTime(reachedUtc, zone);
             if (DateOnly.FromDateTime(local.DateTime) != day)
             {
-                parts.Add("reached " + local.ToString("ddd HH:mm", CultureInfo.InvariantCulture));
+                parts.Add(Loc.T("stats.note.reachedAt", ("time", local.ToString(Loc.T("stats.format.weekdayTime"), Loc.Culture))));
             }
         }
 
         if (!total.GoalReached && total.CycleProgress is { } progress && progress != total.Total)
         {
-            parts.Add(TimeFormat.HoursMinutes(progress) + " so far");
+            parts.Add(Loc.T("stats.note.soFar", ("time", TimeFormat.HoursMinutes(progress))));
         }
 
         return string.Join(" · ", parts);

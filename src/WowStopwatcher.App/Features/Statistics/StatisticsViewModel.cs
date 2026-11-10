@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using WowStopwatcher.App.Shell;
 using WowStopwatcher.App.ViewModels;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.Statistics;
 
@@ -58,7 +59,7 @@ public sealed partial class StatisticsViewModel : ObservableObject
     public bool HasSelection => SelectedCount > 0;
 
     [ObservableProperty]
-    private string _selectedText = "0 selected";
+    private string _selectedText = Loc.T("stats.selected", ("count", 0));
 
     /// <summary>Called by the view while it is on screen: refreshes every second so today's bar grows.</summary>
     public void Start()
@@ -72,7 +73,7 @@ public sealed partial class StatisticsViewModel : ObservableObject
     internal void OnSelectionChanged()
     {
         SelectedCount = Days.Count(d => d.IsSelected);
-        SelectedText = $"{SelectedCount} selected";
+        SelectedText = Loc.T("stats.selected", ("count", SelectedCount));
     }
 
     [RelayCommand]
@@ -91,9 +92,9 @@ public sealed partial class StatisticsViewModel : ObservableObject
         }
 
         _dialog.Show(
-            "Clear all statistics?",
-            $"This deletes every logged session ({Plural(count)}). This can’t be undone.",
-            "Clear all",
+            Loc.T("stats.clearAll.title"),
+            Loc.T("stats.clearAll.body", ("days", Loc.Plural("stats.days", count))),
+            Loc.T("stats.clearAll"),
             () =>
             {
                 _maintenance.ResetAllToday();
@@ -115,11 +116,11 @@ public sealed partial class StatisticsViewModel : ObservableObject
         var snapshot = _state.GetSnapshot();
         var includesToday = selected.Contains(snapshot.Today);
         var stopsRunning = includesToday && snapshot.IsAnyRunning;
-        var body = $"This deletes every logged session from the {(selected.Count == 1 ? "selected day" : $"{selected.Count} selected days")}"
-            + (stopsRunning ? " and stops the running stopwatch" : string.Empty)
-            + ". This can’t be undone.";
+        var days = Loc.Plural("stats.selectedDays", selected.Count);
+        var body = Loc.T(stopsRunning ? "stats.clearSelected.bodyStopsRunning" : "stats.clearSelected.body", ("days", days));
+        var count = Loc.Plural("stats.days", selected.Count);
 
-        _dialog.Show($"Clear {Plural(selected.Count)}?", body, $"Clear {Plural(selected.Count)}", () =>
+        _dialog.Show(Loc.T("stats.clearSelected.title", ("days", count)), body, Loc.T("stats.clearSelected.confirm", ("days", count)), () =>
         {
             var zone = _time.LocalTimeZone;
             var today = _state.GetSnapshot().Today;
@@ -148,8 +149,6 @@ public sealed partial class StatisticsViewModel : ObservableObject
             Reload();
         }
     }
-
-    private static string Plural(int days) => days == 1 ? "1 day" : $"{days} days";
 
     private void EndSelect()
     {
@@ -194,7 +193,7 @@ public sealed partial class StatisticsViewModel : ObservableObject
             Legend[i].Update(active[i]);
             if (active[i].HasGoal)
             {
-                Legend[i].Name += " · goal " + TimeFormat.GoalLabel(active[i].Goal!.Value);
+                Legend[i].Name = Loc.T("stats.legend.goal", ("name", Legend[i].Name), ("goal", TimeFormat.GoalLabel(active[i].Goal!.Value)));
             }
         }
     }

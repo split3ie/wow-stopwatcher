@@ -1,6 +1,7 @@
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.Settings;
 
@@ -28,13 +29,16 @@ public sealed partial class SettingsSwatchViewModel : ObservableObject
         ("Navy", "#1E3A8A"),
     ];
 
+    /// <summary>The translated name of a palette color (<paramref name="name"/> is its English name from <see cref="Palette"/>).</summary>
+    public static string LocalizedName(string name) => Loc.T("settings.color." + name.ToLowerInvariant());
+
     private readonly SettingsStopwatchViewModel _owner;
     private readonly string _name;
 
     public SettingsSwatchViewModel(SettingsStopwatchViewModel owner, string name, string hex, bool isSelected)
     {
         _owner = owner;
-        _name = name;
+        _name = LocalizedName(name);
         Hex = hex;
         Brush = new SolidColorBrush(Avalonia.Media.Color.Parse(hex));
         _isSelected = isSelected;
@@ -48,7 +52,7 @@ public sealed partial class SettingsSwatchViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(Label))]
     private bool _isSelected;
 
-    public string Label => IsSelected ? _name + ", selected" : _name;
+    public string Label => IsSelected ? Loc.T("settings.color.selected", ("name", _name)) : _name;
 
     [RelayCommand]
     private void Pick() => _owner.SelectColor(Hex);

@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.Today;
 
@@ -35,8 +36,10 @@ public sealed partial class GoalItemViewModel : ObservableObject
 
         Name = definition.Name;
         PercentText = $"{(int)Math.Floor(fraction * 100)}%";
-        SubText = $"{TimeFormat.HoursMinutes(goal - status.Progress)} left of {TimeFormat.GoalLabel(goal)}"
-            + GoalText.Since(status, zone);
+        SubText = GoalText.WithSince(
+            Loc.T("today.goal.leftOf", ("left", TimeFormat.HoursMinutes(goal - status.Progress)), ("goal", TimeFormat.GoalLabel(goal))),
+            status,
+            zone);
         DoneWidth = new GridLength(fraction, GridUnitType.Star);
         LeftWidth = new GridLength(1 - fraction, GridUnitType.Star);
 

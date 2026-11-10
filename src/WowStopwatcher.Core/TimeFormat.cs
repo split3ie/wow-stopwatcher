@@ -1,4 +1,5 @@
 using System.Globalization;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.Core;
 
@@ -23,12 +24,12 @@ public static class TimeFormat
         var hours = value.Ticks / TimeSpan.TicksPerHour;
         if (hours > 0)
         {
-            return string.Format(Invariant, "{0}h {1}m {2}s", hours, value.Minutes, value.Seconds);
+            return Loc.T("time.hoursMinutesSeconds", ("hours", hours), ("minutes", value.Minutes), ("seconds", value.Seconds));
         }
 
         return value.Minutes > 0
-            ? string.Format(Invariant, "{0}m {1}s", value.Minutes, value.Seconds)
-            : string.Format(Invariant, "{0}s", value.Seconds);
+            ? Loc.T("time.minutesSeconds", ("minutes", value.Minutes), ("seconds", value.Seconds))
+            : Loc.T("time.seconds", ("seconds", value.Seconds));
     }
 
     /// <summary>"1h 30m", "1h" or "30m", rounded to the nearest minute ("0m" below 30 seconds).</summary>
@@ -40,12 +41,12 @@ public static class TimeFormat
         var minutes = totalMinutes % 60;
         if (hours > 0 && minutes > 0)
         {
-            return string.Format(Invariant, "{0}h {1}m", hours, minutes);
+            return Loc.T("time.hoursMinutes", ("hours", hours), ("minutes", minutes));
         }
 
         return hours > 0
-            ? string.Format(Invariant, "{0}h", hours)
-            : string.Format(Invariant, "{0}m", minutes);
+            ? Loc.T("time.hours", ("hours", hours))
+            : Loc.T("time.minutes", ("minutes", minutes));
     }
 
     /// <summary>
@@ -89,7 +90,7 @@ public static class TimeFormat
     {
         goal = NonNegative(goal);
         return goal > TimeSpan.Zero && goal < TimeSpan.FromMinutes(1)
-            ? string.Format(Invariant, "{0}s", goal.Seconds)
+            ? Loc.T("time.seconds", ("seconds", goal.Seconds))
             : HoursMinutes(goal);
     }
 

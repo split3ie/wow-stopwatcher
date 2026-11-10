@@ -1,6 +1,7 @@
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.ViewModels;
 
@@ -45,8 +46,8 @@ public sealed partial class PinViewModel : ObservableObject
 
         var goal = definition?.Goal is { } g ? TimeFormat.GoalLabel(g) : string.Empty;
         var name = definition?.Name ?? string.Empty;
-        Title = $"{name} · {goal}";
-        Label = $"{name} reached its {goal} goal";
+        Title = Loc.T("timeline.pin.title", ("name", name), ("goal", goal));
+        Label = Loc.T("timeline.pin.label", ("name", name), ("goal", goal));
 
         if (_color != pin.Color)
         {

@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:WowStopwatcher.App.Controls"
              xmlns:l="using:WowStopwatcher.App.Layout"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
              xmlns:vm="using:WowStopwatcher.App.ViewModels"
              xmlns:local="using:WowStopwatcher.App.Features.Statistics"
              x:Class="WowStopwatcher.App.Features.Statistics.StatisticsView"
@@ -94,12 +95,12 @@
         <!-- Title and actions -->
         <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
           <StackPanel VerticalAlignment="Bottom">
-            <TextBlock Text="Statistics" FontSize="24" FontWeight="Bold" LetterSpacing="-0.48" />
+            <TextBlock Text="{loc:T stats.title}" FontSize="24" FontWeight="Bold" LetterSpacing="-0.48" />
             <TextBlock Classes="muted"
                        Margin="0,6,0,0"
                        FontSize="14"
                        TextWrapping="Wrap"
-                       Text="Daily sessions. Click a timeline to see totals per stopwatch." />
+                       Text="{loc:T stats.subtitle}" />
           </StackPanel>
 
           <StackPanel Grid.Column="1"
@@ -110,11 +111,11 @@
             <Button Classes="danger stat"
                     Command="{Binding ClearAllCommand}"
                     IsEnabled="{Binding HasDays}"
-                    Content="Clear all" />
+                    Content="{loc:T stats.clearAll}" />
             <Button Classes="secondary stat"
                     Command="{Binding StartSelectCommand}"
                     IsEnabled="{Binding HasDays}"
-                    Content="Select" />
+                    Content="{loc:T stats.select}" />
           </StackPanel>
 
           <StackPanel Grid.Column="1"
@@ -130,10 +131,10 @@
             <Button Classes="danger stat"
                     Command="{Binding ClearSelectedCommand}"
                     IsEnabled="{Binding HasSelection}"
-                    Content="Clear selected" />
+                    Content="{loc:T stats.clearSelected}" />
             <Button Classes="secondary stat"
                     Command="{Binding CancelSelectCommand}"
-                    Content="Cancel" />
+                    Content="{loc:T stats.cancel}" />
           </StackPanel>
         </Grid>
 
@@ -171,7 +172,7 @@
                      Margin="40"
                      HorizontalAlignment="Center"
                      FontSize="14"
-                     Text="No statistics yet." />
+                     Text="{loc:T stats.empty}" />
         </Grid>
 
         <!-- Days -->
@@ -212,7 +213,7 @@
                                       VerticalAlignment="Center"
                                       Data="{StaticResource IconCombine}"
                                       Stroke="{Binding $parent[Button].Foreground}" />
-                              <TextBlock VerticalAlignment="Center" Text="Combine" />
+                              <TextBlock VerticalAlignment="Center" Text="{loc:T stats.combine}" />
                             </StackPanel>
                           </Button>
                           <Border IsVisible="{Binding AllGoalsReached}"
@@ -229,7 +230,7 @@
                                          FontSize="11"
                                          FontWeight="SemiBold"
                                          Foreground="{DynamicResource ReachedAccentBrush}"
-                                         Text="All goals reached" />
+                                         Text="{loc:T stats.allGoalsReached}" />
                             </StackPanel>
                           </Border>
                           <Border IsVisible="{Binding IsPartialGoals}"
@@ -240,7 +241,7 @@
                                        FontSize="11"
                                        FontWeight="SemiBold"
                                        Foreground="{DynamicResource SecondaryBrush}">
-                              <Run Text="{Binding GoalsText}" /><Run Text=" goals" />
+                              <Run Text="{Binding GoalsBadgeText}" />
                             </TextBlock>
                           </Border>
                           <TextBlock Classes="mono"
@@ -368,7 +369,7 @@
                                         Data="{StaticResource IconStar}"
                                         Fill="{DynamicResource StarBrush}"
                                         Stroke="{DynamicResource StarStrokeBrush}"
-                                        AutomationProperties.Name="Goal reached" />
+                                        AutomationProperties.Name="{loc:T stats.goalReached}" />
                               </Grid>
                               <Border Grid.Column="1"
                                       Height="8"
@@ -414,7 +415,7 @@
                                       Classes.shown="{Binding IsActive}"
                                       IsVisible="{Binding IsDeleted}"
                                       Command="{Binding RestoreCommand}"
-                                      Content="Restore"
+                                      Content="{loc:T stats.restore}"
                                       AutomationProperties.Name="{Binding RestoreLabel}" />
                             </Grid>
                             </c:HoverBorder>
@@ -429,11 +430,11 @@
                             RowDefinitions="Auto,Auto,Auto"
                             ColumnSpacing="16"
                             RowSpacing="6">
-                        <TextBlock Classes="muted" FontSize="13" Text="Total" />
+                        <TextBlock Classes="muted" FontSize="13" Text="{loc:T stats.total}" />
                         <TextBlock Grid.Column="1" Classes="mono" FontSize="13" FontWeight="SemiBold" TextAlignment="Right" Text="{Binding TotalText}" />
-                        <TextBlock Grid.Row="1" Classes="muted" FontSize="13" Text="Sessions" />
+                        <TextBlock Grid.Row="1" Classes="muted" FontSize="13" Text="{loc:T stats.sessions}" />
                         <TextBlock Grid.Row="1" Grid.Column="1" Classes="mono" FontSize="13" FontWeight="SemiBold" TextAlignment="Right" Text="{Binding SessionCountText}" />
-                        <TextBlock Grid.Row="2" Classes="muted" FontSize="13" Text="Goals met" />
+                        <TextBlock Grid.Row="2" Classes="muted" FontSize="13" Text="{loc:T stats.goalsMet}" />
                         <TextBlock Grid.Row="2" Grid.Column="1" Classes="mono" FontSize="13" FontWeight="SemiBold" TextAlignment="Right" Text="{Binding GoalsText}" />
                       </Grid>
                     </l:FlexWrapPanel>

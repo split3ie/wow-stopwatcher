@@ -6,14 +6,13 @@ using CommunityToolkit.Mvvm.Input;
 using WowStopwatcher.App.Shell;
 using WowStopwatcher.App.ViewModels;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.Settings;
 
 /// <summary>One editable stopwatch card on the Settings page. Every change is saved immediately.</summary>
 public sealed partial class SettingsStopwatchViewModel : ObservableObject
 {
-    private const string NoNameLabel = "Untitled";
-
     private readonly SettingsViewModel _owner;
     private readonly IShortcutService _hotkeys;
     private readonly StopwatchCapabilities _capabilities;
@@ -122,24 +121,24 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
     /// <summary>Palette name of the current color, or "Custom" when it is not a palette color.</summary>
     public string ColorName => SettingsSwatchViewModel.Palette
         .Where(p => string.Equals(p.Hex, Color, StringComparison.OrdinalIgnoreCase))
-        .Select(p => p.Name)
-        .FirstOrDefault("Custom");
+        .Select(p => SettingsSwatchViewModel.LocalizedName(p.Name))
+        .FirstOrDefault(Loc.T("settings.color.custom"));
 
-    public string ColorLabel => "Color, " + ColorName;
+    public string ColorLabel => Loc.T("settings.stopwatch.colorLabel", ("name", ColorName));
 
-    public string DisplayName => string.IsNullOrWhiteSpace(Name) ? NoNameLabel : Name;
+    public string DisplayName => string.IsNullOrWhiteSpace(Name) ? Loc.T("settings.stopwatch.untitled") : Name;
 
-    public string SectionLabel => DisplayName + " stopwatch";
+    public string SectionLabel => Loc.T("settings.stopwatch.sectionLabel", ("name", DisplayName));
 
-    public string GripLabel => $"Reorder {LabelName("stopwatch")}. Drag, or use the up and down arrow keys";
+    public string GripLabel => IsNamed ? Loc.T("settings.stopwatch.gripLabel", ("name", Name)) : Loc.T("settings.stopwatch.gripLabelUnnamed");
 
-    public string DeleteLabel => $"Delete {LabelName("stopwatch")}";
+    public string DeleteLabel => IsNamed ? Loc.T("settings.stopwatch.deleteLabel", ("name", Name)) : Loc.T("settings.stopwatch.deleteLabelUnnamed");
 
-    public string GoalLabel => $"{LabelName("Stopwatch")} goal time, hours minutes seconds";
+    public string GoalLabel => IsNamed ? Loc.T("settings.stopwatch.goalLabel", ("name", Name)) : Loc.T("settings.stopwatch.goalLabelUnnamed");
 
     public string ShortcutText => SettingsShortcutKeys.ToDisplay(IsRecording ? LiveText : Shortcut);
 
-    public string ShortcutPlaceholder => IsRecording ? "Press keys…" : "Not set";
+    public string ShortcutPlaceholder => IsRecording ? Loc.T("settings.stopwatch.pressKeys") : Loc.T("settings.stopwatch.notSet");
 
     public bool HasShortcutWarning => ShortcutWarning.Length > 0;
 
@@ -150,8 +149,8 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
 
     public string ShortcutHint => ShortcutWarning.Length > 0
         ? ShortcutWarning
-        : IsRecording ? "Esc to cancel · Backspace to clear"
-        : ShowsTakenMessage ? "Shortcut is in use by another app" : string.Empty;
+        : IsRecording ? Loc.T("settings.stopwatch.recordingHint")
+        : ShowsTakenMessage ? Loc.T("settings.stopwatch.shortcutTaken") : string.Empty;
 
     /// <summary>The goal to store: null when unchecked or 00:00:00.</summary>
     public TimeSpan? Goal => HasGoal && TimeFormat.TryParseGoal(GoalText, out var goal) ? goal : null;
@@ -314,7 +313,7 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
         if (name is null)
         {
             LiveText = held;
-            ShortcutWarning = "Key not supported";
+            ShortcutWarning = Loc.T("settings.stopwatch.keyUnsupported");
             return true;
         }
 
@@ -322,14 +321,14 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
         if (mods.Count == 0 && !SettingsShortcutKeys.IsFunctionKey(name))
         {
             LiveText = combo;
-            ShortcutWarning = "Add Ctrl, Alt or Shift";
+            ShortcutWarning = Loc.T("settings.stopwatch.needModifier");
             return true;
         }
 
         if (_owner.FindShortcutOwner(this, combo) is { } clash)
         {
             LiveText = combo;
-            ShortcutWarning = "Already used by " + clash.DisplayName;
+            ShortcutWarning = Loc.T("settings.stopwatch.alreadyUsed", ("name", clash.DisplayName));
             return true;
         }
 
@@ -357,7 +356,7 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
         _owner.Save(this);
     }
 
-    private string LabelName(string fallback) => string.IsNullOrWhiteSpace(Name) ? fallback : Name;
+    private bool IsNamed => !string.IsNullOrWhiteSpace(Name);
 
     [RelayCommand]
     private void MoveUp() => _owner.Move(this, -1);

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
              xmlns:vm="using:WowStopwatcher.App.ViewModels"
              x:Class="WowStopwatcher.App.Views.TimelineView"
              x:DataType="vm:TimelineViewModel">
@@ -10,7 +11,7 @@
 
       <!-- Header: title and legend -->
       <Grid ColumnDefinitions="Auto,*" Margin="{Binding HeaderMargin}">
-        <TextBlock Classes="section" Text="TIMELINE" VerticalAlignment="Center" />
+        <TextBlock Classes="section" Text="{loc:T timeline.title}" VerticalAlignment="Center" />
         <ItemsControl Grid.Column="1" ItemsSource="{Binding Legend}" HorizontalAlignment="Right">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
@@ -194,7 +195,7 @@
                   c:TrackPanel.Start="{Binding PinTipPosition}"
                   c:TrackPanel.Rise="{Binding PinTipRise}">
             <StackPanel>
-              <TextBlock Classes="tipSub" Text="Goal reached" />
+              <TextBlock Classes="tipSub" Text="{loc:T timeline.legend.goalReached}" />
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <Ellipse Width="8" Height="8"
                          VerticalAlignment="Center"
@@ -214,9 +215,8 @@
                    Classes="mono muted"
                    FontSize="12"
                    HorizontalAlignment="Right"
-                   TextWrapping="Wrap">
-          <Run Text="{Binding LoggedText}" /><Run Text=" logged · " /><Run Text="{Binding RemainingText}" /><Run Text=" to goals" />
-        </TextBlock>
+                   TextWrapping="Wrap"
+                   Text="{Binding FooterText}" />
       </Grid>
     </StackPanel>
   </Border>

@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WowStopwatcher.App.ViewModels;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.Statistics;
 
@@ -47,6 +48,9 @@ public sealed partial class DayViewModel : ObservableObject
     private string _goalsText = string.Empty;
 
     [ObservableProperty]
+    private string _goalsBadgeText = string.Empty;
+
+    [ObservableProperty]
     private string _totalText = string.Empty;
 
     [ObservableProperty]
@@ -85,11 +89,11 @@ public sealed partial class DayViewModel : ObservableObject
 
     private bool _tipSuppressed;
 
-    public string CombineLabel => (IsCombined ? "Show sessions in time order for " : "Combine sessions for ") + Label;
+    public string CombineLabel => Loc.T(IsCombined ? "stats.combine.labelOn" : "stats.combine.label", ("day", Label));
 
-    public string ToggleLabel => (IsExpanded ? "Hide" : "Show") + " details for " + Label;
+    public string ToggleLabel => Loc.T(IsExpanded ? "stats.details.hide" : "stats.details.show", ("day", Label));
 
-    public string SelectLabel => "Select " + Label;
+    public string SelectLabel => Loc.T("stats.select.label", ("day", Label));
 
     partial void OnIsSelectedChanged(bool value) => _owner.OnSelectionChanged();
 
@@ -138,17 +142,18 @@ public sealed partial class DayViewModel : ObservableObject
 
     public void Update(DayStatistics day, StatisticsResult result, DateOnly today, IReadOnlyDictionary<string, string> names, TimeZoneInfo zone)
     {
-        var format = Date.Year == today.Year ? "dddd, d MMMM" : "dddd, d MMMM yyyy";
-        Label = Date.ToString(format, CultureInfo.InvariantCulture);
+        var format = Loc.T(Date.Year == today.Year ? "stats.format.day" : "stats.format.dayWithYear");
+        Label = Date.ToString(format, Loc.Culture);
         OnPropertyChanged(nameof(ToggleLabel));
         OnPropertyChanged(nameof(SelectLabel));
         OnPropertyChanged(nameof(CombineLabel));
-        Sub = Date == today ? "Today" : string.Empty;
+        Sub = Date == today ? Loc.T("stats.today") : string.Empty;
         HasSub = Sub.Length > 0;
 
         AllGoalsReached = day.GoalCount > 0 && day.GoalsMet == day.GoalCount;
         IsPartialGoals = day.GoalCount > 0 && day.GoalsMet < day.GoalCount;
-        GoalsText = $"{day.GoalsMet} of {day.GoalCount}";
+        GoalsText = Loc.T("stats.goalsOf", ("met", day.GoalsMet), ("total", day.GoalCount));
+        GoalsBadgeText = Loc.T("stats.goalsBadge", ("goals", GoalsText));
         TotalText = TimeFormat.HoursMinutes(day.Total);
         SessionCountText = day.SessionCount.ToString(CultureInfo.InvariantCulture);
 
@@ -164,7 +169,7 @@ public sealed partial class DayViewModel : ObservableObject
         for (var i = 0; i < pieces.Count; i++)
         {
             var lanes = day.Segments[pieces[i].SegmentIndex].Lanes;
-            var together = lanes.Count > 1 ? $"{string.Join(" + ", lanes.Select(l => NameOf(l.StopwatchId)))} · together" : null;
+            var together = lanes.Count > 1 ? Loc.T("stats.piece.together", ("names", string.Join(" + ", lanes.Select(l => NameOf(l.StopwatchId))))) : null;
             Pieces[i].Update(pieces[i], NameOf(pieces[i].StopwatchId), together);
         }
 

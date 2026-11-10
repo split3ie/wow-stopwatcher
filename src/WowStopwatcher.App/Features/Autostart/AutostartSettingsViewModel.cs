@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using WowStopwatcher.App.Shell;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.Autostart;
 
@@ -18,7 +19,7 @@ public sealed partial class AutostartSettingsViewModel : ObservableObject, ISett
         }
         catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
         {
-            Error = "Couldn't read the autostart setting";
+            Error = Loc.T("autostart.readFailed");
         }
     }
 
@@ -49,7 +50,7 @@ public sealed partial class AutostartSettingsViewModel : ObservableObject, ISett
             _syncing = true;
             IsEnabled = !value;
             _syncing = false;
-            Error = "Couldn't change the autostart setting";
+            Error = Loc.T("autostart.changeFailed");
         }
     }
 }

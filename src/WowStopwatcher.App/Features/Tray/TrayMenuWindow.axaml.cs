@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using WowStopwatcher.App.Controls;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.Tray;
 
@@ -200,11 +201,11 @@ public partial class TrayMenuWindow : Window
 
         if (snapshot.Stopwatches.Count == 0)
         {
-            Root.Children.Add(MutedText("No stopwatches yet", new Thickness(10, 12)));
+            Root.Children.Add(MutedText(Loc.T("tray.empty"), new Thickness(10, 12)));
         }
         else
         {
-            var header = MutedText("STOPWATCHES", new Thickness(10, 8, 10, 6));
+            var header = MutedText(Loc.T("tray.header"), new Thickness(10, 8, 10, 6));
             header.FontSize = 11;
             header.FontWeight = FontWeight.SemiBold;
             header.LetterSpacing = 0.9;
@@ -228,13 +229,13 @@ public partial class TrayMenuWindow : Window
         if (snapshot.Stopwatches.Count > 0)
         {
             AddItem(ActionItem("M7,5 H17 A2,2 0 0 1 19,7 V17 A2,2 0 0 1 17,19 H7 A2,2 0 0 1 5,17 V7 A2,2 0 0 1 7,5 Z",
-                true, "Stop all", FontWeight.SemiBold, "TextBrush", () => _control.StopAll()));
+                true, Loc.T("tray.stopAll"), FontWeight.SemiBold, "TextBrush", () => _control.StopAll()));
         }
 
         AddItem(ActionItem("M5,4 H19 A2,2 0 0 1 21,6 V18 A2,2 0 0 1 19,20 H5 A2,2 0 0 1 3,18 V6 A2,2 0 0 1 5,4 Z M3,9 H21",
-            false, "Open WowStopwatcher", FontWeight.Normal, "SecondaryBrush", _openMain));
+            false, Loc.T("tray.open"), FontWeight.Normal, "SecondaryBrush", _openMain));
         AddItem(ActionItem("M12,3 V12 M6.3,7 A8,8 0 1 0 17.7,7",
-            false, "Quit", FontWeight.Normal, "SecondaryBrush", _quit));
+            false, Loc.T("tray.quit"), FontWeight.Normal, "SecondaryBrush", _quit));
 
         if (snapshot.Stopwatches.Count > 0)
         {
@@ -256,7 +257,7 @@ public partial class TrayMenuWindow : Window
                     Spacing = 4,
                     Children =
                     {
-                        new TextBlock { Text = "Total today", FontSize = 11, Foreground = Brush("MutedBrush") },
+                        new TextBlock { Text = Loc.T("tray.totalToday"), FontSize = 11, Foreground = Brush("MutedBrush") },
                         _totalText,
                     },
                 },
@@ -391,7 +392,7 @@ public partial class TrayMenuWindow : Window
             if (Button.IsEnabled != canToggle)
             {
                 Button.IsEnabled = canToggle;
-                ToolTip.SetTip(Button, canToggle ? null : $"Up to {StopwatchEngine.MaxConcurrent} stopwatches can run at once");
+                ToolTip.SetTip(Button, canToggle ? null : Loc.Plural("tray.maxRunning", StopwatchEngine.MaxConcurrent));
             }
 
             if (_active == active)

@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
+             xmlns:local="using:WowStopwatcher.App.Features.Settings"
+             x:Class="WowStopwatcher.App.Features.Settings.LanguageSettingsView"
+             x:DataType="local:LanguageSettingsViewModel">
+  <Border Classes="card" Padding="20,16">
+    <StackPanel Spacing="12">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="3" Margin="0,0,16,0" VerticalAlignment="Center">
+          <TextBlock Text="{loc:T settings.language.title}" FontWeight="SemiBold" />
+          <TextBlock Classes="muted"
+                     FontSize="13"
+                     TextWrapping="Wrap"
+                     Text="{loc:T settings.language.description}" />
+        </StackPanel>
+        <ComboBox Grid.Column="1"
+                  MinWidth="180"
+                  VerticalAlignment="Center"
+                  ItemsSource="{Binding Options}"
+                  SelectedItem="{Binding Selected}"
+                  AutomationProperties.Name="{loc:T settings.language.title}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="local:LanguageOption">
+              <TextBlock Text="{Binding Label}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </Grid>
+      <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding NeedsRestart}">
+        <TextBlock Classes="muted"
+                   FontSize="13"
+                   TextWrapping="Wrap"
+                   VerticalAlignment="Center"
+                   Margin="0,0,16,0"
+                   Text="{loc:T settings.language.restartNote}" />
+        <Button Grid.Column="1"
+                Classes="secondary"
+                IsVisible="{Binding ShowRestartButton}"
+                Command="{Binding RestartCommand}"
+                Content="{loc:T settings.language.restartNow}" />
+      </Grid>
+    </StackPanel>
+  </Border>
+</UserControl>

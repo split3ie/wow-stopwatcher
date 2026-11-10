@@ -15,8 +15,8 @@ public class NavigationServiceTests
         services.AddSingleton(new PageB(_log));
         var pages = new[]
         {
-            new PageDescriptor("a", "A", null, 0, typeof(PageA)),
-            new PageDescriptor("b", "B", null, 1, typeof(PageB)),
+            new PageDescriptor("a", "page.a", null, 0, typeof(PageA)),
+            new PageDescriptor("b", "page.b", null, 1, typeof(PageB)),
         };
         return new NavigationService(pages, services.BuildServiceProvider(), new FakeDialog(_log));
     }
