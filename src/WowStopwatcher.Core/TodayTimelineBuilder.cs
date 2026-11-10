@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace WowStopwatcher.Core;
 
 /// <summary>Builds the Today timeline layout from today's sessions.</summary>
@@ -10,7 +12,7 @@ public static class TodayTimelineBuilder
     public const double PinSpacing = 0.026;
 
     public static TodayTimeline Build(StopwatchEngineSnapshot snapshot) =>
-        Build(snapshot.AllStopwatches, snapshot.TodaySessions, snapshot.NowUtc);
+        Build(snapshot.AllStopwatches, snapshot.TodaySessions, snapshot.NowUtc, snapshot);
 
     /// <param name="stopwatches">All definitions including deleted (needed for names and colors).</param>
     /// <param name="todaySessions">Today's sessions, including the running one (StopUtc == null).</param>
@@ -18,7 +20,14 @@ public static class TodayTimelineBuilder
     public static TodayTimeline Build(
         IReadOnlyList<StopwatchDefinition> stopwatches,
         IReadOnlyList<Session> todaySessions,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc) =>
+        Build(stopwatches, todaySessions, nowUtc, null);
+
+    private static TodayTimeline Build(
+        IReadOnlyList<StopwatchDefinition> stopwatches,
+        IReadOnlyList<Session> todaySessions,
+        DateTimeOffset nowUtc,
+        StopwatchEngineSnapshot? snapshot)
     {
         var byId = stopwatches.ToDictionary(s => s.Id);
         var pieces = todaySessions
@@ -41,7 +50,9 @@ public static class TodayTimelineBuilder
             .Where(s => !s.IsDeleted && s.HasGoal)
             .Select(s => new RemainingGoal(
                 s.Id, s.Name, s.Color,
-                Max(TimeSpan.Zero, s.Goal!.Value - totals.GetValueOrDefault(s.Id))))
+                snapshot is not null && s.GoalPerCycle && snapshot.GetGoalStatus(s.Id) is { } status
+                    ? status.Remaining
+                    : Max(TimeSpan.Zero, s.Goal!.Value - totals.GetValueOrDefault(s.Id))))
             .Where(g => g.Remaining > TimeSpan.Zero)
             .OrderByDescending(g => g.Remaining)
             .ToList();
@@ -119,7 +130,7 @@ public static class TodayTimelineBuilder
             }
         }
 
-        var pins = BuildPins(stopwatches, pieces, slices, starts, widths);
+        var pins = BuildPins(stopwatches, pieces, slices, starts, widths, snapshot);
         return new TodayTimeline(
             segments, loggedShare, pins.Pins, pins.MaxLevel, logged, remaining, remainingGoals, capped);
     }
@@ -129,11 +140,18 @@ public static class TodayTimelineBuilder
         List<(Session Session, TimeSpan Duration)> pieces,
         IReadOnlyList<SessionSlice> slices,
         List<double> starts,
-        List<double> widths)
+        List<double> widths,
+        StopwatchEngineSnapshot? snapshot)
     {
-        var raw = new List<(StopwatchDefinition Def, double Position, string Sub)>();
+        var raw = new List<(StopwatchDefinition Def, double Position, string Title, string Sub)>();
         foreach (var def in stopwatches.Where(s => !s.IsDeleted && s.HasGoal))
         {
+            if (snapshot is not null && def.GoalPerCycle && snapshot.GetGoalCycles(def.Id).Count > 0)
+            {
+                AddCyclePins(raw, def, snapshot, pieces, slices, starts, widths);
+                continue;
+            }
+
             var goal = def.Goal!.Value;
             var cumulative = TimeSpan.Zero;
             var loggedBefore = TimeSpan.Zero;
@@ -159,7 +177,7 @@ public static class TodayTimelineBuilder
                     var session = own[index];
                     var live = session.IsOpen ? " (running now)" : "";
                     var sub = $"During its {TimeFormat.Ordinal(index + 1)} session{live} · {TimeFormat.HoursMinutes(into)} into today's log";
-                    raw.Add((def, position, sub));
+                    raw.Add((def, position, $"{def.Name} · goal {TimeFormat.GoalLabel(def.Goal!.Value)} reached", sub));
                     break;
                 }
 
@@ -170,7 +188,7 @@ public static class TodayTimelineBuilder
 
         var lastOnLevel = new List<double>();
         var pins = new List<TimelineGoalPin>();
-        foreach (var (def, position, sub) in raw.OrderBy(r => r.Position))
+        foreach (var (def, position, title, sub) in raw.OrderBy(r => r.Position))
         {
             var level = 0;
             while (level < lastOnLevel.Count && position - lastOnLevel[level] < PinSpacing)
@@ -188,10 +206,64 @@ public static class TodayTimelineBuilder
             }
 
             pins.Add(new TimelineGoalPin(
-                def.Id, def.Color, $"{def.Name} · goal {TimeFormat.GoalLabel(def.Goal!.Value)} reached", sub, position, level));
+                def.Id, def.Color, title, sub, position, level));
         }
 
         return (pins, pins.Count == 0 ? 0 : pins.Max(p => p.Level));
+    }
+
+    // One pin per cycle of a per-cycle stopwatch that was reached today, placed at the instant it was reached.
+    private static void AddCyclePins(
+        List<(StopwatchDefinition Def, double Position, string Title, string Sub)> raw,
+        StopwatchDefinition def,
+        StopwatchEngineSnapshot snapshot,
+        List<(Session Session, TimeSpan Duration)> pieces,
+        IReadOnlyList<SessionSlice> slices,
+        List<double> starts,
+        List<double> widths)
+    {
+        var zone = snapshot.TimeZone;
+        var (dayStart, dayEnd) = LocalDays.DayRangeUtc(snapshot.Today, zone);
+        var own = pieces.Where(p => p.Session.StopwatchId == def.Id && p.Duration > TimeSpan.Zero).Select(p => p.Session).ToList();
+        foreach (var cycle in snapshot.GetGoalCycles(def.Id))
+        {
+            if (cycle.ReachedUtc is not { } instant || instant < dayStart || instant >= dayEnd)
+            {
+                continue;
+            }
+
+            var loggedBefore = TimeSpan.Zero;
+            for (var i = 0; i < slices.Count; i++)
+            {
+                var slice = slices[i];
+                if (slice.Lanes.Any(l => l.StopwatchId == def.Id) && slice.StartUtc <= instant && instant <= slice.EndUtc)
+                {
+                    var offset = instant - slice.StartUtc;
+                    var position = starts[i] + widths[i] * (offset / slice.Duration);
+                    var into = TimeFormat.HoursMinutes(loggedBefore + offset);
+                    string sub;
+                    if (cycle.Date == snapshot.Today)
+                    {
+                        var index = own.FindIndex(s => s.StartUtc <= instant && instant <= s.StartUtc + s.GetDuration(slice.EndUtc));
+                        var live = index >= 0 && own[index].IsOpen ? " (running now)" : "";
+                        sub = index >= 0
+                            ? $"During its {TimeFormat.Ordinal(index + 1)} session{live} · {into} into today's log"
+                            : $"{into} into today's log";
+                    }
+                    else
+                    {
+                        var started = TimeZoneInfo.ConvertTime(cycle.StartUtc, zone);
+                        var day = cycle.Date.ToDateTime(TimeOnly.MinValue).ToString("ddd", CultureInfo.InvariantCulture);
+                        sub = $"{day}'s goal, started {started.ToString("ddd HH:mm", CultureInfo.InvariantCulture)} · {into} into today's log";
+                    }
+
+                    raw.Add((def, position, $"{def.Name} · goal {TimeFormat.GoalLabel(cycle.Goal)} reached", sub));
+                    break;
+                }
+
+                loggedBefore += slice.Duration;
+            }
+        }
     }
 
     private static TimeSpan Sum(IEnumerable<TimeSpan> values) =>

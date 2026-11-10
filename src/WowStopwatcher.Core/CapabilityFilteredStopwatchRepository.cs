@@ -27,6 +27,8 @@ public sealed class CapabilityFilteredStopwatchRepository(IStopwatchRepository i
             {
                 IsIndependent = capabilities.Independent ? stopwatch.IsIndependent : stored.IsIndependent,
                 Goal = capabilities.Goals ? stopwatch.Goal : stored.Goal,
+                GoalSinceUtc = capabilities.Goals ? stopwatch.GoalSinceUtc : stored.GoalSinceUtc,
+                GoalPerCycle = capabilities.Goals ? stopwatch.GoalPerCycle : stored.GoalPerCycle,
                 IsPermanent = capabilities.Permanent ? stopwatch.IsPermanent : stored.IsPermanent,
             };
         }
@@ -47,6 +49,8 @@ public sealed class CapabilityFilteredStopwatchRepository(IStopwatchRepository i
     {
         IsIndependent = capabilities.Independent && stopwatch.IsIndependent,
         Goal = capabilities.Goals ? stopwatch.Goal : null,
+        GoalSinceUtc = capabilities.Goals ? stopwatch.GoalSinceUtc : null,
+        GoalPerCycle = capabilities.Goals && stopwatch.GoalPerCycle,
         IsPermanent = capabilities.Permanent && stopwatch.IsPermanent,
     };
 }

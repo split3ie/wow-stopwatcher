@@ -15,6 +15,8 @@ namespace WowStopwatcher.Core;
 /// <param name="IsPermanent">True when the stopwatch never expires. Temporary ones (the default) are hidden
 /// (soft-deleted) after a full local day without use; see <see cref="TemporaryStopwatchExpiry"/>.</param>
 /// <param name="ActiveSinceUtc">When the stopwatch was created or last restored; counts as a use for expiry. Null when unknown.</param>
+/// <param name="GoalSinceUtc">When goal progress starts counting (goal cycles begin here). Null when the stopwatch has no goal or counting has not started yet.</param>
+/// <param name="GoalPerCycle">True when the goal fills across days as back-to-back cycles; false (default) when it resets every local day.</param>
 public sealed record StopwatchDefinition(
     string Id,
     string Name,
@@ -25,7 +27,9 @@ public sealed record StopwatchDefinition(
     bool IsDeleted = false,
     bool IsIndependent = false,
     bool IsPermanent = false,
-    DateTimeOffset? ActiveSinceUtc = null)
+    DateTimeOffset? ActiveSinceUtc = null,
+    DateTimeOffset? GoalSinceUtc = null,
+    bool GoalPerCycle = false)
 {
     /// <summary>True when a positive daily goal is set.</summary>
     public bool HasGoal => Goal is { } goal && goal > TimeSpan.Zero;

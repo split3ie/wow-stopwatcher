@@ -11,6 +11,10 @@ WowStopwatcher is a personal desktop app for Windows, macOS and Linux that track
 - A stopwatch can be marked **independent**: it runs alongside the regular one and other independent ones,
   and starting or stopping it does not affect the others. At most 3 stopwatches run at once (`StopwatchEngine.MaxConcurrent`).
   Independent rows on Today have a bottom line in the stopwatch's color.
+- **Goal modes** (`StopwatchDefinition.GoalPerCycle`): **each day** (default) resets the goal every local day.
+  **Per cycle** ("Carry goal over") fills the goal across days as back-to-back cycles counted from the start of the day it was switched on (`GoalSinceUtc`);
+  a cycle belongs to the date it started, and today's time counts toward an earlier day's open cycle until it is reached (`GoalCycleBuilder`, `StopwatchEngineSnapshot.GetGoalStatus`).
+  Logged time and day bars stay calendar-based.
 - Every run is stored as a session: `Date | Stopwatch Name | Start | Stop`. All statistics are derived from sessions.
 - Totals (Today and each Statistics day) are wall-clock time when any stopwatch ran: overlapping time counts once.
   Per-stopwatch totals are each stopwatch's full time. In the timeline bars, overlapping time is drawn as
@@ -19,8 +23,8 @@ WowStopwatcher is a personal desktop app for Windows, macOS and Linux that track
   without use (`TemporaryStopwatchExpiry`); a permanent one is kept. Hidden stopwatches (expired or deleted) keep their statistics
   and can be restored from Statistics (`StopwatchEngine.Restore`).
 - Screens: **Today** (timeline, stopwatch rows, total, Stop all, goals), **Statistics** (one timeline per day with a Combine toggle that groups the day's time into one block per stopwatch in order of first use, splitting overlaps so each stopwatch shows its full time (animated; the shared scale fits these longer bars),
-  expandable per-stopwatch totals (share bars; time past the goal is drawn darker) with a hover **Restore** button on hidden stopwatches, select/clear days), **Settings** (autostart, goal notification toggle, stopwatches: name, color
-  (16 presets or a custom color), goal, independent, permanent, shortcut, order, delete; version and update check; an available update can be installed in place: it downloads the platform asset, verifies its `.sha256`, replaces the app and restarts with `--after-update`, and running stopwatches keep running).
+  expandable per-stopwatch totals (share bars; time past the goal is drawn darker; per-cycle goals show a mark on the cycle's start day, with a note such as "×2", "reached Mon 20:00" or "3h 00m so far") with a hover **Restore** button on hidden stopwatches, select/clear days), **Settings** (autostart, goal notification toggle, stopwatches: name, color
+  (16 presets or a custom color), goal, carry goal over, independent, permanent, shortcut, order, delete; version and update check; an available update can be installed in place: it downloads the platform asset, verifies its `.sha256`, replaces the app and restarts with `--after-update`, and running stopwatches keep running).
 - **System tray**: icon with a menu listing stopwatches with live times, running ones highlighted, switch on click,
   Stop all (stops every running stopwatch), Open, Quit. Double-clicking the tray icon stops the current regular
   stopwatch and starts the next regular one in order (independent ones are skipped).
@@ -171,6 +175,7 @@ If the exe is locked because the tool is running, ask the owner to close it; do 
   After a crash, an open session is resumed on the next start.
 - Deleting a stopwatch is a soft delete (also used when a temporary stopwatch expires): its past sessions stay in statistics with their name and color.
 - Goal changes are stored in `goal_changes` (previous goal + time); each Statistics day uses the goal in effect at the end of that day, and days without history use the current goal.
+  Per-cycle goals apply a goal change to the open cycle at once; if its progress already meets the new goal, it is reached at the change.
 - Design tokens (colors, radii, fonts) live in one resource dictionary in the App project. Do not hard-code
   colors in views; reference the tokens.
 - Fonts: Inter (via `Avalonia.Fonts.Inter`) for text; `Cascadia Mono, Consolas` for times and numbers.

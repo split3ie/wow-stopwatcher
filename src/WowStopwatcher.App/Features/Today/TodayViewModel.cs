@@ -358,30 +358,34 @@ public sealed partial class TodayViewModel : ObservableObject, INavigationAware,
     private void UpdateGoals(StopwatchEngineSnapshot snapshot)
     {
         var withGoal = snapshot.Stopwatches.Where(s => s.HasGoal).ToList();
-        var inProgress = new List<(StopwatchDefinition Definition, TimeSpan Total)>();
+        var inProgress = new List<(StopwatchDefinition Definition, GoalStatus Status)>();
         var reached = new List<string>();
         foreach (var definition in withGoal)
         {
-            var total = snapshot.GetTodayTotal(definition.Id);
-            if (total >= definition.Goal!.Value)
+            if (snapshot.GetGoalStatus(definition.Id) is not { } status)
+            {
+                continue;
+            }
+
+            if (status.IsReached)
             {
                 reached.Add(definition.Name);
             }
             else
             {
-                inProgress.Add((definition, total));
+                inProgress.Add((definition, status));
             }
         }
 
         inProgress = inProgress
-            .OrderByDescending(g => g.Total / g.Definition.Goal!.Value)
+            .OrderByDescending(g => g.Status.Progress / g.Status.Goal)
             .ToList();
         var shown = _showAllGoals ? inProgress : inProgress.Take(GoalLimit).ToList();
 
         CollectionSync.Resize(Goals, shown.Count, () => new GoalItemViewModel());
         for (var i = 0; i < shown.Count; i++)
         {
-            Goals[i].Update(shown[i].Definition, shown[i].Total);
+            Goals[i].Update(shown[i].Definition, shown[i].Status, snapshot.TimeZone);
         }
 
         GoalsSummary = withGoal.Count > 0 ? $"{reached.Count} of {withGoal.Count} reached" : "None set";

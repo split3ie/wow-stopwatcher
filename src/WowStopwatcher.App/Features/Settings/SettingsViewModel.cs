@@ -111,7 +111,7 @@ public sealed partial class SettingsViewModel : ObservableObject, INavigationAwa
         var updated = stored is null
             ? new StopwatchDefinition(
                 item.Id, item.SavedName, item.Color, item.Goal, item.StoredShortcut, index,
-                IsIndependent: item.IsIndependent, IsPermanent: item.IsPermanent)
+                IsIndependent: item.IsIndependent, IsPermanent: item.IsPermanent, GoalPerCycle: item.GoalPerCycle)
             : stored with
             {
                 Name = item.SavedName,
@@ -120,12 +120,20 @@ public sealed partial class SettingsViewModel : ObservableObject, INavigationAwa
                 Shortcut = item.StoredShortcut,
                 IsIndependent = item.IsIndependent,
                 IsPermanent = item.IsPermanent,
+                GoalPerCycle = item.GoalPerCycle,
             };
         _stopwatches.Update(updated);
     }
 
     /// <summary>Saves a change of the permanent flag and tells the engine so its definitions carry it.</summary>
     internal void SavePermanent(SettingsStopwatchViewModel item)
+    {
+        Save(item);
+        _maintenance.ReloadDefinitions();
+    }
+
+    /// <summary>Saves a change of the goal mode and tells the engine so its definitions carry it.</summary>
+    internal void SavePerCycle(SettingsStopwatchViewModel item)
     {
         Save(item);
         _maintenance.ReloadDefinitions();

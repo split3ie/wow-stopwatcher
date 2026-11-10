@@ -398,13 +398,17 @@
                                   </Border>
                                 </Grid>
                               </Border>
-                              <TextBlock Grid.Column="2"
-                                         Classes="mono"
-                                         MinWidth="86"
-                                         FontSize="13"
-                                         TextAlignment="Right"
-                                         VerticalAlignment="Center"
-                                         Text="{Binding TimeText}" />
+                              <StackPanel Grid.Column="2" MinWidth="86" VerticalAlignment="Center">
+                                <TextBlock Classes="mono"
+                                           FontSize="13"
+                                           TextAlignment="Right"
+                                           Text="{Binding TimeText}" />
+                                <TextBlock Classes="muted"
+                                           FontSize="11"
+                                           TextAlignment="Right"
+                                           Text="{Binding NoteText}"
+                                           IsVisible="{Binding NoteText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                              </StackPanel>
                               <Button Grid.Column="1"
                                       Classes="secondary restore"
                                       Classes.shown="{Binding IsActive}"

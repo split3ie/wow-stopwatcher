@@ -17,6 +17,8 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
 
     private IReadOnlyList<StopwatchDefinition> _definitions = [];
     private IReadOnlyList<Session> _todaySessions = [];
+    private IReadOnlyList<Session> _cycleSessions = [];
+    private IReadOnlyList<GoalChange> _goalChanges = [];
     private DateOnly _today;
     private string? _lastUsedId;
 
@@ -164,6 +166,8 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
     public void ReloadDefinitions() => Mutate(now =>
     {
         _definitions = _stopwatches.GetAll(includeDeleted: true);
+        UpdateGoalAnchors(now);
+        _goalChanges = _stopwatches.GetGoalChanges();
         var open = _open.AllOpen().ToList();
         _open.Clear();
 
@@ -225,6 +229,7 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
                 .ToList();
             _stopwatches.SaveSortOrder(order);
             _definitions = _stopwatches.GetAll(includeDeleted: true);
+            UpdateGoalAnchors(now);
             restored = true;
             return true;
         });
@@ -287,7 +292,50 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
             _today = LocalDays.ToLocalDate(now, _time.LocalTimeZone);
             SplitAtMidnight(now);
             ApplyExpiry();
+            UpdateGoalAnchors(now);
+            _goalChanges = _stopwatches.GetGoalChanges();
             RefreshToday();
+        }
+    }
+
+    // Per-cycle goals count from an anchor: set it to the start of today when missing (so today's time counts),
+    // clear it when the stopwatch no longer has a per-cycle goal. Deleted stopwatches are left alone.
+    private void UpdateGoalAnchors(DateTimeOffset now)
+    {
+        var zone = _time.LocalTimeZone;
+        List<StopwatchDefinition>? updatedList = null;
+        for (var i = 0; i < _definitions.Count; i++)
+        {
+            var definition = _definitions[i];
+            if (definition.IsDeleted)
+            {
+                continue;
+            }
+
+            var wantsAnchor = definition.HasGoal && definition.GoalPerCycle;
+            DateTimeOffset? anchor;
+            if (wantsAnchor && definition.GoalSinceUtc is null)
+            {
+                anchor = LocalDays.StartOfDayUtc(LocalDays.ToLocalDate(now, zone), zone);
+            }
+            else if (!wantsAnchor && definition.GoalSinceUtc is not null)
+            {
+                anchor = null;
+            }
+            else
+            {
+                continue;
+            }
+
+            var updated = definition with { GoalSinceUtc = anchor };
+            _stopwatches.Update(updated);
+            updatedList ??= [.. _definitions];
+            updatedList[i] = updated;
+        }
+
+        if (updatedList is not null)
+        {
+            _definitions = updatedList;
         }
     }
 
@@ -453,6 +501,34 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
                 _todaySessions = [.. _todaySessions, open];
             }
         }
+
+        RefreshCycleSessions();
+    }
+
+    // Sessions of per-cycle stopwatches since the earliest anchor, plus open sessions; snapshots read this without querying.
+    private void RefreshCycleSessions()
+    {
+        var anchors = _definitions
+            .Where(d => !d.IsDeleted && d.HasGoal && d.GoalPerCycle && d.GoalSinceUtc is not null)
+            .ToDictionary(d => d.Id, d => d.GoalSinceUtc!.Value);
+        if (anchors.Count == 0)
+        {
+            _cycleSessions = [];
+            return;
+        }
+
+        var sessions = _sessions.GetInRange(anchors.Values.Min(), Now().AddDays(1))
+            .Where(s => anchors.ContainsKey(s.StopwatchId))
+            .ToList();
+        foreach (var open in _open.AllOpen())
+        {
+            if (anchors.ContainsKey(open.StopwatchId) && sessions.All(s => s.Id != open.Id))
+            {
+                sessions.Add(open);
+            }
+        }
+
+        _cycleSessions = sessions;
     }
 
     private StopwatchEngineSnapshot BuildSnapshot(DateTimeOffset now)
@@ -463,10 +539,14 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
             // The date rolled over since the last Tick; show the new day without writing anything.
             var (from, to) = LocalDays.DayRangeUtc(today, _time.LocalTimeZone);
             var sessions = _sessions.GetInRange(from, to);
-            return new StopwatchEngineSnapshot(now, today, _definitions, sessions, _open.AllOpen().OrderBy(o => o.StartUtc).ToArray(), _lastUsedId);
+            return new StopwatchEngineSnapshot(
+                now, today, _definitions, sessions, _open.AllOpen().OrderBy(o => o.StartUtc).ToArray(), _lastUsedId,
+                _cycleSessions, _goalChanges, _time.LocalTimeZone);
         }
 
-        return new StopwatchEngineSnapshot(now, _today, _definitions, _todaySessions, _open.AllOpen().OrderBy(o => o.StartUtc).ToArray(), _lastUsedId);
+        return new StopwatchEngineSnapshot(
+            now, _today, _definitions, _todaySessions, _open.AllOpen().OrderBy(o => o.StartUtc).ToArray(), _lastUsedId,
+            _cycleSessions, _goalChanges, _time.LocalTimeZone);
     }
 
     // Millisecond precision, matching what the database stores.

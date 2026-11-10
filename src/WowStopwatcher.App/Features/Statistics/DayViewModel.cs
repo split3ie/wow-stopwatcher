@@ -136,7 +136,7 @@ public sealed partial class DayViewModel : ObservableObject
         }
     }
 
-    public void Update(DayStatistics day, StatisticsResult result, DateOnly today, IReadOnlyDictionary<string, string> names)
+    public void Update(DayStatistics day, StatisticsResult result, DateOnly today, IReadOnlyDictionary<string, string> names, TimeZoneInfo zone)
     {
         var format = Date.Year == today.Year ? "dddd, d MMMM" : "dddd, d MMMM yyyy";
         Label = Date.ToString(format, CultureInfo.InvariantCulture);
@@ -173,7 +173,7 @@ public sealed partial class DayViewModel : ObservableObject
         CollectionSync.Resize(Rows, day.Totals.Count, () => new DayStopwatchRowViewModel(_owner));
         for (var i = 0; i < day.Totals.Count; i++)
         {
-            Rows[i].Update(day.Totals[i]);
+            Rows[i].Update(day.Totals[i], Date, zone);
         }
 
         RefreshHover();

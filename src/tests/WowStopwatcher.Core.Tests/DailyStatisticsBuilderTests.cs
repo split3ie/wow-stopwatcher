@@ -243,4 +243,203 @@ public class DailyStatisticsBuilderTests
         Assert.Equal(TimeSpan.FromHours(6), days[1].Totals.Single().Goal);
         Assert.Equal(TimeSpan.FromHours(8), days[2].Totals.Single().Goal);
     }
+
+    private static StopwatchDefinition CycleDef(string id, int goalHours, DateTimeOffset anchor, bool deleted = false) =>
+        new(id, id.ToUpperInvariant(), "#" + id.PadRight(6, '0'), TimeSpan.FromHours(goalHours), null, 0, deleted,
+            GoalSinceUtc: anchor, GoalPerCycle: true);
+
+    private static Session Span(int id, string sw, DateTimeOffset start, DateTimeOffset stop) => new(id, sw, start, stop);
+
+    private static DateTimeOffset At(int day, int hour) => new(2026, 3, day, hour, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void PerCycle_GoalMarkGoesOnCycleStartDate()
+    {
+        var def = CycleDef("a", 8, At(9, 0));
+        var sessions = new[]
+        {
+            Span(1, "a", At(9, 20), At(10, 0)),
+            Span(2, "a", At(10, 0), At(10, 4)),
+            Span(3, "a", At(10, 4), At(10, 6)),
+        };
+
+        var days = DailyStatisticsBuilder.Build(sessions, [def], Now, Zone).Days;
+        var tue = days[0];
+        var mon = days[1];
+
+        var m = mon.Totals.Single();
+        Assert.Equal(TimeSpan.FromHours(4), mon.Total);
+        Assert.Equal(TimeSpan.FromHours(8), m.Goal);
+        Assert.True(m.GoalReached);
+        Assert.Equal(1, m.GoalsReachedCount);
+        Assert.Equal(At(10, 4), m.GoalReachedUtc);
+        Assert.Equal(0, m.OvertimeShare);
+        Assert.Null(m.CycleProgress);
+        Assert.Equal(1, mon.GoalsMet);
+        Assert.Equal(1, mon.GoalCount);
+
+        var t = tue.Totals.Single();
+        Assert.Equal(TimeSpan.FromHours(6), tue.Total);
+        Assert.Equal(TimeSpan.FromHours(8), t.Goal);
+        Assert.False(t.GoalReached);
+        Assert.Equal(TimeSpan.FromHours(2), t.CycleProgress);
+        Assert.Null(t.GoalReachedUtc);
+        Assert.Equal(0, t.OvertimeShare);
+        Assert.Equal(0, tue.GoalsMet);
+        Assert.Equal(1, tue.GoalCount);
+    }
+
+    [Fact]
+    public void PerCycle_UnsplitSession_CountsOnStartDate()
+    {
+        var def = CycleDef("a", 8, At(9, 0));
+        var sessions = new[] { Span(1, "a", At(9, 20), At(10, 4)), Span(2, "a", At(10, 4), At(10, 6)) };
+
+        var days = DailyStatisticsBuilder.Build(sessions, [def], Now, Zone).Days;
+        var tue = days[0];
+        var mon = days[1];
+
+        var m = mon.Totals.Single();
+        Assert.Equal(TimeSpan.FromHours(8), mon.Total); // the whole session counts on its start date
+        Assert.Equal(TimeSpan.FromHours(8), m.Goal);
+        Assert.True(m.GoalReached);
+        Assert.Equal(1, m.GoalsReachedCount);
+        Assert.Equal(At(10, 4), m.GoalReachedUtc);
+        Assert.Equal(0, m.OvertimeShare);
+        Assert.Null(m.CycleProgress);
+        Assert.Equal(1, mon.GoalsMet);
+        Assert.Equal(1, mon.GoalCount);
+
+        var t = tue.Totals.Single();
+        Assert.Equal(TimeSpan.FromHours(2), tue.Total);
+        Assert.Equal(TimeSpan.FromHours(8), t.Goal);
+        Assert.False(t.GoalReached);
+        Assert.Equal(TimeSpan.FromHours(2), t.CycleProgress);
+        Assert.Null(t.GoalReachedUtc);
+        Assert.Equal(0, t.OvertimeShare);
+        Assert.Equal(0, tue.GoalsMet);
+        Assert.Equal(1, tue.GoalCount);
+    }
+
+    [Fact]
+    public void PerCycle_LongCycleSpanningDays_OnlyStartDateHasGoal()
+    {
+        var def = CycleDef("a", 73, At(1, 0));
+        // 24h on the 1st, 24h on the 2nd, 24h on the 3rd, 1h on the 4th: 73h in total.
+        var sessions = new[]
+        {
+            Span(1, "a", At(1, 0), At(2, 0)),
+            Span(2, "a", At(2, 0), At(3, 0)),
+            Span(3, "a", At(3, 0), At(4, 0)),
+            Span(4, "a", At(4, 0), At(4, 1)),
+        };
+
+        var days = DailyStatisticsBuilder.Build(sessions, [def], Now, Zone).Days.OrderBy(d => d.Date).ToList();
+
+        var first = days[0].Totals.Single();
+        Assert.True(first.GoalReached);
+        Assert.Equal(At(4, 1), first.GoalReachedUtc);
+        Assert.Equal(TimeSpan.FromHours(73), first.Goal);
+        Assert.Equal(1, days[0].GoalCount);
+        Assert.Equal(1, days[0].GoalsMet);
+        foreach (var middle in days.Skip(1).Take(2))
+        {
+            var t = middle.Totals.Single();
+            Assert.Null(t.Goal);
+            Assert.False(t.GoalReached);
+            Assert.Equal(TimeSpan.FromHours(24), t.Total);
+            Assert.Equal(0, middle.GoalCount);
+            Assert.Equal(0, middle.GoalsMet);
+        }
+
+        // The 4th starts a new, still-empty cycle that has no progress yet (the 73rd hour closed the previous one).
+        Assert.Equal(TimeSpan.Zero, days[3].Totals.Single().CycleProgress);
+        Assert.Equal(1, days[3].GoalCount);
+    }
+
+    [Fact]
+    public void PerCycle_TwoCyclesReachedOnOneDay_CountsBoth()
+    {
+        var def = CycleDef("a", 2, At(9, 0));
+        var sessions = new[] { Span(1, "a", At(9, 1), At(9, 6)) };
+
+        var day = DailyStatisticsBuilder.Build(sessions, [def], Now, Zone).Days.Single();
+
+        var t = day.Totals.Single();
+        Assert.Equal(2, t.GoalsReachedCount);
+        Assert.True(t.GoalReached);
+        Assert.Equal(At(9, 3), t.GoalReachedUtc);
+        Assert.Equal(TimeSpan.FromHours(1), t.CycleProgress);
+        Assert.Equal(1, day.GoalsMet);
+        Assert.Equal(1, day.GoalCount);
+        // Time after the first reach: 3h of 5h.
+        Assert.Equal(3.0 / 5, t.OvertimeShare, 6);
+    }
+
+    [Fact]
+    public void PerCycle_DaysBeforeAnchor_UseOldRules()
+    {
+        var def = CycleDef("a", 4, At(10, 12));
+        var sessions = new[] { Span(1, "a", At(9, 9), At(9, 14)), Span(2, "a", At(10, 14), At(10, 15)) };
+
+        var days = DailyStatisticsBuilder.Build(sessions, [def], Now, Zone).Days;
+
+        var before = days[1].Totals.Single();
+        Assert.Equal(TimeSpan.FromHours(4), before.Goal);
+        Assert.True(before.GoalReached); // 5h >= 4h under the each-day rule
+        Assert.Equal(1, before.GoalsReachedCount);
+        Assert.Null(before.GoalReachedUtc);
+        Assert.Null(before.CycleProgress);
+
+        var anchorDay = days[0].Totals.Single();
+        Assert.False(anchorDay.GoalReached);
+        Assert.Equal(TimeSpan.FromHours(1), anchorDay.CycleProgress);
+    }
+
+    [Fact]
+    public void PerCycle_DeletedStopwatch_ListedOnlyWithTime()
+    {
+        var def = CycleDef("a", 2, At(9, 0), deleted: true);
+        var sessions = new[] { Span(1, "a", At(9, 1), At(9, 4)) };
+
+        var days = DailyStatisticsBuilder.Build(sessions, [def], Now, Zone).Days;
+
+        var t = days.Single().Totals.Single();
+        Assert.True(t.GoalReached);
+        Assert.Equal(1, days.Single().GoalCount);
+        Assert.Equal(1, days.Single().GoalsMet);
+        Assert.Single(days);
+    }
+
+    [Fact]
+    public void PerCycle_NotDeleted_ListedOnDayWithoutTime()
+    {
+        var def = CycleDef("a", 4, At(9, 0));
+        var other = Def("b", 1);
+        // "a" reaches its goal at 02:00 on the 10th, which opens a new cycle dated the 10th; only "b" has time that day.
+        var sessions = new[] { Span(1, "a", At(9, 22), At(10, 2)), Span(2, "b", At(10, 5), At(10, 6)) };
+
+        var day = DailyStatisticsBuilder.Build(sessions, [def, other], Now, Zone).Days.Single(d => d.Date == new DateOnly(2026, 3, 10));
+
+        var t = day.Totals.Single(x => x.StopwatchId == "a");
+        Assert.Equal(TimeSpan.Zero, t.Total);
+        Assert.Equal(TimeSpan.FromHours(4), t.Goal);
+        Assert.False(t.GoalReached);
+        Assert.Equal(TimeSpan.Zero, t.CycleProgress);
+        Assert.Equal(1, day.GoalCount);
+    }
+
+    [Fact]
+    public void EachDay_Stopwatch_ReportsReachedCountOnly()
+    {
+        var day = At(11, 9);
+        var def = Def("a", 0, goalMinutes: 60);
+
+        var stats = DailyStatisticsBuilder.Build([Sess(1, "a", day, 90)], [def], Now, Zone).Days.Single();
+
+        var t = stats.Totals.Single();
+        Assert.Equal(1, t.GoalsReachedCount);
+        Assert.Null(t.GoalReachedUtc);
+        Assert.Null(t.CycleProgress);
+    }
 }

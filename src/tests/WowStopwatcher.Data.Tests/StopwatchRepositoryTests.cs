@@ -44,6 +44,34 @@ public class StopwatchRepositoryTests
     }
 
     [Fact]
+    public void GoalSince_RoundTripsOnAddAndUpdate()
+    {
+        using var db = new TempDatabase();
+        var since = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+        var def = new StopwatchDefinition("a", "English", "#111111", TimeSpan.FromHours(1), null, 0, GoalSinceUtc: since);
+        db.Stopwatches.Add(def);
+        Assert.Equal(since, db.Stopwatches.Get("a")!.GoalSinceUtc);
+
+        db.Stopwatches.Update(def with { GoalSinceUtc = since.AddDays(2) });
+        Assert.Equal(since.AddDays(2), db.Stopwatches.Get("a")!.GoalSinceUtc);
+
+        db.Stopwatches.Update(def with { GoalSinceUtc = null });
+        Assert.Null(db.Stopwatches.Get("a")!.GoalSinceUtc);
+    }
+
+    [Fact]
+    public void GoalPerCycle_RoundTripsOnAddAndUpdate()
+    {
+        using var db = new TempDatabase();
+        var def = new StopwatchDefinition("a", "English", "#111111", TimeSpan.FromHours(1), null, 0, GoalPerCycle: true);
+        db.Stopwatches.Add(def);
+        Assert.True(db.Stopwatches.Get("a")!.GoalPerCycle);
+
+        db.Stopwatches.Update(def with { GoalPerCycle = false });
+        Assert.False(db.Stopwatches.Get("a")!.GoalPerCycle);
+    }
+
+    [Fact]
     public void NullableFields_RoundTripAsNull()
     {
         using var db = new TempDatabase();

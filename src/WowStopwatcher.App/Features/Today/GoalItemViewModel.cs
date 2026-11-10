@@ -28,14 +28,15 @@ public sealed partial class GoalItemViewModel : ObservableObject
 
     private string? _color;
 
-    public void Update(StopwatchDefinition definition, TimeSpan total)
+    public void Update(StopwatchDefinition definition, GoalStatus status, TimeZoneInfo zone)
     {
-        var goal = definition.Goal!.Value;
-        var fraction = Math.Clamp(total / goal, 0, 1);
+        var goal = status.Goal;
+        var fraction = Math.Clamp(status.Progress / goal, 0, 1);
 
         Name = definition.Name;
         PercentText = $"{(int)Math.Floor(fraction * 100)}%";
-        SubText = $"{TimeFormat.HoursMinutes(goal - total)} left of {TimeFormat.GoalLabel(goal)}";
+        SubText = $"{TimeFormat.HoursMinutes(goal - status.Progress)} left of {TimeFormat.GoalLabel(goal)}"
+            + GoalText.Since(status, zone);
         DoneWidth = new GridLength(fraction, GridUnitType.Star);
         LeftWidth = new GridLength(1 - fraction, GridUnitType.Star);
 

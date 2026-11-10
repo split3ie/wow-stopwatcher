@@ -223,7 +223,7 @@ public sealed partial class StatisticsViewModel : ObservableObject
                 Days.Move(current, i);
             }
 
-            Days[i].Update(stats, result, today, names);
+            Days[i].Update(stats, result, today, names, _time.LocalTimeZone);
         }
 
         while (Days.Count > result.Days.Count)

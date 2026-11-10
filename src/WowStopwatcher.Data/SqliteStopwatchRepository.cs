@@ -6,7 +6,7 @@ namespace WowStopwatcher.Data;
 /// <summary>SQLite implementation of <see cref="IStopwatchRepository"/>.</summary>
 public sealed class SqliteStopwatchRepository(SqliteDatabase database, TimeProvider? time = null) : IStopwatchRepository
 {
-    private const string Columns = "id, name, color, goal_seconds, shortcut, sort_order, is_deleted, is_independent, is_permanent, active_since_utc";
+    private const string Columns = "id, name, color, goal_seconds, shortcut, sort_order, is_deleted, is_independent, is_permanent, active_since_utc, goal_since_utc, goal_per_cycle";
 
     public IReadOnlyList<StopwatchDefinition> GetAll(bool includeDeleted = false)
     {
@@ -32,8 +32,8 @@ public sealed class SqliteStopwatchRepository(SqliteDatabase database, TimeProvi
         using var connection = database.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO stopwatches (id, name, color, goal_seconds, shortcut, sort_order, is_deleted, is_independent, is_permanent, active_since_utc)
-            VALUES ($id, $name, $color, $goal, $shortcut, $sort, $deleted, $independent, $permanent, $active)
+            INSERT INTO stopwatches (id, name, color, goal_seconds, shortcut, sort_order, is_deleted, is_independent, is_permanent, active_since_utc, goal_since_utc, goal_per_cycle)
+            VALUES ($id, $name, $color, $goal, $shortcut, $sort, $deleted, $independent, $permanent, $active, $goalSince, $perCycle)
             """;
         Bind(command, stopwatch);
         command.ExecuteNonQuery();
@@ -50,7 +50,8 @@ public sealed class SqliteStopwatchRepository(SqliteDatabase database, TimeProvi
             UPDATE stopwatches
             SET name = $name, color = $color, goal_seconds = $goal, shortcut = $shortcut,
                 sort_order = $sort, is_deleted = $deleted, is_independent = $independent,
-                is_permanent = $permanent, active_since_utc = $active
+                is_permanent = $permanent, active_since_utc = $active, goal_since_utc = $goalSince,
+                goal_per_cycle = $perCycle
             WHERE id = $id
             """;
         Bind(command, stopwatch);
@@ -146,6 +147,8 @@ public sealed class SqliteStopwatchRepository(SqliteDatabase database, TimeProvi
         command.Parameters.AddWithValue("$independent", s.IsIndependent ? 1 : 0);
         command.Parameters.AddWithValue("$permanent", s.IsPermanent ? 1 : 0);
         command.Parameters.AddWithValue("$active", s.ActiveSinceUtc is { } active ? (object)active.ToUnixTimeMilliseconds() : DBNull.Value);
+        command.Parameters.AddWithValue("$goalSince", s.GoalSinceUtc is { } goalSince ? (object)goalSince.ToUnixTimeMilliseconds() : DBNull.Value);
+        command.Parameters.AddWithValue("$perCycle", s.GoalPerCycle ? 1 : 0);
     }
 
     private static List<StopwatchDefinition> ReadAll(SqliteCommand command)
@@ -164,7 +167,9 @@ public sealed class SqliteStopwatchRepository(SqliteDatabase database, TimeProvi
                 reader.GetInt32(6) != 0,
                 reader.GetInt32(7) != 0,
                 reader.GetInt32(8) != 0,
-                reader.IsDBNull(9) ? null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(9))));
+                reader.IsDBNull(9) ? null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(9)),
+                reader.IsDBNull(10) ? null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(10)),
+                reader.GetInt32(11) != 0));
         }
 
         return list;
