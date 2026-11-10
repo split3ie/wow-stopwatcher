@@ -5,6 +5,7 @@
 A small Avalonia desktop tool to choose which optional features are compiled in and to publish the app binaries.
 
 The source is in `src/tools/WowStopwatcher.BuildTool/`; the top-level `tools/` folder holds only the published exe.
+The tool uses an orange variant of the app icon, at `Assets/app.ico` in the tool's source folder.
 Run the exe (needs the .NET 10 runtime), or run from the source at the repository root:
 
 ```
@@ -28,6 +29,11 @@ What it does:
 - Publishes each checked target (`win-x64`, `linux-x64`, `osx-arm64`, `osx-x64`) one after another with
   `dotnet publish src/WowStopwatcher.App -c Release -r <rid> -o <output>/<rid>`. The default output folder is `artifacts/publish`
   (git-ignored). The optional version is passed as `-p:Version`. Builds are local (no `OfficialBuild`), so the app shows "local build".
+- The Build page has one editable command line per checked target (under "Command", above the log), for example
+  `dotnet publish src/WowStopwatcher.App -c Release -r win-x64 -o <output>/win-x64 -p:FeatureTray=false`, each with a **Run** button that
+  builds only that target; **Build** runs every checked target with its own line. Whitespace separates arguments; double quotes group an
+  argument with spaces. Changing features, the version, the output folder or the checked targets regenerates all lines (typed edits are lost);
+  "Reset" regenerates them too. An empty line for a checked target disables Build and Run.
 - Shows the command line and the live process output in the log, a status per target, and a Cancel button that kills the running process tree.
 
 macOS limitation: the single-file binary for `osx-*` is produced on any host, but the `WowStopwatcher.app` bundle and its ad-hoc
@@ -40,7 +46,7 @@ Navigation pages: the pane has one page per feature group (Pages, Stopwatches, S
 ("2/3") and a red badge when the group rule is violated, and a **Build** page pinned at the bottom of the pane.
 A group page starts with the card "All features in this group" (a three-state checkbox that checks or unchecks all available members; the
 card text says all, none or some enabled), followed by one card per feature with a toggle. The Build page has the targets (one toggle each,
-with the status of the last build), the output folder (Browse...), the version (with inline validation) and the log (monospace, scrolls to the end,
+with the status of the last build), the output folder (Browse...), the version (with inline validation), the command line and the log (monospace, scrolls to the end,
 "Copy log"). The bottom bar is on every page: the problems list, the build status, Cancel and Build.
 
 Feature groups and dependencies: some features depend on others (Goal notifications need Goals; Autostart and

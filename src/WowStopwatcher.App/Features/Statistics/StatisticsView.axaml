@@ -64,6 +64,20 @@
       <Setter Property="Opacity" Value="1" />
     </Style>
 
+    <!-- Combine toggle of a day: small pill, accent-soft while on -->
+    <Style Selector="Button.secondary.combine">
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="10,0" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.secondary.combine.on /template/ ContentPresenter#PART_ContentPresenter, Button.secondary.combine.on:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentStrongBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+
     <Style Selector="CheckBox.pick">
       <Setter Property="Width" Value="20" />
       <Setter Property="MinWidth" Value="0" />
@@ -188,6 +202,19 @@
                           <Run FontSize="15" FontWeight="SemiBold" Text="{Binding Label}" /><Run Text=" " /><Run FontSize="13" Foreground="{DynamicResource MutedBrush}" Text="{Binding Sub}" />
                         </TextBlock>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                          <Button Classes="secondary combine"
+                                  Classes.on="{Binding IsCombined}"
+                                  IsVisible="{Binding CanCombine}"
+                                  Command="{Binding ToggleCombineCommand}"
+                                  AutomationProperties.Name="{Binding CombineLabel}">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                              <c:Icon Width="13" Height="13"
+                                      VerticalAlignment="Center"
+                                      Data="{StaticResource IconCombine}"
+                                      Stroke="{Binding $parent[Button].Foreground}" />
+                              <TextBlock VerticalAlignment="Center" Text="Combine" />
+                            </StackPanel>
+                          </Button>
                           <Border IsVisible="{Binding AllGoalsReached}"
                                   Padding="8,2"
                                   Background="{DynamicResource StarSoftBrush}"
@@ -234,42 +261,46 @@
                                   BorderThickness="1"
                                   CornerRadius="{DynamicResource RadiusControl}"
                                   ClipToBounds="True">
-                            <ItemsControl ItemsSource="{Binding Segments}">
+                            <ItemsControl ItemsSource="{Binding Pieces}">
                               <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                   <c:TrackPanel />
                                 </ItemsPanelTemplate>
                               </ItemsControl.ItemsPanel>
                               <ItemsControl.Styles>
-                                <Style Selector="ContentPresenter" x:DataType="local:DaySegmentViewModel">
+                                <Style Selector="ContentPresenter" x:DataType="local:DayPieceViewModel">
                                   <Setter Property="(c:TrackPanel.Start)" Value="{Binding Start}" />
                                   <Setter Property="(c:TrackPanel.SpanWidth)" Value="{Binding Width}" />
+                                  <Setter Property="(c:TrackPanel.SpanTop)" Value="{Binding Top}" />
+                                  <Setter Property="(c:TrackPanel.SpanHeight)" Value="{Binding Height}" />
+                                  <Setter Property="Transitions">
+                                    <Transitions>
+                                      <DoubleTransition Property="(c:TrackPanel.Start)" Duration="0:0:0.22" Easing="QuadraticEaseOut" />
+                                      <DoubleTransition Property="(c:TrackPanel.SpanTop)" Duration="0:0:0.22" Easing="QuadraticEaseOut" />
+                                      <DoubleTransition Property="(c:TrackPanel.SpanHeight)" Duration="0:0:0.22" Easing="QuadraticEaseOut" />
+                                    </Transitions>
+                                  </Setter>
                                 </Style>
                               </ItemsControl.Styles>
                               <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="local:DaySegmentViewModel">
+                                <DataTemplate x:DataType="local:DayPieceViewModel">
                                   <c:HoverBorder Background="Transparent" IsActive="{Binding IsHovered, Mode=TwoWay}">
                                     <Grid>
                                       <Border Background="{Binding Brush}" />
-                                      <ItemsControl IsVisible="{Binding HasLanes}" ItemsSource="{Binding Lanes}">
-                      <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                          <UniformGrid Columns="1" />
-                        </ItemsPanelTemplate>
-                      </ItemsControl.ItemsPanel>
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:LaneViewModel">
-                          <Border Background="{Binding Brush}" />
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                                      <Border IsVisible="{Binding IsHovered}"
+                                      <Border IsVisible="{Binding IsHighlighted}"
                                               IsHitTestVisible="False"
                                               Opacity="0.18"
                                               Background="{DynamicResource OnDarkBrush}" />
                                       <Rectangle Width="1"
                                                  HorizontalAlignment="Right"
-                                                 Fill="{DynamicResource SegmentSeamBrush}" />
+                                                 Opacity="{Binding SeamOpacity}"
+                                                 Fill="{DynamicResource SegmentSeamBrush}">
+                                        <Rectangle.Transitions>
+                                          <Transitions>
+                                            <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
+                                          </Transitions>
+                                        </Rectangle.Transitions>
+                                      </Rectangle>
                                     </Grid>
                                   </c:HoverBorder>
                                 </DataTemplate>
@@ -367,13 +398,17 @@
                                   </Border>
                                 </Grid>
                               </Border>
-                              <TextBlock Grid.Column="2"
-                                         Classes="mono"
-                                         MinWidth="86"
-                                         FontSize="13"
-                                         TextAlignment="Right"
-                                         VerticalAlignment="Center"
-                                         Text="{Binding TimeText}" />
+                              <StackPanel Grid.Column="2" MinWidth="86" VerticalAlignment="Center">
+                                <TextBlock Classes="mono"
+                                           FontSize="13"
+                                           TextAlignment="Right"
+                                           Text="{Binding TimeText}" />
+                                <TextBlock Classes="muted"
+                                           FontSize="11"
+                                           TextAlignment="Right"
+                                           Text="{Binding NoteText}"
+                                           IsVisible="{Binding NoteText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                              </StackPanel>
                               <Button Grid.Column="1"
                                       Classes="secondary restore"
                                       Classes.shown="{Binding IsActive}"

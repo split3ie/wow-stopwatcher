@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -41,6 +42,10 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
     [ObservableProperty]
     private string _timeText = string.Empty;
 
+    /// <summary>Secondary note next to the time ("×2", "reached Mon 20:00", "3h 00m so far"); empty when not needed.</summary>
+    [ObservableProperty]
+    private string _noteText = string.Empty;
+
     [ObservableProperty]
     private GridLength _shareWidth = new(0, GridUnitType.Star);
 
@@ -53,7 +58,7 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
     [RelayCommand]
     private void Restore() => _owner.Restore(StopwatchId);
 
-    public void Update(DayStopwatchTotal total)
+    public void Update(DayStopwatchTotal total, DateOnly day, TimeZoneInfo zone)
     {
         var share = Math.Clamp(total.Share, 0, 1);
         StopwatchId = total.StopwatchId;
@@ -61,7 +66,8 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
         Name = total.Name;
         IsReached = total.GoalReached;
         TimeText = TimeFormat.HoursMinutes(total.Total)
-            + (total.Goal is { } goal && !total.IsDeleted ? " / " + TimeFormat.GoalLabel(goal) : string.Empty);
+            + (total.Goal is { } goal ? " / " + TimeFormat.GoalLabel(goal) : string.Empty);
+        NoteText = BuildNote(total, day, zone);
         var overtime = Math.Clamp(total.OvertimeShare, 0, share);
         ShareWidth = new GridLength(share - overtime, GridUnitType.Star);
         OvertimeWidth = new GridLength(overtime, GridUnitType.Star);
@@ -71,5 +77,30 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
             _color = total.Color;
             Brush = Avalonia.Media.Brush.Parse(total.Color);
         }
+    }
+
+    private static string BuildNote(DayStopwatchTotal total, DateOnly day, TimeZoneInfo zone)
+    {
+        var parts = new List<string>();
+        if (total.GoalsReachedCount > 1)
+        {
+            parts.Add("×" + total.GoalsReachedCount.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (total.GoalReachedUtc is { } reachedUtc)
+        {
+            var local = TimeZoneInfo.ConvertTime(reachedUtc, zone);
+            if (DateOnly.FromDateTime(local.DateTime) != day)
+            {
+                parts.Add("reached " + local.ToString("ddd HH:mm", CultureInfo.InvariantCulture));
+            }
+        }
+
+        if (!total.GoalReached && total.CycleProgress is { } progress && progress != total.Total)
+        {
+            parts.Add(TimeFormat.HoursMinutes(progress) + " so far");
+        }
+
+        return string.Join(" · ", parts);
     }
 }

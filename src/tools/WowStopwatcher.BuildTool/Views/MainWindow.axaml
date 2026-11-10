@@ -5,6 +5,7 @@
         xmlns:vm="using:WowStopwatcher.BuildTool.ViewModels"
         x:Class="WowStopwatcher.BuildTool.Views.MainWindow"
         x:DataType="vm:MainViewModel"
+        Icon="/Assets/app.ico"
         Title="WowStopwatcher Build Tool"
         Width="1000" Height="720" MinWidth="720" MinHeight="560"
         WindowStartupLocation="CenterScreen"
@@ -157,6 +158,38 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
+
+            <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,4">
+              <TextBlock Text="Command" FontWeight="SemiBold" VerticalAlignment="Center" />
+              <Button Grid.Column="1" Content="Reset" Command="{Binding ResetCommandsCommand}"
+                      IsEnabled="{Binding IsIdle}" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding Targets}" IsEnabled="{Binding IsIdle}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="8" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:TargetOptionViewModel">
+                  <StackPanel Spacing="2" IsVisible="{Binding IsSelected}">
+                    <TextBlock FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                      <Run Text="{Binding Label}" FontWeight="SemiBold" />
+                      <Run Text="{Binding Rid, StringFormat=' ({0})'}" />
+                    </TextBlock>
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBox Text="{Binding Command}" TextWrapping="Wrap" AcceptsReturn="False"
+                               FontFamily="Cascadia Mono, Consolas, Menlo, monospace" />
+                      <Button Grid.Column="1" Content="Run" Command="{Binding RunCommand}" Margin="8,0,0,0"
+                              VerticalAlignment="Top" />
+                    </Grid>
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="One command per checked target. Changing features, version, output folder or targets regenerates these lines."
+                       Margin="0,4,0,0" TextWrapping="Wrap" FontSize="12"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
             <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,4">
               <TextBlock Text="Log" FontWeight="SemiBold" VerticalAlignment="Center" />

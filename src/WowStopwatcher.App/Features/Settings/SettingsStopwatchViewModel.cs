@@ -32,6 +32,7 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
         _hasGoal = definition.HasGoal;
         _isIndependent = definition.IsIndependent;
         _isPermanent = definition.IsPermanent;
+        _goalPerCycle = definition.GoalPerCycle;
         _goalText = definition.HasGoal ? TimeFormat.FormatGoal(definition.Goal!.Value) : SettingsGoalMask.Empty;
         _shortcut = definition.Shortcut ?? string.Empty;
         Swatches =
@@ -54,6 +55,9 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
 
     /// <summary>False when the build has no permanent stopwatches; the card then hides the toggle.</summary>
     public bool IsPermanentAvailable => _capabilities.Permanent;
+
+    /// <summary>False when the build has neither independent nor permanent stopwatches; the card then hides the Behavior section.</summary>
+    public bool AreBehaviorOptionsAvailable => _capabilities.Independent || _capabilities.Permanent;
 
     public ObservableCollection<SettingsSwatchViewModel> Swatches { get; }
 
@@ -81,6 +85,10 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
     /// <summary>True when this stopwatch is kept every day instead of disappearing after a full day without use.</summary>
     [ObservableProperty]
     private bool _isPermanent;
+
+    /// <summary>True when the goal keeps filling across days until reached, then a new goal starts; false resets it every day.</summary>
+    [ObservableProperty]
+    private bool _goalPerCycle;
 
     /// <summary>Goal as "hh:mm:ss". Kept when the goal checkbox is cleared.</summary>
     [ObservableProperty]
@@ -169,6 +177,8 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
     partial void OnIsIndependentChanged(bool value) => _owner.SaveType(this);
 
     partial void OnIsPermanentChanged(bool value) => _owner.SavePermanent(this);
+
+    partial void OnGoalPerCycleChanged(bool value) => _owner.SavePerCycle(this);
 
     partial void OnGoalTextChanged(string value)
     {

@@ -12,8 +12,14 @@ public sealed class StopwatchEngineSnapshot
         IReadOnlyList<StopwatchDefinition> allStopwatches,
         IReadOnlyList<Session> todaySessions,
         IReadOnlyList<Session> runningSessions,
-        string? lastUsedId)
+        string? lastUsedId,
+        IReadOnlyList<Session>? cycleSessions = null,
+        IReadOnlyList<GoalChange>? goalChanges = null,
+        TimeZoneInfo? timeZone = null)
     {
+        CycleSessions = cycleSessions ?? [];
+        GoalChanges = goalChanges ?? [];
+        TimeZone = timeZone ?? TimeZoneInfo.Local;
         NowUtc = nowUtc;
         Today = today;
         AllStopwatches = allStopwatches;
@@ -25,6 +31,17 @@ public sealed class StopwatchEngineSnapshot
         LastUsedId = lastUsedId;
         GrandTotal = SessionSlicer.Total(SessionSlicer.Build(todaySessions, allStopwatches, nowUtc));
     }
+
+    /// <summary>Sessions of per-cycle stopwatches since their anchors, including open ones; the input of goal cycles.</summary>
+    public IReadOnlyList<Session> CycleSessions { get; }
+
+    /// <summary>All recorded goal changes.</summary>
+    public IReadOnlyList<GoalChange> GoalChanges { get; }
+
+    /// <summary>The time zone that defines local days.</summary>
+    public TimeZoneInfo TimeZone { get; }
+
+    private readonly Dictionary<string, IReadOnlyList<GoalCycle>> _cycles = [];
 
     /// <summary>The instant this snapshot was taken (UTC, millisecond precision).</summary>
     public DateTimeOffset NowUtc { get; }
@@ -111,6 +128,58 @@ public sealed class StopwatchEngineSnapshot
 
         var last = TodaySessions.LastOrDefault(s => s.StopwatchId == id && !s.IsOpen);
         return last?.GetDuration(NowUtc) ?? TimeSpan.Zero;
+    }
+
+    /// <summary>
+    /// The goal cycles of a per-cycle stopwatch (reached ones first, the open one last), computed once per snapshot.
+    /// Empty for each-day stopwatches, unknown ids, or when there is no anchor or goal.
+    /// </summary>
+    public IReadOnlyList<GoalCycle> GetGoalCycles(string id)
+    {
+        lock (_cycles)
+        {
+            if (_cycles.TryGetValue(id, out var cached))
+            {
+                return cached;
+            }
+
+            var definition = Find(id);
+            IReadOnlyList<GoalCycle> cycles = definition is { GoalPerCycle: true, GoalSinceUtc: { } anchor }
+                ? GoalCycleBuilder.Build(id, anchor, definition.Goal, CycleSessions, GoalChanges, NowUtc, TimeZone)
+                : [];
+            _cycles[id] = cycles;
+            return cycles;
+        }
+    }
+
+    /// <summary>The goal progress of a stopwatch for today, or null when it has no goal (or is unknown).</summary>
+    public GoalStatus? GetGoalStatus(string id)
+    {
+        if (Find(id) is not { HasGoal: true } definition)
+        {
+            return null;
+        }
+
+        var cycles = GetGoalCycles(id);
+        if (!definition.GoalPerCycle || cycles.Count == 0)
+        {
+            var goal = definition.Goal!.Value;
+            var total = GetTodayTotal(id);
+            var reached = total >= goal;
+            return new GoalStatus(id, goal, total, reached, reached ? 1 : 0, reached ? total - goal : TimeSpan.Zero, null);
+        }
+
+        var open = cycles[^1];
+        var reachedToday = cycles.Count(c => c.IsReached && c.Date == Today);
+        var isReached = reachedToday > 0;
+        return new GoalStatus(
+            id,
+            open.Goal,
+            open.Progress,
+            isReached,
+            reachedToday,
+            isReached && open.Date == Today ? open.Progress : TimeSpan.Zero,
+            open.Date < Today ? open.StartUtc : null);
     }
 
     private TimeSpan Sum(IEnumerable<Session> sessions) =>

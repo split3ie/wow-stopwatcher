@@ -41,6 +41,41 @@ public class CapabilityFilteredStopwatchRepositoryTests
     }
 
     [Fact]
+    public void GoalSince_GoalsOff_ReadsNullAndUpdateKeepsStored()
+    {
+        _inner.Add(new StopwatchDefinition("a", "a", "#111111", Goal, null, 0, GoalSinceUtc: Monday, GoalPerCycle: true));
+        var repo = Create(goals: false);
+
+        Assert.Null(repo.Get("a")!.GoalSinceUtc);
+        Assert.Null(repo.GetAll().Single().GoalSinceUtc);
+        Assert.False(repo.Get("a")!.GoalPerCycle);
+
+        repo.Update(repo.Get("a")! with { Name = "Renamed" });
+
+        Assert.Equal(Monday, _inner.Get("a")!.GoalSinceUtc);
+        Assert.True(_inner.Get("a")!.GoalPerCycle);
+    }
+
+    [Fact]
+    public void GoalSince_GoalsOn_PassesThrough()
+    {
+        _inner.Add(new StopwatchDefinition("a", "a", "#111111", Goal, null, 0, GoalSinceUtc: Monday, GoalPerCycle: true));
+        var repo = Create();
+
+        Assert.Equal(Monday, repo.Get("a")!.GoalSinceUtc);
+        Assert.True(repo.Get("a")!.GoalPerCycle);
+
+        repo.Update(repo.Get("a")! with { GoalPerCycle = false });
+        Assert.False(_inner.Get("a")!.GoalPerCycle);
+
+        repo.Update(repo.Get("a")! with { GoalSinceUtc = Monday.AddDays(1) });
+        Assert.Equal(Monday.AddDays(1), _inner.Get("a")!.GoalSinceUtc);
+
+        repo.Update(repo.Get("a")! with { GoalSinceUtc = null });
+        Assert.Null(_inner.Get("a")!.GoalSinceUtc);
+    }
+
+    [Fact]
     public void Reads_PermanentOff_ClearsOnlyPermanent()
     {
         AddFull();

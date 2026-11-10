@@ -98,8 +98,8 @@ public class SqliteDatabaseTests
             var database = new SqliteDatabase(path);
             var after = DateTimeOffset.UtcNow.AddSeconds(2);
 
-            Assert.Equal(4, SqliteDatabase.LatestSchemaVersion);
-            Assert.Equal(4, database.GetSchemaVersion());
+            Assert.Equal(6, SqliteDatabase.LatestSchemaVersion);
+            Assert.Equal(6, database.GetSchemaVersion());
             var all = new SqliteStopwatchRepository(database).GetAll(includeDeleted: true);
             Assert.Equal(2, all.Count);
             Assert.All(all, d =>
@@ -108,6 +108,52 @@ public class SqliteDatabaseTests
                 Assert.NotNull(d.ActiveSinceUtc);
                 Assert.InRange(d.ActiveSinceUtc!.Value, before, after);
             });
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Migration_V5ToV6_AddsGoalSinceColumnAsNull()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "wowstopwatcher-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "v5.db");
+        try
+        {
+            using (var connection = new SqliteConnection($"Data Source={path};Pooling=False"))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE stopwatches (
+                        id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, color TEXT NOT NULL,
+                        goal_seconds INTEGER NULL, shortcut TEXT NULL, sort_order INTEGER NOT NULL,
+                        is_deleted INTEGER NOT NULL DEFAULT 0, is_independent INTEGER NOT NULL DEFAULT 0,
+                        is_permanent INTEGER NOT NULL DEFAULT 0, active_since_utc INTEGER NULL);
+                    CREATE TABLE sessions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, stopwatch_id TEXT NOT NULL REFERENCES stopwatches(id),
+                        start_utc INTEGER NOT NULL, stop_utc INTEGER NULL);
+                    CREATE TABLE settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
+                    CREATE TABLE goal_changes (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, stopwatch_id TEXT NOT NULL REFERENCES stopwatches(id),
+                        changed_utc INTEGER NOT NULL, previous_goal_seconds INTEGER NULL);
+                    INSERT INTO stopwatches VALUES ('a', 'English', '#2F6FEB', 18000, 'Ctrl+F1', 0, 0, 0, 1, 1000);
+                    PRAGMA user_version = 5;
+                    """;
+                command.ExecuteNonQuery();
+            }
+
+            var database = new SqliteDatabase(path);
+
+            Assert.Equal(6, database.GetSchemaVersion());
+            var def = Assert.Single(new SqliteStopwatchRepository(database).GetAll());
+            Assert.Equal("English", def.Name);
+            Assert.Equal(TimeSpan.FromHours(5), def.Goal);
+            Assert.Null(def.GoalSinceUtc);
+            Assert.False(def.GoalPerCycle);
         }
         finally
         {

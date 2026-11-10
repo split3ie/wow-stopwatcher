@@ -175,7 +175,7 @@ public sealed partial class StatisticsViewModel : ObservableObject
             sessions = _sessions.GetInRange(from, to);
         }
 
-        var result = DailyStatisticsBuilder.Build(sessions, definitions, _time.GetUtcNow(), zone);
+        var result = DailyStatisticsBuilder.Build(sessions, definitions, _time.GetUtcNow(), zone, _stopwatches.GetGoalChanges());
         var today = _state.GetSnapshot().Today;
         var names = definitions.ToDictionary(d => d.Id, d => d.Name);
 
@@ -223,7 +223,7 @@ public sealed partial class StatisticsViewModel : ObservableObject
                 Days.Move(current, i);
             }
 
-            Days[i].Update(stats, result, today, names);
+            Days[i].Update(stats, result, today, names, _time.LocalTimeZone);
         }
 
         while (Days.Count > result.Days.Count)

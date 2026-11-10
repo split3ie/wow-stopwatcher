@@ -110,9 +110,10 @@ public sealed partial class StopwatchRowViewModel : ObservableObject
         var running = snapshot.IsRunning(definition.Id);
         var total = snapshot.GetTodayTotal(definition.Id);
         var hasGoal = definition.HasGoal;
-        var goal = definition.Goal ?? TimeSpan.Zero;
-        var reached = hasGoal && total >= goal;
-        var fraction = hasGoal ? Math.Clamp(total / goal, 0, 1) : 0;
+        var status = snapshot.GetGoalStatus(definition.Id);
+        var goal = status?.Goal ?? definition.Goal ?? TimeSpan.Zero;
+        var reached = status?.IsReached ?? false;
+        var fraction = status is null ? 0 : reached ? 1 : Math.Clamp(status.Progress / status.Goal, 0, 1);
 
         if (Name != definition.Name)
         {
@@ -149,14 +150,14 @@ public sealed partial class StopwatchRowViewModel : ObservableObject
         CurrentText = TimeFormat.Clock(snapshot.GetCurrentValue(definition.Id), withMs: true);
         TotalText = TimeFormat.Clock(total);
         GoalLine = hasGoal ? "Goal: " + TimeFormat.GoalLabel(goal) : "No goal";
-        GoalSub = !hasGoal
+        GoalSub = status is null
             ? "Set one in Settings"
-            : reached ? "Reached" : $"{(int)Math.Floor(fraction * 100)}% done";
+            : GoalText.Sub(status, snapshot.TimeZone, fraction);
         Shortcut = definition.Shortcut is null ? null : SettingsShortcutKeys.ToDisplay(definition.Shortcut);
         HasShortcut = !string.IsNullOrWhiteSpace(definition.Shortcut);
         TotalHuman = TimeFormat.Human(total);
         ToGoalLabel = !hasGoal ? "Goal" : reached ? "Over goal" : "To goal";
-        ToGoal = !hasGoal ? "none" : reached ? "+" + TimeFormat.Human(total - goal) : TimeFormat.Human(goal - total);
+        ToGoal = status is null ? "none" : reached ? "+" + TimeFormat.Human(status.OverGoal) : TimeFormat.Human(status.Remaining);
 
         UpdateSessions(snapshot, definition.Id);
     }
