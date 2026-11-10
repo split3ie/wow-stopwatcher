@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
              xmlns:vm="using:WowStopwatcher.App.ViewModels"
              x:Class="WowStopwatcher.App.Views.ConfirmDialogView"
              x:DataType="vm:ConfirmDialogViewModel"
@@ -51,7 +52,7 @@
           <Button x:Name="CancelButton"
                   Classes="secondary"
                   Command="{Binding CancelCommand}"
-                  Content="Cancel" />
+                  Content="{loc:T common.cancel}" />
           <Button Classes="dangerSolid"
                   Command="{Binding ConfirmCommand}"
                   Content="{Binding ConfirmLabel}" />

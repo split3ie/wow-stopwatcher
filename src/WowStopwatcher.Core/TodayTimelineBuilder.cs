@@ -1,4 +1,4 @@
-using System.Globalization;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.Core;
 
@@ -99,8 +99,9 @@ public static class TodayTimelineBuilder
             var width = logged > TimeSpan.Zero ? loggedShare * (slice.Duration / logged) : 0;
             var live = slice.IsLive;
             var title = slice.Lanes.Count == 1
-                ? $"{byId[slice.Lanes[0].StopwatchId].Name} · {(live ? "running" : "session")}"
-                : $"{string.Join(" + ", slice.Lanes.Select(l => byId[l.StopwatchId].Name))} · {(live ? "running together" : "together")}";
+                ? Loc.T(live ? "timeline.running" : "timeline.session", ("name", byId[slice.Lanes[0].StopwatchId].Name))
+                : Loc.T(live ? "timeline.runningTogether" : "timeline.together",
+                    ("names", string.Join(" + ", slice.Lanes.Select(l => byId[l.StopwatchId].Name))));
             segments.Add(new TimelineSegment(
                 TimelineSegmentKind.Logged, slice.Lanes[0].StopwatchId, slice.Lanes[0].Color, slice.Duration, live,
                 title, null, cursor, width, false, slice.Lanes));
@@ -124,7 +125,8 @@ public static class TodayTimelineBuilder
                 var width = remainingShare * (goal.Remaining / goalsTotal);
                 segments.Add(new TimelineSegment(
                     TimelineSegmentKind.Remaining, goal.StopwatchId, goal.Color, goal.Remaining, false,
-                    $"{goal.Name} · left to goal", $"Goal {TimeFormat.GoalLabel(byId[goal.StopwatchId].Goal!.Value)}",
+                    Loc.T("timeline.leftToGoal", ("name", goal.Name)),
+                    Loc.T("timeline.goalLabel", ("goal", TimeFormat.GoalLabel(byId[goal.StopwatchId].Goal!.Value))),
                     start, width, capped && i == 0));
                 start += width;
             }
@@ -175,9 +177,10 @@ public static class TodayTimelineBuilder
                     var own = pieces.Where(p => p.Session.StopwatchId == def.Id && p.Duration > TimeSpan.Zero).Select(p => p.Session).ToList();
                     var index = own.FindIndex(s => s.StartUtc <= instant && instant <= s.StartUtc + s.GetDuration(slice.EndUtc));
                     var session = own[index];
-                    var live = session.IsOpen ? " (running now)" : "";
-                    var sub = $"During its {TimeFormat.Ordinal(index + 1)} session{live} · {TimeFormat.HoursMinutes(into)} into today's log";
-                    raw.Add((def, position, $"{def.Name} · goal {TimeFormat.GoalLabel(def.Goal!.Value)} reached", sub));
+                    var sub = Loc.T(
+                        session.IsOpen ? "timeline.pin.duringSessionRunning" : "timeline.pin.duringSession",
+                        ("ordinal", TimeFormat.Ordinal(index + 1)), ("number", index + 1), ("time", TimeFormat.HoursMinutes(into)));
+                    raw.Add((def, position, Loc.T("timeline.goalReached", ("name", def.Name), ("goal", TimeFormat.GoalLabel(def.Goal!.Value))), sub));
                     break;
                 }
 
@@ -245,19 +248,22 @@ public static class TodayTimelineBuilder
                     if (cycle.Date == snapshot.Today)
                     {
                         var index = own.FindIndex(s => s.StartUtc <= instant && instant <= s.StartUtc + s.GetDuration(slice.EndUtc));
-                        var live = index >= 0 && own[index].IsOpen ? " (running now)" : "";
                         sub = index >= 0
-                            ? $"During its {TimeFormat.Ordinal(index + 1)} session{live} · {into} into today's log"
-                            : $"{into} into today's log";
+                            ? Loc.T(
+                                own[index].IsOpen ? "timeline.pin.duringSessionRunning" : "timeline.pin.duringSession",
+                                ("ordinal", TimeFormat.Ordinal(index + 1)), ("number", index + 1), ("time", into))
+                            : Loc.T("timeline.pin.intoLog", ("time", into));
                     }
                     else
                     {
                         var started = TimeZoneInfo.ConvertTime(cycle.StartUtc, zone);
-                        var day = cycle.Date.ToDateTime(TimeOnly.MinValue).ToString("ddd", CultureInfo.InvariantCulture);
-                        sub = $"{day}'s goal, started {started.ToString("ddd HH:mm", CultureInfo.InvariantCulture)} · {into} into today's log";
+                        var day = cycle.Date.ToDateTime(TimeOnly.MinValue).ToString(Loc.T("format.weekdayShort"), Loc.Culture);
+                        sub = Loc.T(
+                            "timeline.pin.earlierCycle",
+                            ("day", day), ("started", started.ToString(Loc.T("format.weekdayTime"), Loc.Culture)), ("time", into));
                     }
 
-                    raw.Add((def, position, $"{def.Name} · goal {TimeFormat.GoalLabel(cycle.Goal)} reached", sub));
+                    raw.Add((def, position, Loc.T("timeline.goalReached", ("name", def.Name), ("goal", TimeFormat.GoalLabel(cycle.Goal))), sub));
                     break;
                 }
 

@@ -1,16 +1,17 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
              xmlns:local="using:WowStopwatcher.App.Features.Autostart"
              x:Class="WowStopwatcher.App.Features.Autostart.AutostartSettingsView"
              x:DataType="local:AutostartSettingsViewModel">
   <Border Classes="card" Padding="20,16">
     <Grid ColumnDefinitions="*,Auto">
       <StackPanel Spacing="3" Margin="0,0,16,0" VerticalAlignment="Center">
-        <TextBlock Text="Run with computer start" FontWeight="SemiBold" />
+        <TextBlock Text="{loc:T autostart.title}" FontWeight="SemiBold" />
         <TextBlock Classes="muted"
                    FontSize="13"
                    TextWrapping="Wrap"
-                   Text="Opens WowStopwatcher in the system tray when you sign in to Windows. No stopwatch starts by itself." />
+                   Text="{loc:T autostart.description}" />
         <TextBlock Foreground="{DynamicResource DangerBrush}"
                    FontSize="13"
                    Text="{Binding Error}"
@@ -19,7 +20,7 @@
       <ToggleButton Grid.Column="1"
                     Classes="switch"
                     IsChecked="{Binding IsEnabled}"
-                    AutomationProperties.Name="Run with computer start" />
+                    AutomationProperties.Name="{loc:T autostart.title}" />
     </Grid>
   </Border>
 </UserControl>

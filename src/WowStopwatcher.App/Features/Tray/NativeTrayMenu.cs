@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using WowStopwatcher.App.Shell;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.Tray;
 
@@ -84,13 +85,13 @@ internal sealed class NativeTrayMenu : ITrayMenu
             menu.Items.Add(new NativeMenuItemSeparator());
         }
 
-        var next = new NativeMenuItem("Next stopwatch");
+        var next = new NativeMenuItem(Loc.T("tray.next"));
         next.Click += (_, _) => _control.StartNext();
-        var stopAll = new NativeMenuItem("Stop all");
+        var stopAll = new NativeMenuItem(Loc.T("tray.stopAll"));
         stopAll.Click += (_, _) => _control.StopAll();
-        var open = new NativeMenuItem("Open WowStopwatcher");
+        var open = new NativeMenuItem(Loc.T("tray.open"));
         open.Click += (_, _) => _mainWindow.Show();
-        var quit = new NativeMenuItem("Quit");
+        var quit = new NativeMenuItem(Loc.T("tray.quit"));
         quit.Click += (_, _) => _lifetime.Quit();
 
         menu.Items.Add(next);

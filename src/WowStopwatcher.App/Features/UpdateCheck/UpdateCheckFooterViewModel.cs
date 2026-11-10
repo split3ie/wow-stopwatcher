@@ -2,6 +2,7 @@ using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WowStopwatcher.App.Shell;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.UpdateCheck;
 
@@ -60,8 +61,8 @@ public sealed partial class UpdateCheckFooterViewModel : ObservableObject, ISett
     private int _installPercent;
 
     public string InstallButtonText => IsInstalling
-        ? (InstallPercent > 0 ? $"Installing… {InstallPercent}%" : "Installing…")
-        : "Install update";
+        ? (InstallPercent > 0 ? Loc.T("update.installingPercent", ("percent", InstallPercent)) : Loc.T("update.installing"))
+        : Loc.T("update.install");
 
     /// <summary>Result text of the last update check (empty before the first check).</summary>
     [ObservableProperty]
@@ -103,20 +104,20 @@ public sealed partial class UpdateCheckFooterViewModel : ObservableObject, ISett
             switch (result.Status)
             {
                 case UpdateStatus.UpToDate:
-                    UpdateMessage = "You’re on the latest version";
+                    UpdateMessage = Loc.T("update.upToDate");
                     IsUpdateOk = true;
                     break;
                 case UpdateStatus.Available when IsHttpsUrl(result.Url):
-                    UpdateMessage = $"Version {result.Version} is available";
+                    UpdateMessage = Loc.T("update.available", ("version", result.Version));
                     UpdateUrl = result.Url;
                     _available = result;
                     CanInstallUpdate = _installer.CanInstall(result);
                     break;
                 case UpdateStatus.NoReleases:
-                    UpdateMessage = "No releases published yet";
+                    UpdateMessage = Loc.T("update.noReleases");
                     break;
                 default:
-                    UpdateMessage = "Couldn’t check for updates";
+                    UpdateMessage = Loc.T("update.checkFailed");
                     IsUpdateError = true;
                     break;
             }
@@ -136,9 +137,9 @@ public sealed partial class UpdateCheckFooterViewModel : ObservableObject, ISett
         }
 
         _dialog.Show(
-            "Install update",
-            $"Version {update.Version} will be downloaded and installed, then the app restarts. Running stopwatches keep running.",
-            "Install and restart",
+            Loc.T("update.install"),
+            Loc.T("update.confirmBody", ("version", update.Version)),
+            Loc.T("update.confirmInstall"),
             () => _ = InstallAsync(update));
     }
 
@@ -149,7 +150,7 @@ public sealed partial class UpdateCheckFooterViewModel : ObservableObject, ISett
         IsUpdateError = false;
         FailedReleaseUrl = null;
         UpdateUrl = null;
-        UpdateMessage = "Installing…";
+        UpdateMessage = Loc.T("update.installing");
         try
         {
             var progress = new Progress<double>(p => InstallPercent = (int)Math.Round(p * 100));
@@ -158,7 +159,7 @@ public sealed partial class UpdateCheckFooterViewModel : ObservableObject, ISett
         catch (Exception ex)
         {
             Debug.WriteLine($"Update install failed: {ex}");
-            UpdateMessage = "Couldn’t install the update";
+            UpdateMessage = Loc.T("update.installFailed");
             IsUpdateError = true;
             FailedReleaseUrl = update.Url;
             IsInstalling = false;
@@ -172,7 +173,7 @@ public sealed partial class UpdateCheckFooterViewModel : ObservableObject, ISett
         catch (Exception ex)
         {
             Debug.WriteLine($"Could not start the updated app: {ex}");
-            UpdateMessage = "Update installed. Restart the app to use it";
+            UpdateMessage = Loc.T("update.installedRestart");
             IsUpdateOk = true;
             IsInstalling = false;
             return;

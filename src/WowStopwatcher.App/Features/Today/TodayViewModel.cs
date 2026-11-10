@@ -7,6 +7,7 @@ using WowStopwatcher.App.Navigation;
 using WowStopwatcher.App.Shell;
 using WowStopwatcher.App.ViewModels;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.Today;
 
@@ -63,8 +64,8 @@ public sealed partial class TodayViewModel : ObservableObject, INavigationAware,
 
     /// <summary>Text of the empty state; it points to Settings only when that page exists.</summary>
     public string EmptyHint => CanOpenSettings
-        ? "Add your first stopwatch in Settings to start tracking time."
-        : "No stopwatches are set up.";
+        ? Loc.T("today.empty.hintSettings")
+        : Loc.T("today.empty.hintNone");
 
     public TimelineViewModel Timeline { get; } = new();
 
@@ -86,7 +87,7 @@ public sealed partial class TodayViewModel : ObservableObject, INavigationAware,
     private bool _isAnyRunning;
 
     [ObservableProperty]
-    private string _runningText = "Nothing is running";
+    private string _runningText = Loc.T("today.running.nothing");
 
     [ObservableProperty]
     private string _runningElapsedText = string.Empty;
@@ -96,7 +97,7 @@ public sealed partial class TodayViewModel : ObservableObject, INavigationAware,
     private IBrush? _runningBrush;
 
     [ObservableProperty]
-    private string _mainActionLabel = "Start";
+    private string _mainActionLabel = Loc.T("today.start");
 
     [ObservableProperty]
     private string _startCaption = string.Empty;
@@ -106,7 +107,7 @@ public sealed partial class TodayViewModel : ObservableObject, INavigationAware,
     private IBrush? _startBrush;
 
     [ObservableProperty]
-    private string _goalsSummary = "None set";
+    private string _goalsSummary = Loc.T("today.goals.none");
 
     [ObservableProperty]
     private bool _canToggleGoals;
@@ -149,15 +150,15 @@ public sealed partial class TodayViewModel : ObservableObject, INavigationAware,
             var name = definition?.Name ?? row.Name;
             var sessions = snapshot.GetTodaySessions(id).Count;
             var running = snapshot.IsRunning(id);
-            var body = $"This deletes {sessions} {(sessions == 1 ? "session" : "sessions")} logged today "
-                + $"({TimeFormat.Human(snapshot.GetTodayTotal(id))})"
-                + (running ? " and stops the stopwatch" : string.Empty)
-                + ". Other stopwatches aren’t affected. This can’t be undone.";
-            return (body, "Reset " + name);
+            var body = Loc.Plural(
+                running ? "today.reset.bodyRunning" : "today.reset.body",
+                sessions,
+                ("time", TimeFormat.Human(snapshot.GetTodayTotal(id))));
+            return (body, Loc.T("today.reset.confirm", ("name", name)));
         };
 
         var (body, label) = _confirmText(_state.GetSnapshot());
-        _dialog.Show($"Reset {row.Name}?", body, label, () => _maintenance.ResetToday(id));
+        _dialog.Show(Loc.T("today.reset.title", ("name", row.Name)), body, label, () => _maintenance.ResetToday(id));
     }
 
     /// <summary>Moves a row by one position (keyboard reordering) and saves the new order.</summary>
@@ -222,15 +223,14 @@ public sealed partial class TodayViewModel : ObservableObject, INavigationAware,
             var running = snapshot.IsAnyRunning
                 ? string.Join(", ", snapshot.RunningSessions.Select(s => snapshot.Find(s.StopwatchId)?.Name).Where(n => n is not null))
                 : null;
-            var what = sessions == 1 ? "the 1 session" : $"all {sessions} sessions";
-            var body = $"This deletes {what} logged today ({TimeFormat.Human(snapshot.GrandTotal)})"
-                + (running is not null ? $" and stops {running}" : string.Empty)
-                + ". This can’t be undone.";
-            return (body, "Reset all");
+            var body = running is not null
+                ? Loc.Plural("today.resetAll.bodyRunning", sessions, ("time", TimeFormat.Human(snapshot.GrandTotal)), ("names", running))
+                : Loc.Plural("today.resetAll.body", sessions, ("time", TimeFormat.Human(snapshot.GrandTotal)));
+            return (body, Loc.T("today.resetAll"));
         };
 
         var (body, label) = _confirmText(_state.GetSnapshot());
-        _dialog.Show("Reset all stopwatches?", body, label, _maintenance.ResetAllToday);
+        _dialog.Show(Loc.T("today.resetAll.title"), body, label, _maintenance.ResetAllToday);
     }
 
     [RelayCommand]
@@ -324,15 +324,15 @@ public sealed partial class TodayViewModel : ObservableObject, INavigationAware,
     {
         var count = snapshot.Stopwatches.Count;
         TotalText = TimeFormat.Clock(snapshot.GrandTotal);
-        TotalHuman = $"{TimeFormat.Human(snapshot.GrandTotal)} across {count} {(count == 1 ? "stopwatch" : "stopwatches")}";
+        TotalHuman = Loc.Plural("today.totalAcross", count, ("time", TimeFormat.Human(snapshot.GrandTotal)));
 
         // Shows the running normal stopwatch; when only independent ones run, the first of them.
         var runningSession = snapshot.RunningSession ?? snapshot.RunningSessions.FirstOrDefault();
         var running = runningSession is null ? null : snapshot.Find(runningSession.StopwatchId);
         IsAnyRunning = snapshot.IsAnyRunning;
         RunningText = running is null
-            ? "Nothing is running"
-            : $"{running.Name} is running";
+            ? Loc.T("today.running.nothing")
+            : Loc.T("today.running.name", ("name", running.Name));
         RunningElapsedText = runningSession is null ? string.Empty : TimeFormat.Clock(snapshot.GetDuration(runningSession));
         if (_runningColor != running?.Color)
         {
@@ -340,14 +340,14 @@ public sealed partial class TodayViewModel : ObservableObject, INavigationAware,
             RunningBrush = _runningColor is null ? null : Brush.Parse(_runningColor);
         }
 
-        MainActionLabel = snapshot.IsAnyRunning ? "Stop" : "Start";
+        MainActionLabel = snapshot.IsAnyRunning ? Loc.T("today.stop") : Loc.T("today.start");
 
         // Same choice as StopwatchEngine.StartNext when nothing runs: the last used stopwatch, else the first.
         var lastUsed = snapshot.LastUsedId is { } last ? snapshot.Stopwatches.FirstOrDefault(s => s.Id == last) : null;
         var target = lastUsed ?? snapshot.Stopwatches.FirstOrDefault();
         StartCaption = target is null
-            ? "No stopwatches yet"
-            : $"Starts {target.Name} ({(lastUsed is not null ? "last used" : "first in list")})";
+            ? Loc.T("today.empty.title")
+            : Loc.T(lastUsed is not null ? "today.startCaption.lastUsed" : "today.startCaption.first", ("name", target.Name));
         if (_startColor != target?.Color)
         {
             _startColor = target?.Color;
@@ -388,9 +388,11 @@ public sealed partial class TodayViewModel : ObservableObject, INavigationAware,
             Goals[i].Update(shown[i].Definition, shown[i].Status, snapshot.TimeZone);
         }
 
-        GoalsSummary = withGoal.Count > 0 ? $"{reached.Count} of {withGoal.Count} reached" : "None set";
+        GoalsSummary = withGoal.Count > 0
+            ? Loc.T("today.goals.summary", ("reached", reached.Count), ("total", withGoal.Count))
+            : Loc.T("today.goals.none");
         CanToggleGoals = inProgress.Count > GoalLimit;
-        ToggleGoalsLabel = _showAllGoals ? "Show fewer" : $"Show {inProgress.Count - GoalLimit} more";
+        ToggleGoalsLabel = _showAllGoals ? Loc.T("today.goals.showFewer") : Loc.T("today.goals.showMore", ("count", inProgress.Count - GoalLimit));
         HasReachedGoals = reached.Count > 0;
         ReachedNames = string.Join(", ", reached);
     }

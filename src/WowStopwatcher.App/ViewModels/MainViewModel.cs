@@ -1,9 +1,9 @@
-using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WowStopwatcher.App.Navigation;
 using WowStopwatcher.App.Shell;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.ViewModels;
 
@@ -63,7 +63,7 @@ public sealed partial class MainViewModel : ObservableObject
     private NavItemViewModel CreateNavItem(PageDescriptor page)
     {
         var key = page.Key;
-        return new NavItemViewModel(page.Key, page.Title, page.IconKey, new RelayCommand(() => _navigation.NavigateTo(key)));
+        return new NavItemViewModel(page.Key, Loc.T(page.TitleKey), page.IconKey, new RelayCommand(() => _navigation.NavigateTo(key)));
     }
 
     private void OnNavigated(object? sender, EventArgs e)
@@ -88,5 +88,5 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     private void UpdateDate() =>
-        DateText = _state.GetSnapshot().Today.ToString("dddd, d MMMM", CultureInfo.InvariantCulture);
+        DateText = _state.GetSnapshot().Today.ToString(Loc.T("format.dayLong"), Loc.Culture);
 }

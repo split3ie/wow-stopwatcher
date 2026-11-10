@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WowStopwatcher.App.ViewModels;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.Today;
 
@@ -101,9 +102,9 @@ public sealed partial class StopwatchRowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isDragging;
 
-    public string DetailsLabel => IsOpen ? "Hide details" : "Show details";
+    public string DetailsLabel => IsOpen ? Loc.T("today.row.hideDetails") : Loc.T("today.row.showDetails");
 
-    public string ReorderLabel => $"Reorder {Name}. Drag, or use the up and down arrow keys";
+    public string ReorderLabel => Loc.T("today.row.reorder", ("name", Name));
 
     public void Update(StopwatchEngineSnapshot snapshot, StopwatchDefinition definition)
     {
@@ -139,25 +140,25 @@ public sealed partial class StopwatchRowViewModel : ObservableObject
         }
 
         IsRunning = running;
-        ToggleLabel = (running ? "Stop " : "Start ") + definition.Name;
+        ToggleLabel = Loc.T(running ? "today.row.stopName" : "today.row.startName", ("name", definition.Name));
         HasGoal = hasGoal;
         IsIndependent = definition.IsIndependent;
         CanToggle = running || snapshot.CanStart(definition.Id);
-        ToggleTip = CanToggle ? null : $"Up to {StopwatchEngine.MaxConcurrent} stopwatches can run at once";
+        ToggleTip = CanToggle ? null : Loc.T("today.row.maxRunning", ("count", StopwatchEngine.MaxConcurrent));
         IsGoalReached = reached;
         DoneWidth = new GridLength(fraction, GridUnitType.Star);
         LeftWidth = new GridLength(1 - fraction, GridUnitType.Star);
         CurrentText = TimeFormat.Clock(snapshot.GetCurrentValue(definition.Id), withMs: true);
         TotalText = TimeFormat.Clock(total);
-        GoalLine = hasGoal ? "Goal: " + TimeFormat.GoalLabel(goal) : "No goal";
+        GoalLine = hasGoal ? Loc.T("today.row.goal", ("goal", TimeFormat.GoalLabel(goal))) : Loc.T("today.row.noGoal");
         GoalSub = status is null
-            ? "Set one in Settings"
+            ? Loc.T("today.row.setGoal")
             : GoalText.Sub(status, snapshot.TimeZone, fraction);
         Shortcut = definition.Shortcut is null ? null : SettingsShortcutKeys.ToDisplay(definition.Shortcut);
         HasShortcut = !string.IsNullOrWhiteSpace(definition.Shortcut);
         TotalHuman = TimeFormat.Human(total);
-        ToGoalLabel = !hasGoal ? "Goal" : reached ? "Over goal" : "To goal";
-        ToGoal = status is null ? "none" : reached ? "+" + TimeFormat.Human(status.OverGoal) : TimeFormat.Human(status.Remaining);
+        ToGoalLabel = !hasGoal ? Loc.T("today.row.goalHeading") : reached ? Loc.T("today.row.overGoal") : Loc.T("today.row.toGoal");
+        ToGoal = status is null ? Loc.T("today.row.none") : reached ? "+" + TimeFormat.Human(status.OverGoal) : TimeFormat.Human(status.Remaining);
 
         UpdateSessions(snapshot, definition.Id);
     }
@@ -171,7 +172,7 @@ public sealed partial class StopwatchRowViewModel : ObservableObject
         if (sessions.Count == 0)
         {
             Sessions[0].Number = "-";
-            Sessions[0].Duration = "No sessions yet";
+            Sessions[0].Duration = Loc.T("today.row.noSessions");
             Sessions[0].Tag = string.Empty;
             return;
         }
@@ -180,7 +181,7 @@ public sealed partial class StopwatchRowViewModel : ObservableObject
         {
             Sessions[i].Number = $"{i + 1}.";
             Sessions[i].Duration = TimeFormat.Human(snapshot.GetDuration(sessions[i]));
-            Sessions[i].Tag = sessions[i].IsOpen ? "running" : string.Empty;
+            Sessions[i].Tag = sessions[i].IsOpen ? Loc.T("today.row.sessionRunning") : string.Empty;
         }
     }
 

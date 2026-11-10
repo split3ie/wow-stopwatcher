@@ -1,21 +1,22 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
              xmlns:local="using:WowStopwatcher.App.Features.GoalNotifications"
              x:Class="WowStopwatcher.App.Features.GoalNotifications.GoalNotificationSettingsView"
              x:DataType="local:GoalNotificationSettingsViewModel">
   <Border Classes="card" Padding="20,16">
     <Grid ColumnDefinitions="*,Auto">
       <StackPanel Spacing="3" Margin="0,0,16,0" VerticalAlignment="Center">
-        <TextBlock Text="Notify when a goal is reached" FontWeight="SemiBold" />
+        <TextBlock Text="{loc:T goalNotify.title}" FontWeight="SemiBold" />
         <TextBlock Classes="muted"
                    FontSize="13"
                    TextWrapping="Wrap"
-                   Text="Shows a small popup when a stopwatch reaches its daily goal." />
+                   Text="{loc:T goalNotify.description}" />
       </StackPanel>
       <ToggleButton Grid.Column="1"
                     Classes="switch"
                     IsChecked="{Binding IsEnabled}"
-                    AutomationProperties.Name="Notify when a goal is reached" />
+                    AutomationProperties.Name="{loc:T goalNotify.title}" />
     </Grid>
   </Border>
 </UserControl>

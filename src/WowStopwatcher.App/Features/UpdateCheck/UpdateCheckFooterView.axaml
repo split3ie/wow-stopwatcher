@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
              xmlns:c="using:WowStopwatcher.App.Controls"
              xmlns:local="using:WowStopwatcher.App.Features.UpdateCheck"
              x:Class="WowStopwatcher.App.Features.UpdateCheck.UpdateCheckFooterView"
@@ -65,7 +66,7 @@
     <Button Classes="link footerLink"
             FontSize="13"
             VerticalAlignment="Center"
-            Content="Release page"
+            Content="{loc:T update.releasePage}"
             Tag="{Binding FailedReleaseUrl}"
             IsVisible="{Binding HasFailedReleaseUrl}"
             Click="OnLinkClick" />
@@ -96,8 +97,8 @@
                 Data="{StaticResource UpdateIconRefresh}"
                 Stroke="{Binding $parent[Button].Foreground}"
                 StrokeThickness="2" />
-        <TextBlock Text="Check for updates" IsVisible="{Binding IsIdle}" VerticalAlignment="Center" />
-        <TextBlock Text="Checking…" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+        <TextBlock Text="{loc:T update.check}" IsVisible="{Binding IsIdle}" VerticalAlignment="Center" />
+        <TextBlock Text="{loc:T update.checking}" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
       </StackPanel>
     </Button>
   </StackPanel>

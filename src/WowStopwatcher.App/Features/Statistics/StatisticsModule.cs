@@ -14,7 +14,7 @@ public sealed class StatisticsModule : IFeatureModule
     public void Register(IServiceCollection services)
     {
         services.AddTransient<StatisticsViewModel>();
-        services.AddSingleton(new PageDescriptor(PageKeys.Statistics, "Statistics", null, 10, typeof(StatisticsViewModel)));
+        services.AddSingleton(new PageDescriptor(PageKeys.Statistics, "stats.title", null, 10, typeof(StatisticsViewModel)));
         services.AddSingleton(new ViewMapping(typeof(StatisticsViewModel), () => new StatisticsView()));
     }
 }

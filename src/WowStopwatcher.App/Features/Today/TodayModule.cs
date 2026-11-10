@@ -15,7 +15,7 @@ public sealed class TodayModule : IFeatureModule
     {
         services.AddSingleton<TodayViewModel>();
         services.AddSingleton<IWindowVisibilityAware>(sp => sp.GetRequiredService<TodayViewModel>());
-        services.AddSingleton(new PageDescriptor(PageKeys.Today, "Today", null, 0, typeof(TodayViewModel)));
+        services.AddSingleton(new PageDescriptor(PageKeys.Today, "today.title", null, 0, typeof(TodayViewModel)));
         services.AddSingleton(new ViewMapping(typeof(TodayViewModel), () => new TodayView()));
     }
 }

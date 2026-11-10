@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
              xmlns:l="using:WowStopwatcher.App.Layout"
              xmlns:vm="using:WowStopwatcher.App.Features.Today"
              xmlns:v="using:WowStopwatcher.App.Views"
@@ -44,7 +45,7 @@
                   IsVisible="{Binding !HasStopwatches}"
                   Padding="28">
             <StackPanel Spacing="6">
-              <TextBlock Text="No stopwatches yet" FontSize="17" FontWeight="Bold" />
+              <TextBlock Text="{loc:T today.empty.title}" FontSize="17" FontWeight="Bold" />
               <TextBlock Classes="muted"
                          Text="{Binding EmptyHint}"
                          TextWrapping="Wrap" />
@@ -54,7 +55,7 @@
                       IsVisible="{Binding CanOpenSettings}"
                       HorizontalAlignment="Left"
                       Command="{Binding OpenSettingsCommand}"
-                      Content="Open Settings" />
+                      Content="{loc:T today.empty.openSettings}" />
             </StackPanel>
           </Border>
         </StackPanel>
@@ -71,7 +72,7 @@
                   VerticalAlignment="Top"
                   Padding="20,18">
             <StackPanel Spacing="14">
-              <TextBlock Classes="section" Text="TOTAL TODAY" />
+              <TextBlock Classes="section" Text="{loc:T today.totalToday}" />
               <StackPanel>
                 <TextBlock Classes="mono"
                            FontSize="40"
@@ -130,22 +131,25 @@
                     <TextBlock Text="{Binding MainActionLabel}" VerticalAlignment="Center" />
                   </StackPanel>
                 </Button>
-                <StackPanel IsVisible="{Binding !IsAnyRunning}"
-                            Orientation="Horizontal"
-                            HorizontalAlignment="Center"
-                            Spacing="6">
-                  <Grid Width="8" Height="8" VerticalAlignment="Center">
+                <Grid IsVisible="{Binding !IsAnyRunning}"
+                      HorizontalAlignment="Center"
+                      ColumnDefinitions="Auto,*">
+                  <Grid Grid.Column="0"
+                        Width="8" Height="8"
+                        VerticalAlignment="Top"
+                        Margin="0,4,6,0">
                     <Ellipse Fill="{DynamicResource IdleBrush}" />
                     <Ellipse Fill="{Binding StartBrush}" />
                   </Grid>
-                  <TextBlock Classes="muted"
-                             VerticalAlignment="Center"
+                  <TextBlock Grid.Column="1"
+                             Classes="muted"
                              FontSize="12"
+                             TextWrapping="Wrap"
                              Text="{Binding StartCaption}" />
-                </StackPanel>
+                </Grid>
               </StackPanel>
 
-              <Button Classes="danger" Command="{Binding ResetAllCommand}" Content="Reset all" />
+              <Button Classes="danger" Command="{Binding ResetAllCommand}" Content="{loc:T today.resetAll}" />
             </StackPanel>
           </Border>
 
@@ -157,7 +161,7 @@
                   Padding="20,18">
             <StackPanel Spacing="14">
               <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Classes="section" Text="GOALS" VerticalAlignment="Center" />
+                <TextBlock Classes="section" Text="{loc:T today.goals.title}" VerticalAlignment="Center" />
                 <TextBlock Grid.Column="1"
                            Classes="muted"
                            FontSize="12"
@@ -226,7 +230,7 @@
                              LineHeight="17"
                              Foreground="{DynamicResource ReachedTextBrush}"
                              TextWrapping="Wrap">
-                    <Run FontWeight="SemiBold" Text="Reached:" /><Run Text=" " /><Run Text="{Binding ReachedNames}" />
+                    <Run FontWeight="SemiBold" Text="{loc:T today.goals.reached}" /><Run Text=" " /><Run Text="{Binding ReachedNames}" />
                   </TextBlock>
                 </Grid>
               </Border>

@@ -7,6 +7,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.GoalNotifications;
 
@@ -53,7 +54,7 @@ public partial class GoalReachedWindow : Window
         var color = Color.TryParse(definition.Color, out var parsed) ? parsed : Colors.Gray;
         var text = new TextBlock
         {
-            Text = $"{definition.Name} · {TimeFormat.GoalLabel(definition.Goal ?? TimeSpan.Zero)} goal done today",
+            Text = Loc.T("goalNotify.line", ("name", definition.Name), ("goal", TimeFormat.GoalLabel(definition.Goal ?? TimeSpan.Zero))),
             Foreground = (IBrush)this.FindResource("SecondaryBrush")!,
             TextTrimming = TextTrimming.CharacterEllipsis,
             VerticalAlignment = VerticalAlignment.Center,

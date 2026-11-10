@@ -2,6 +2,7 @@ using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using WowStopwatcher.App.ViewModels;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.Statistics;
 
@@ -73,8 +74,8 @@ public sealed partial class DayPieceViewModel : ObservableObject
     {
         _piece = piece;
         Width = piece.Width;
-        _normalTitle = together ?? $"{name} · session {piece.SegmentIndex + 1}";
-        _combinedTitle = $"{name} · combined";
+        _normalTitle = together ?? Loc.T("stats.piece.session", ("name", name), ("number", piece.SegmentIndex + 1));
+        _combinedTitle = Loc.T("stats.piece.combined", ("name", name));
         _normalTimeText = TimeFormat.HoursMinutes(piece.Duration);
         _combinedTimeText = TimeFormat.HoursMinutes(piece.GroupDuration);
         Apply(_owner.IsCombined);

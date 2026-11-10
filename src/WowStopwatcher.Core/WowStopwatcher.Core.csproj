@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- Every translation file is embedded as WowStopwatcher.Translations.<code>.json; a new language needs no edit here. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Localization\Translations\*.json" LogicalName="WowStopwatcher.Translations.%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="WowStopwatcher.Core.Tests" />
   </ItemGroup>
