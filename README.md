@@ -1,4 +1,4 @@
-# WowStopwatcher
+<img width="3088" height="1000" alt="hero_1" src="https://github.com/user-attachments/assets/38abd037-15c7-41ba-be43-18a60ccbabd0" />
 
 WowStopwatcher is a desktop app for Windows, macOS and Linux that shows how you actually spend your day. You make a stopwatch for each activity, such as "English" with a 5-hour daily goal, "YouTube" or "Walking", and start the one you are doing. I built it to see where my time goes across several activities and to check my daily goals at a glance.
 
