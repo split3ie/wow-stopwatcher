@@ -15,6 +15,7 @@ WowStopwatcher is a personal desktop app for Windows, macOS and Linux that track
   **Per cycle** ("Carry goal over") fills the goal across days as back-to-back cycles counted from the start of the day it was switched on (`GoalSinceUtc`);
   a cycle belongs to the date it started, and today's time counts toward an earlier day's open cycle until it is reached (`GoalCycleBuilder`, `StopwatchEngineSnapshot.GetGoalStatus`).
   Logged time and day bars stay calendar-based.
+- **Per-language names:** a stopwatch's name is stored per app language. The first is the original (creation language, `stopwatches.name`) and is shown in languages without their own name; renaming in Settings edits the current language's name (`stopwatch_names`). Stopwatches from before this have an unknown original language: the first rename claims the original.
 - Every run is stored as a session: `Date | Stopwatch Name | Start | Stop`. All statistics are derived from sessions.
 - Totals (Today and each Statistics day) are wall-clock time when any stopwatch ran: overlapping time counts once.
   Per-stopwatch totals are each stopwatch's full time. In the timeline bars, overlapping time is drawn as
