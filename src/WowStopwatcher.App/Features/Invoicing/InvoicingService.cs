@@ -136,6 +136,16 @@ public sealed class InvoicingService
     }
 
     /// <summary>
+    /// The default sample hours of the preview: the current month's invoiced time (reported when set, otherwise billed; frozen when sent)
+    /// in hours, rounded to 2 decimals, or 1 when that is 0.
+    /// </summary>
+    public decimal GetDefaultSampleHours(string companyId)
+    {
+        var hours = Math.Round(GetSummary(companyId, InvoicePeriod.From(Today())).InvoicedMinutes / 60m, 2);
+        return hours > 0 ? hours : 1m;
+    }
+
+    /// <summary>
     /// Sets the time reported for the month, which replaces the total of the billed lines in the invoice (the per-line table stays the billed lines),
     /// or with null clears it. Returns false and changes nothing when the invoice is sent or the value is outside 1 to <see cref="InvoiceBilling.MaxReportedMinutes"/>.
     /// Clearing on a month without an invoice row does nothing and returns true.

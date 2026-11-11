@@ -33,6 +33,9 @@ internal static class InvoicingFormat
     /// <summary>The rate for editing: no thousands separators, up to 2 decimals, invariant.</summary>
     public static string Rate(decimal rate) => rate.ToString("0.##", CultureInfo.InvariantCulture);
 
+    /// <summary>Hours for editing: up to 2 decimals, no trailing zeros, invariant (for example "7.5"); parses back with <see cref="TryParseDecimal"/>.</summary>
+    public static string Hours(decimal hours) => hours.ToString("0.##", CultureInfo.InvariantCulture);
+
     /// <summary>Parses a non-negative decimal typed with a dot or a comma.</summary>
     public static bool TryParseDecimal(string? text, out decimal value)
     {

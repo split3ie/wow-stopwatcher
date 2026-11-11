@@ -323,6 +323,21 @@ public sealed class InvoicingServiceTests : IDisposable
     }
 
     [Fact]
+    public void Default_sample_hours_use_reported_time_then_billed_time_then_one()
+    {
+        Assert.Equal(1m, _service.GetDefaultSampleHours(CompanyId));
+
+        Allocate(Nov2);
+        Assert.Equal(1m, _service.GetDefaultSampleHours(CompanyId));
+
+        _service.EditDay(CompanyId, November, Nov3, lines => InvoiceLineEditor.SetNote(lines, 0, "more"));
+        Assert.Equal(1.5m, _service.GetDefaultSampleHours(CompanyId));
+
+        _service.SetReportedMinutes(CompanyId, November, 450);
+        Assert.Equal(7.5m, _service.GetDefaultSampleHours(CompanyId));
+    }
+
+    [Fact]
     public void Reported_time_is_validated_and_clearing_without_a_row_does_nothing()
     {
         Assert.True(_service.SetReportedMinutes(CompanyId, November, null));

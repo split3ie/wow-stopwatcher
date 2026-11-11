@@ -7,7 +7,8 @@ using WowStopwatcher.Core.Localization;
 namespace WowStopwatcher.App.Features.Invoicing;
 
 /// <summary>
-/// The preview of a sample invoice (current month, one line of the sample hours). The conversion runs off the UI thread.
+/// The preview of a sample invoice (current month, one line of the sample hours). The sample hours start as the current month's invoiced hours
+/// (reported hours when set, otherwise the billed time; 1 when that is 0) and the user can change them. The conversion runs off the UI thread.
 /// While amounts are hidden the preview is not made and the page shows a cover instead, because the invoice contains the rate and amounts.
 /// </summary>
 public sealed partial class PreviewViewModel : ObservableObject
@@ -25,11 +26,12 @@ public sealed partial class PreviewViewModel : ObservableObject
         _amountsHidden = amountsHidden;
         _refreshed = refreshed;
         _showAmounts = showAmounts;
+        _sampleHoursText = InvoicingFormat.Hours(_d.Service.GetDefaultSampleHours(companyId));
     }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
-    private string _sampleHoursText = "1";
+    private string _sampleHoursText;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsCoverVisible))]
