@@ -344,6 +344,17 @@
                 </Border>
               </StackPanel>
             </WrapPanel>
+            <Button Classes="secondary"
+                    HorizontalAlignment="Left"
+                    Command="{Binding StartNewCycleCommand}"
+                    Content="{loc:T settings.stopwatch.newCycle}">
+              <Button.IsVisible>
+                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                  <Binding Path="HasGoal" />
+                  <Binding Path="GoalPerCycle" />
+                </MultiBinding>
+              </Button.IsVisible>
+            </Button>
             <StackPanel Classes="goalRow"
                         Classes.off="{Binding !HasGoal}"
                         Orientation="Horizontal"

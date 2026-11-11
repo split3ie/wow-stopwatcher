@@ -128,7 +128,11 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
 
         if (!total.GoalReached && total.CycleProgress is { } progress && progress != total.Total)
         {
-            parts.Add(Loc.T("stats.note.soFar", ("time", TimeFormat.HoursMinutes(progress))));
+            parts.Add(Loc.T(total.CycleCancelled ? "stats.note.cancelled" : "stats.note.soFar", ("time", TimeFormat.HoursMinutes(progress))));
+        }
+        else if (total.CycleCancelled)
+        {
+            parts.Add(Loc.T("stats.note.cycleCancelled"));
         }
 
         return string.Join(" · ", parts);

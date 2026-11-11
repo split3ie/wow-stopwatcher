@@ -7,7 +7,10 @@ public static class GoalCycleBuilder
 {
     /// <summary>
     /// Builds the cycles of <paramref name="stopwatchId"/> from <paramref name="anchorUtc"/> up to <paramref name="nowUtc"/>, in chronological order.
-    /// All cycles but the last are reached; the last one is open (possibly with zero progress).
+    /// All cycles but the last are reached or cancelled; the last one is open (possibly with zero progress).
+    /// A reset in <paramref name="resets"/> (of this stopwatch, strictly after the anchor and not after <paramref name="nowUtc"/>) ends the open cycle
+    /// as cancelled, even with zero progress, and starts a new one at the reset; a cycle reached exactly at the reset stays reached and
+    /// no empty cancelled cycle is added. Session time spanning a reset is split there.
     /// Counted time is the union of the stopwatch's sessions clipped to [anchor, now]. The goal at an instant is the
     /// <see cref="GoalChange.PreviousGoal"/> of the first change after it, or <paramref name="currentGoal"/> when there is none;
     /// time under a missing or non-positive goal is not counted. When the goal is missing at <paramref name="nowUtc"/>, the open cycle's Goal is zero.
@@ -19,6 +22,7 @@ public static class GoalCycleBuilder
         TimeSpan? currentGoal,
         IEnumerable<Session> sessions,
         IReadOnlyList<GoalChange> goalChanges,
+        IReadOnlyList<GoalReset> resets,
         DateTimeOffset nowUtc,
         TimeZoneInfo zone)
     {
@@ -40,6 +44,17 @@ public static class GoalCycleBuilder
 
         changes.Sort((a, b) => a.ChangedUtc.CompareTo(b.ChangedUtc));
 
+        var resetTimes = new List<DateTimeOffset>();
+        foreach (var reset in resets)
+        {
+            if (reset.StopwatchId == stopwatchId && reset.ResetUtc > anchorUtc && reset.ResetUtc <= nowUtc)
+            {
+                resetTimes.Add(reset.ResetUtc);
+            }
+        }
+
+        resetTimes.Sort();
+
         var cycles = new List<GoalCycle>();
         var cycleStart = anchorUtc;
         var progress = TimeSpan.Zero;
@@ -51,6 +66,8 @@ public static class GoalCycleBuilder
             idx++;
         }
 
+        var resetIdx = 0;
+
         TimeSpan? GoalNow() => idx < changes.Count ? changes[idx].PreviousGoal : current;
 
         void Reach(DateTimeOffset at, TimeSpan goal)
@@ -59,20 +76,52 @@ public static class GoalCycleBuilder
             cycleStart = at;
         }
 
-        // Applies all changes at or before the given instant.
-        void ApplyChanges(DateTimeOffset upTo)
+        void ApplyChange()
         {
-            while (idx < changes.Count && changes[idx].ChangedUtc <= upTo)
+            var at = changes[idx].ChangedUtc;
+            idx++;
+            if (GoalNow() is { } goal && goal > TimeSpan.Zero)
             {
-                var at = changes[idx].ChangedUtc;
-                idx++;
-                if (GoalNow() is { } goal && goal > TimeSpan.Zero)
+                while (progress >= goal)
                 {
-                    while (progress >= goal)
-                    {
-                        Reach(at, goal);
-                        progress -= goal;
-                    }
+                    Reach(at, goal);
+                    progress -= goal;
+                }
+            }
+        }
+
+        // Ends the open cycle as cancelled and starts a new one; nothing to cancel when a cycle just started at this instant.
+        void ApplyReset(DateTimeOffset at)
+        {
+            if (cycleStart < at)
+            {
+                var goal = GoalNow() is { } g && g > TimeSpan.Zero ? g : TimeSpan.Zero;
+                cycles.Add(new GoalCycle(stopwatchId, cycleStart, LocalDays.ToLocalDate(cycleStart, zone), goal, progress, null, at));
+                cycleStart = at;
+            }
+
+            progress = TimeSpan.Zero;
+        }
+
+        // Applies all changes and resets at or before the given instant, in time order (a change first at the same instant).
+        void ApplyEvents(DateTimeOffset upTo)
+        {
+            while (true)
+            {
+                var nextChange = idx < changes.Count && changes[idx].ChangedUtc <= upTo ? changes[idx].ChangedUtc : (DateTimeOffset?)null;
+                var nextReset = resetIdx < resetTimes.Count && resetTimes[resetIdx] <= upTo ? resetTimes[resetIdx] : (DateTimeOffset?)null;
+                if (nextChange is { } c && (nextReset is not { } r || c <= r))
+                {
+                    ApplyChange();
+                }
+                else if (nextReset is { } reset)
+                {
+                    resetIdx++;
+                    ApplyReset(reset);
+                }
+                else
+                {
+                    return;
                 }
             }
         }
@@ -82,8 +131,13 @@ public static class GoalCycleBuilder
             var pos = start;
             while (pos < end)
             {
-                ApplyChanges(pos);
+                ApplyEvents(pos);
                 var limit = idx < changes.Count && changes[idx].ChangedUtc < end ? changes[idx].ChangedUtc : end;
+                if (resetIdx < resetTimes.Count && resetTimes[resetIdx] < limit)
+                {
+                    limit = resetTimes[resetIdx];
+                }
+
                 if (GoalNow() is { } goal && goal > TimeSpan.Zero)
                 {
                     var need = goal - progress;
@@ -102,7 +156,7 @@ public static class GoalCycleBuilder
             }
         }
 
-        ApplyChanges(nowUtc);
+        ApplyEvents(nowUtc);
 
         var openGoal = GoalNow() is { } g && g > TimeSpan.Zero ? g : TimeSpan.Zero;
         cycles.Add(new GoalCycle(stopwatchId, cycleStart, LocalDays.ToLocalDate(cycleStart, zone), openGoal, progress, null));

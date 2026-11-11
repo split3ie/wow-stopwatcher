@@ -12,9 +12,13 @@ public partial class PlaceholdersView : UserControl
 
     private PlaceholdersViewModel? _viewModel;
     private bool _canExpand;
-    private TextBox? _resizingScript;
+    private ScriptEditor? _resizingScript;
     private double _resizeStartY;
     private double _resizeStartHeight;
+    private Panel? _resizingPanel;
+    private double _resizeStartX;
+    private double _resizeStartExtra;
+    private double _resizeMaxExtra;
 
     public PlaceholdersView()
     {
@@ -60,7 +64,7 @@ public partial class PlaceholdersView : UserControl
 
     private void OnScriptGripPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (sender is not Control { Parent: Panel { Children: [TextBox script, ..] } } grip ||
+        if (sender is not Control { Parent: Panel { Children: [ScriptEditor script, ..] } panel } grip ||
             !e.GetCurrentPoint(grip).Properties.IsLeftButtonPressed)
         {
             return;
@@ -69,6 +73,11 @@ public partial class PlaceholdersView : UserControl
         _resizingScript = script;
         _resizeStartY = e.GetPosition(this).Y;
         _resizeStartHeight = script.Bounds.Height;
+        _resizingPanel = panel;
+        _resizeStartX = e.GetPosition(this).X;
+        _resizeStartExtra = -panel.Margin.Right;
+        // Widening overlays the columns to the right, up to the row's right edge.
+        _resizeMaxExtra = panel.Parent is Control { Parent: Grid row } column ? Math.Max(0, row.Bounds.Width - column.Bounds.Right) : 0;
         e.Pointer.Capture(grip);
         e.Handled = true;
     }
@@ -83,16 +92,27 @@ public partial class PlaceholdersView : UserControl
         // The dragged height acts as a minimum, so long scripts still grow beyond it.
         var height = _resizeStartHeight + e.GetPosition(this).Y - _resizeStartY;
         _resizingScript.MinHeight = Math.Max(ScriptMinHeight, height);
+        if (_resizingPanel is not null)
+        {
+            var extra = Math.Clamp(_resizeStartExtra + e.GetPosition(this).X - _resizeStartX, 0, _resizeMaxExtra);
+            _resizingPanel.Margin = new Thickness(0, 0, -extra, 0);
+        }
+
         e.Handled = true;
     }
 
     private void OnScriptGripReleased(object? sender, PointerReleasedEventArgs e)
     {
         _resizingScript = null;
+        _resizingPanel = null;
         e.Pointer.Capture(null);
     }
 
-    private void OnScriptGripCaptureLost(object? sender, PointerCaptureLostEventArgs e) => _resizingScript = null;
+    private void OnScriptGripCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        _resizingScript = null;
+        _resizingPanel = null;
+    }
 
     /// <summary>Limits the chips to one row when collapsed (the height of the first chip) and shows the chevron only when more rows exist.</summary>
     private void UpdateBuiltins()

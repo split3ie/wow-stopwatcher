@@ -19,6 +19,12 @@ public sealed class FakeStopwatchRepository : IStopwatchRepository
 
     public IReadOnlyList<GoalChange> GetGoalChanges() => GoalChanges;
 
+    public List<GoalReset> GoalResets { get; } = [];
+
+    public IReadOnlyList<GoalReset> GetGoalResets() => GoalResets;
+
+    public void AddGoalReset(GoalReset reset) => GoalResets.Add(reset);
+
     public void SoftDelete(string id) => Update(Items.First(s => s.Id == id) with { IsDeleted = true });
 
     public void SaveSortOrder(IReadOnlyList<string> orderedIds)

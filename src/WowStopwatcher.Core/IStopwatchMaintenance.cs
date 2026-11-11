@@ -27,4 +27,10 @@ public interface IStopwatchMaintenance
     /// Returns false when the stopwatch is unknown or not deleted.
     /// </summary>
     bool Restore(string id);
+
+    /// <summary>
+    /// Ends the open goal cycle of a per-cycle stopwatch as cancelled and starts a new one now.
+    /// Returns false when the stopwatch is unknown, deleted, or has no per-cycle goal with an anchor.
+    /// </summary>
+    bool StartNewGoalCycle(string id);
 }

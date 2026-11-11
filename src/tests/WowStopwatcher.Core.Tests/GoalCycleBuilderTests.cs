@@ -14,7 +14,7 @@ public class GoalCycleBuilderTests
 
     private static IReadOnlyList<GoalCycle> Build(
         DateTimeOffset anchor, TimeSpan? goal, IEnumerable<Session> sessions, DateTimeOffset now, params GoalChange[] changes) =>
-        GoalCycleBuilder.Build(Id, anchor, goal, sessions, changes, now, Zone);
+        GoalCycleBuilder.Build(Id, anchor, goal, sessions, changes, [], now, Zone);
 
     [Fact]
     public void SessionOverMidnight_ReachedCycleDatedStartDay_ThenOpenCycle()
@@ -167,5 +167,119 @@ public class GoalCycleBuilderTests
         Assert.Equal(2, cycles.Count);
         Assert.Equal(At(9, 13), cycles[0].ReachedUtc);
         Assert.Equal(TimeSpan.Zero, cycles[1].Progress);
+    }
+
+    private static IReadOnlyList<GoalCycle> BuildWithResets(
+        DateTimeOffset anchor, TimeSpan? goal, IEnumerable<Session> sessions, DateTimeOffset now, GoalReset[] resets, params GoalChange[] changes) =>
+        GoalCycleBuilder.Build(Id, anchor, goal, sessions, changes, resets, now, Zone);
+
+    private static GoalReset R(DateTimeOffset at, string id = Id) => new(id, at);
+
+    [Fact]
+    public void Reset_MidCycle_CancelsWithProgress_AndStartsNewCycle()
+    {
+        var cycles = BuildWithResets(At(9, 0), TimeSpan.FromHours(8), [S(At(9, 10), At(9, 13))], At(9, 20), [R(At(9, 15))]);
+
+        Assert.Equal(2, cycles.Count);
+        Assert.True(cycles[0].IsCancelled);
+        Assert.False(cycles[0].IsReached);
+        Assert.Null(cycles[0].ReachedUtc);
+        Assert.Equal(At(9, 15), cycles[0].CancelledUtc);
+        Assert.Equal(TimeSpan.FromHours(3), cycles[0].Progress);
+        Assert.Equal(TimeSpan.FromHours(8), cycles[0].Goal);
+        Assert.Equal(At(9, 0), cycles[0].StartUtc);
+        Assert.Equal(At(9, 15), cycles[1].StartUtc);
+        Assert.Equal(TimeSpan.Zero, cycles[1].Progress);
+        Assert.False(cycles[1].IsCancelled);
+    }
+
+    [Fact]
+    public void Reset_DuringRunningSession_SplitsTheInterval()
+    {
+        var cycles = BuildWithResets(At(9, 0), TimeSpan.FromHours(8), [S(At(9, 10), null)], At(9, 19), [R(At(9, 12))]);
+
+        Assert.Equal(2, cycles.Count);
+        Assert.Equal(TimeSpan.FromHours(2), cycles[0].Progress);
+        Assert.True(cycles[0].IsCancelled);
+        Assert.Equal(TimeSpan.FromHours(7), cycles[1].Progress);
+        Assert.Null(cycles[1].ReachedUtc);
+    }
+
+    [Fact]
+    public void Reset_SessionSpanningReset_CountsEachPartInItsCycle()
+    {
+        var cycles = BuildWithResets(At(9, 0), TimeSpan.FromHours(5), [S(At(9, 10), At(9, 16))], At(9, 20), [R(At(9, 12))]);
+
+        Assert.Equal(2, cycles.Count);
+        Assert.Equal(TimeSpan.FromHours(2), cycles[0].Progress);
+        Assert.True(cycles[0].IsCancelled);
+        Assert.Equal(TimeSpan.FromHours(4), cycles[1].Progress);
+    }
+
+    [Fact]
+    public void Reset_NotAfterAnchor_OrAfterNow_OrOfOtherStopwatch_IsIgnored()
+    {
+        var sessions = new[] { S(At(9, 10), At(9, 12)) };
+
+        var cycles = BuildWithResets(
+            At(9, 0), TimeSpan.FromHours(8), sessions, At(9, 14), [R(At(9, 0)), R(At(8, 12)), R(At(9, 15)), R(At(9, 11), "other")]);
+
+        var only = Assert.Single(cycles);
+        Assert.False(only.IsCancelled);
+        Assert.Equal(TimeSpan.FromHours(2), only.Progress);
+    }
+
+    [Fact]
+    public void Reset_ExactlyWhenReached_StaysReached_WithoutEmptyCancelledCycle()
+    {
+        var cycles = BuildWithResets(At(9, 0), TimeSpan.FromHours(2), [S(At(9, 10), At(9, 13))], At(9, 14), [R(At(9, 12))]);
+
+        Assert.Equal(2, cycles.Count);
+        Assert.True(cycles[0].IsReached);
+        Assert.False(cycles[0].IsCancelled);
+        Assert.Equal(At(9, 12), cycles[0].ReachedUtc);
+        Assert.Equal(At(9, 12), cycles[1].StartUtc);
+        Assert.Equal(TimeSpan.FromHours(1), cycles[1].Progress);
+    }
+
+    [Fact]
+    public void Reset_WithZeroProgress_StillCancelsOpenCycle()
+    {
+        var cycles = BuildWithResets(At(9, 0), TimeSpan.FromHours(8), [], At(9, 14), [R(At(9, 12))]);
+
+        Assert.Equal(2, cycles.Count);
+        Assert.True(cycles[0].IsCancelled);
+        Assert.Equal(TimeSpan.Zero, cycles[0].Progress);
+        Assert.Equal(At(9, 12), cycles[1].StartUtc);
+    }
+
+    [Fact]
+    public void Reset_GoalChangeBeforeReset_CancelledCycleKeepsGoalInEffect()
+    {
+        var change = new GoalChange(Id, At(9, 11), TimeSpan.FromHours(8));
+
+        var cycles = BuildWithResets(At(9, 0), TimeSpan.FromHours(5), [S(At(9, 10), At(9, 13))], At(9, 20), [R(At(9, 15))], change);
+
+        Assert.Equal(2, cycles.Count);
+        Assert.True(cycles[0].IsCancelled);
+        Assert.Equal(TimeSpan.FromHours(5), cycles[0].Goal);
+        Assert.Equal(TimeSpan.FromHours(3), cycles[0].Progress);
+        Assert.Equal(TimeSpan.Zero, cycles[1].Progress);
+    }
+
+    [Fact]
+    public void Reset_Multiple_ProducesCancelledCyclesInOrder()
+    {
+        var cycles = BuildWithResets(
+            At(9, 0), TimeSpan.FromHours(8), [S(At(9, 1), At(9, 3)), S(At(9, 5), At(9, 6))], At(9, 20), [R(At(9, 4)), R(At(9, 7))]);
+
+        Assert.Equal(3, cycles.Count);
+        Assert.Equal(TimeSpan.FromHours(2), cycles[0].Progress);
+        Assert.Equal(At(9, 4), cycles[0].CancelledUtc);
+        Assert.Equal(TimeSpan.FromHours(1), cycles[1].Progress);
+        Assert.Equal(At(9, 4), cycles[1].StartUtc);
+        Assert.Equal(At(9, 7), cycles[1].CancelledUtc);
+        Assert.Equal(At(9, 7), cycles[2].StartUtc);
+        Assert.False(cycles[2].IsCancelled);
     }
 }

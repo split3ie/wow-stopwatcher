@@ -15,12 +15,14 @@ public static class DailyStatisticsBuilder
     /// wall-clock time or combined-bar length (overlap time counted once per stopwatch), so combined bars never overflow.</remarks>
     /// <param name="goalChanges">Recorded goal changes: a day uses the goal in effect at its end.
     /// Days without history use the current goal.</param>
+    /// <param name="goalResets">Recorded goal resets of per-cycle goals; each cancels the open cycle.</param>
     public static StatisticsResult Build(
         IEnumerable<Session> sessions,
         IReadOnlyList<StopwatchDefinition> stopwatches,
         DateTimeOffset nowUtc,
         TimeZoneInfo zone,
-        IReadOnlyList<GoalChange>? goalChanges = null)
+        IReadOnlyList<GoalChange>? goalChanges = null,
+        IReadOnlyList<GoalReset>? goalResets = null)
     {
         var byId = stopwatches.ToDictionary(s => s.Id);
         var sessionList = sessions.ToList();
@@ -48,7 +50,7 @@ public static class DailyStatisticsBuilder
         {
             if (s.GoalPerCycle && s.GoalSinceUtc is { } anchor && s.Goal is { } goal && goal > TimeSpan.Zero)
             {
-                var byDate = GoalCycleBuilder.Build(s.Id, anchor, s.Goal, sessionList, goalChanges ?? [], nowUtc, zone)
+                var byDate = GoalCycleBuilder.Build(s.Id, anchor, s.Goal, sessionList, goalChanges ?? [], goalResets ?? [], nowUtc, zone)
                     .GroupBy(c => c.Date)
                     .ToDictionary(g => g.Key, g => g.ToList());
                 cyclesById[s.Id] = (LocalDays.ToLocalDate(anchor, zone), byDate);
@@ -148,7 +150,8 @@ public static class DailyStatisticsBuilder
 
             var reachedCycles = cycles.Where(c => c.IsReached).ToList();
             var reachedUtc = reachedCycles.Count > 0 ? reachedCycles[0].ReachedUtc : null;
-            var open = cycles.FirstOrDefault(c => !c.IsReached);
+            var open = cycles.FirstOrDefault(c => !c.IsReached && !c.IsCancelled);
+            var cancelled = cycles.FirstOrDefault(c => c.IsCancelled);
 
             var overtime = 0.0;
             if (reachedUtc is { } at && dayTotal > TimeSpan.Zero && LocalDays.ToLocalDate(at, zone) == date)
@@ -167,7 +170,7 @@ public static class DailyStatisticsBuilder
 
             return new DayStopwatchTotal(
                 s.Id, s.Name, s.Color, s.IsDeleted, total, share, cycles[^1].Goal, reachedCycles.Count > 0, s.IsIndependent, overtime,
-                reachedCycles.Count, reachedUtc, open?.Progress);
+                reachedCycles.Count, reachedUtc, open?.Progress ?? cancelled?.Progress, cancelled is not null);
         }
 
         var totals = stopwatches

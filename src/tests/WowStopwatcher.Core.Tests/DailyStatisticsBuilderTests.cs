@@ -442,4 +442,33 @@ public class DailyStatisticsBuilderTests
         Assert.Null(t.GoalReachedUtc);
         Assert.Null(t.CycleProgress);
     }
+
+    [Fact]
+    public void PerCycle_CancelledCycle_SetsCycleCancelledAndProgress()
+    {
+        var def = CycleDef("a", 8, At(9, 0));
+        var sessions = new[] { Span(1, "a", At(9, 10), At(9, 12)) };
+        var resets = new[] { new GoalReset("a", At(10, 2)) };
+
+        var days = DailyStatisticsBuilder.Build(sessions, [def], Now, Zone, null, resets).Days;
+
+        var t = days.Single().Totals.Single();
+        Assert.True(t.CycleCancelled);
+        Assert.False(t.GoalReached);
+        Assert.Equal(TimeSpan.FromHours(2), t.CycleProgress);
+    }
+
+    [Fact]
+    public void PerCycle_DayOfNewCycleAfterReset_IsNotCancelled()
+    {
+        var def = CycleDef("a", 8, At(9, 0));
+        var sessions = new[] { Span(1, "a", At(10, 10), At(10, 12)) };
+        var resets = new[] { new GoalReset("a", At(10, 8)) };
+
+        var days = DailyStatisticsBuilder.Build(sessions, [def], Now, Zone, null, resets).Days;
+
+        var t = days.Single().Totals.Single();
+        Assert.False(t.CycleCancelled);
+        Assert.Equal(TimeSpan.FromHours(2), t.CycleProgress);
+    }
 }

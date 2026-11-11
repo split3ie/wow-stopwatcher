@@ -99,7 +99,7 @@ public class SqliteDatabaseTests
             var database = new SqliteDatabase(path);
             var after = DateTimeOffset.UtcNow.AddSeconds(2);
 
-            Assert.Equal(13, SqliteDatabase.LatestSchemaVersion);
+            Assert.Equal(14, SqliteDatabase.LatestSchemaVersion);
             Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
             var all = new SqliteStopwatchRepository(database).GetAll(includeDeleted: true);
             Assert.Equal(2, all.Count);
@@ -487,6 +487,38 @@ public class SqliteDatabaseTests
             using var delete = check.CreateCommand();
             delete.CommandText = "DELETE FROM invoice_lines WHERE id = 1; SELECT COUNT(*) FROM invoice_line_moves";
             Assert.Equal(0L, Convert.ToInt64(delete.ExecuteScalar()));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Migration_V13ToV14_CreatesGoalResetsTable()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "wowstopwatcher-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "v13.db");
+        try
+        {
+            var seed = new SqliteDatabase(path);
+            using (var connection = seed.OpenConnection())
+            {
+                using var command = connection.CreateCommand();
+                command.CommandText = "DROP TABLE goal_resets; PRAGMA user_version = 13;";
+                command.ExecuteNonQuery();
+            }
+
+            SqliteConnection.ClearAllPools();
+            var database = new SqliteDatabase(path);
+
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
+            var repository = new SqliteStopwatchRepository(database);
+            repository.Add(new StopwatchDefinition("a", "A", "#111111", null, null, 0));
+            repository.AddGoalReset(new GoalReset("a", DateTimeOffset.FromUnixTimeMilliseconds(5000)));
+            Assert.Single(repository.GetGoalResets());
         }
         finally
         {

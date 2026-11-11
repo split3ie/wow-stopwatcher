@@ -40,6 +40,18 @@ public sealed class CapabilityFilteredStopwatchRepository(IStopwatchRepository i
     public IReadOnlyList<GoalChange> GetGoalChanges() => capabilities.Goals ? inner.GetGoalChanges() : [];
 
     /// <inheritdoc />
+    public IReadOnlyList<GoalReset> GetGoalResets() => capabilities.Goals ? inner.GetGoalResets() : [];
+
+    /// <inheritdoc />
+    public void AddGoalReset(GoalReset reset)
+    {
+        if (capabilities.Goals)
+        {
+            inner.AddGoalReset(reset);
+        }
+    }
+
+    /// <inheritdoc />
     public void SoftDelete(string id) => inner.SoftDelete(id);
 
     /// <inheritdoc />

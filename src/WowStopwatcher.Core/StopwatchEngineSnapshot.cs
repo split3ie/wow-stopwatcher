@@ -15,10 +15,12 @@ public sealed class StopwatchEngineSnapshot
         string? lastUsedId,
         IReadOnlyList<Session>? cycleSessions = null,
         IReadOnlyList<GoalChange>? goalChanges = null,
-        TimeZoneInfo? timeZone = null)
+        TimeZoneInfo? timeZone = null,
+        IReadOnlyList<GoalReset>? goalResets = null)
     {
         CycleSessions = cycleSessions ?? [];
         GoalChanges = goalChanges ?? [];
+        GoalResets = goalResets ?? [];
         TimeZone = timeZone ?? TimeZoneInfo.Local;
         NowUtc = nowUtc;
         Today = today;
@@ -37,6 +39,9 @@ public sealed class StopwatchEngineSnapshot
 
     /// <summary>All recorded goal changes.</summary>
     public IReadOnlyList<GoalChange> GoalChanges { get; }
+
+    /// <summary>All recorded goal resets.</summary>
+    public IReadOnlyList<GoalReset> GoalResets { get; }
 
     /// <summary>The time zone that defines local days.</summary>
     public TimeZoneInfo TimeZone { get; }
@@ -145,7 +150,7 @@ public sealed class StopwatchEngineSnapshot
 
             var definition = Find(id);
             IReadOnlyList<GoalCycle> cycles = definition is { GoalPerCycle: true, GoalSinceUtc: { } anchor }
-                ? GoalCycleBuilder.Build(id, anchor, definition.Goal, CycleSessions, GoalChanges, NowUtc, TimeZone)
+                ? GoalCycleBuilder.Build(id, anchor, definition.Goal, CycleSessions, GoalChanges, GoalResets, NowUtc, TimeZone)
                 : [];
             _cycles[id] = cycles;
             return cycles;

@@ -212,4 +212,26 @@ public class CapabilityFilteredStopwatchRepositoryTests
 
         Assert.False(_inner.Get("p")!.IsDeleted);
     }
+
+    [Fact]
+    public void GoalResets_GoalsOff_AreEmptyAndAddIsNoOp()
+    {
+        var repo = Create(goals: false);
+        _inner.GoalResets.Add(new GoalReset("a", Monday));
+
+        Assert.Empty(repo.GetGoalResets());
+        repo.AddGoalReset(new GoalReset("a", Monday.AddHours(1)));
+
+        Assert.Single(_inner.GoalResets);
+    }
+
+    [Fact]
+    public void GoalResets_GoalsOn_PassThrough()
+    {
+        var repo = Create();
+
+        repo.AddGoalReset(new GoalReset("a", Monday));
+
+        Assert.Equal(new GoalReset("a", Monday), Assert.Single(repo.GetGoalResets()));
+    }
 }
