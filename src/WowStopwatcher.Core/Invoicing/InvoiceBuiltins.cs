@@ -3,7 +3,7 @@ using System.Globalization;
 namespace WowStopwatcher.Core.Invoicing;
 
 /// <summary>
-/// The built-in template values. Numbers use the invariant culture ("0.00"); dates use the given culture.
+/// The built-in template values. Numbers use the invariant culture ("0.00"); dates use the given culture and the company's date format (the culture's short date when none).
 /// </summary>
 public static class InvoiceBuiltins
 {
@@ -97,9 +97,9 @@ public static class InvoiceBuiltins
         InvoicePeriod period,
         int? invoiceNumber,
         DateOnly today,
-        CultureInfo culture)
+        CultureInfo culture,
+        string? dateFormat = null)
     {
-        var shortDate = culture.DateTimeFormat.ShortDatePattern;
         return new Dictionary<string, string>(StringComparer.Ordinal)
         {
             [Hours] = Number(InvoiceMath.Hours(totalMinutes)),
@@ -111,25 +111,42 @@ public static class InvoiceBuiltins
             [PeriodName] = period.FirstDay.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
             [PeriodMonthName] = period.FirstDay.ToString("MMMM", CultureInfo.InvariantCulture),
             [PeriodYear] = period.FirstDay.Year.ToString("0000", CultureInfo.InvariantCulture),
-            [PeriodStart] = period.FirstDay.ToString(shortDate, culture),
-            [PeriodEnd] = period.LastDay.ToString(shortDate, culture),
+            [PeriodStart] = FormatDate(period.FirstDay, culture, dateFormat),
+            [PeriodEnd] = FormatDate(period.LastDay, culture, dateFormat),
             [InvoiceNumber] = invoiceNumber?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
-            [Today] = today.ToString(shortDate, culture),
+            [Today] = FormatDate(today, culture, dateFormat),
             [CompanyName] = companyName,
         };
     }
 
     /// <summary>Creates the per-line values for <paramref name="line"/>.</summary>
-    public static Dictionary<string, string> CreateLine(InvoiceLine line, decimal rate, CultureInfo culture) =>
+    public static Dictionary<string, string> CreateLine(InvoiceLine line, decimal rate, CultureInfo culture, string? dateFormat = null) =>
         new(StringComparer.Ordinal)
         {
-            [LineDate] = line.Date.ToString(culture.DateTimeFormat.ShortDatePattern, culture),
+            [LineDate] = FormatDate(line.Date, culture, dateFormat),
             [LineStopwatch] = string.Join(", ", line.Sources.Select(s => s.StopwatchName)),
             [LineTime] = $"{line.Minutes / 60}:{line.Minutes % 60:00}",
             [LineHours] = Number(InvoiceMath.Hours(line.Minutes)),
             [LineAmount] = Number(InvoiceMath.Amount(line.Minutes, rate)),
             [LineNote] = line.Note,
         };
+
+    /// <summary>
+    /// Formats <paramref name="date"/> with the company's custom <paramref name="dateFormat"/>, or the culture's short date when it is empty.
+    /// In a custom format "/" prints as typed (not as the culture's date separator; DateOnly rejects time formats such as ":"); day and month names follow <paramref name="culture"/>.
+    /// Throws <see cref="FormatException"/> for an invalid format.
+    /// </summary>
+    public static string FormatDate(DateOnly date, CultureInfo culture, string? dateFormat)
+    {
+        if (string.IsNullOrWhiteSpace(dateFormat))
+        {
+            return date.ToString(culture.DateTimeFormat.ShortDatePattern, culture);
+        }
+
+        var literal = (CultureInfo)culture.Clone();
+        literal.DateTimeFormat.DateSeparator = "/";
+        return date.ToString(dateFormat, literal);
+    }
 
     private static string Number(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture);
 }

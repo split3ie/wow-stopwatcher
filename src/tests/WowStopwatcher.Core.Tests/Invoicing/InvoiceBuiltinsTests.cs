@@ -41,6 +41,54 @@ public class InvoiceBuiltinsTests
     }
 
     [Fact]
+    public void Create_CustomDateFormat_AppliesToDates()
+    {
+        var v = InvoiceBuiltins.Create(0, 0m, "USD", "", Period, null, new DateOnly(2026, 3, 5), Us, "dd.MM.yyyy");
+
+        Assert.Equal("01.02.2026", v[InvoiceBuiltins.PeriodStart]);
+        Assert.Equal("28.02.2026", v[InvoiceBuiltins.PeriodEnd]);
+        Assert.Equal("05.03.2026", v[InvoiceBuiltins.Today]);
+    }
+
+    [Fact]
+    public void Create_CustomDateFormat_KeepsSlashAsTyped()
+    {
+        var uk = new CultureInfo("uk-UA");
+        var v = InvoiceBuiltins.Create(0, 0m, "USD", "", Period, null, new DateOnly(2026, 3, 5), uk, "dd/MM/yyyy");
+
+        Assert.Equal("01/02/2026", v[InvoiceBuiltins.PeriodStart]);
+        Assert.Equal("05/03/2026", v[InvoiceBuiltins.Today]);
+    }
+
+    [Fact]
+    public void Create_EmptyDateFormat_UsesCultureShortDateWithCultureSeparator()
+    {
+        var v = InvoiceBuiltins.Create(0, 0m, "USD", "", Period, null, new DateOnly(2026, 3, 5), new CultureInfo("uk-UA"), "");
+
+        Assert.Equal("05.03.2026", v[InvoiceBuiltins.Today]);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  ")]
+    public void Create_EmptyDateFormat_UsesCultureShortDate(string? format)
+    {
+        var v = InvoiceBuiltins.Create(0, 0m, "USD", "", Period, null, new DateOnly(2026, 3, 5), Us, format);
+
+        Assert.Equal("3/5/2026", v[InvoiceBuiltins.Today]);
+    }
+
+    [Fact]
+    public void CreateLine_CustomDateFormat_AppliesToLineDate()
+    {
+        var line = new InvoiceLine(new DateOnly(2026, 2, 9), 5, "", []);
+
+        Assert.Equal("09.02.2026", InvoiceBuiltins.CreateLine(line, 1m, Us, "dd.MM.yyyy")[InvoiceBuiltins.LineDate]);
+        Assert.Equal("2/9/2026", InvoiceBuiltins.CreateLine(line, 1m, Us, null)[InvoiceBuiltins.LineDate]);
+    }
+
+    [Fact]
     public void Create_PeriodYear_IsFourInvariantDigits()
     {
         var values = InvoiceBuiltins.Create(0, 0m, "USD", "", new InvoicePeriod(2026, 11), null, new DateOnly(2026, 12, 1), new CultureInfo("uk-UA"));

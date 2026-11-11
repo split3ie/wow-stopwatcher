@@ -18,6 +18,7 @@ namespace WowStopwatcher.Core.Invoicing;
 /// <param name="NextInvoiceNumber">The number the next invoice marked as sent receives (shown on generated files until then).</param>
 /// <param name="DayStartMinutes">Default start of an invoice day, minutes after local midnight (0 to 1439); 0 is plain calendar days.</param>
 /// <param name="IsDeleted">True when the company was deleted.</param>
+/// <param name="DateFormat">A .NET custom date format such as "dd.MM.yyyy" for the date values of the template and file name; null or empty uses the app language's short date.</param>
 public sealed record Company(
     string Id,
     string Name,
@@ -33,7 +34,8 @@ public sealed record Company(
     string? OutputFolder,
     int NextInvoiceNumber,
     bool IsDeleted = false,
-    int DayStartMinutes = 0)
+    int DayStartMinutes = 0,
+    string? DateFormat = null)
 {
     /// <summary>Creates a new unique company id.</summary>
     public static string NewId() => Guid.NewGuid().ToString("N");

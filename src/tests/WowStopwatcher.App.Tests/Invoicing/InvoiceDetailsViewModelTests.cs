@@ -697,9 +697,18 @@ public sealed class InvoiceDetailsViewModelTests : IDisposable
         vm.FlushNotes();
         Assert.Equal(InvoiceTimeText.FormatPadded(90), vm.ReportedInput);
 
-        // Saving the prefilled value is a normal save.
+        // The prefilled value is not a change: saving is a no-op.
+        Assert.False(vm.ReportedChanged);
+        Assert.False(vm.CanSaveReported);
         vm.SaveReportedCommand.Execute(null);
-        Assert.Equal(90, _service.GetSummary(CompanyId, November).ReportedMinutes);
+        Assert.Null(_service.GetSummary(CompanyId, November).ReportedMinutes);
+
+        // A different value can be saved; afterwards there is nothing left to save.
+        vm.ReportedInput = InvoiceTimeText.FormatPadded(120);
+        Assert.True(vm.CanSaveReported);
+        vm.SaveReportedCommand.Execute(null);
+        Assert.Equal(120, _service.GetSummary(CompanyId, November).ReportedMinutes);
+        Assert.False(vm.CanSaveReported);
 
         // After Clear the box shows the total again.
         vm.ClearReportedCommand.Execute(null);

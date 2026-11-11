@@ -625,12 +625,14 @@ public sealed class InvoicingService
                 period.FirstDay.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
                 invoice?.Number,
                 lines,
-                _ => null);
+                _ => null,
+                culture,
+                company.DateFormat);
             placeholders = new Dictionary<string, PlaceholderResult>(
                 PlaceholderResolver.Resolve(definitions, context, _evaluator), StringComparer.Ordinal);
         }
 
-        var values = InvoiceBuiltins.Create(minutes, rate, currency, company.Name, period, number, Today(), culture);
+        var values = InvoiceBuiltins.Create(minutes, rate, currency, company.Name, period, number, Today(), culture, company.DateFormat);
         foreach (var (alias, result) in placeholders)
         {
             if (result.IsOk && !InvoiceBuiltins.IsLineMarker(alias))
@@ -648,7 +650,7 @@ public sealed class InvoicingService
             }
         }
 
-        return new Inputs(lines, minutes, rate, currency, placeholders, values, culture);
+        return new Inputs(lines, minutes, rate, currency, placeholders, values, culture, company.DateFormat);
     }
 
     private List<GenerateBlockReason> Blockers(Company company, Inputs inputs, out string? templatePath)
@@ -684,7 +686,7 @@ public sealed class InvoicingService
     }
 
     private static IReadOnlyList<IReadOnlyDictionary<string, string>> LineValues(Inputs inputs) =>
-        inputs.Lines.Select(l => (IReadOnlyDictionary<string, string>)InvoiceBuiltins.CreateLine(l, inputs.Rate, inputs.Culture)).ToList();
+        inputs.Lines.Select(l => (IReadOnlyDictionary<string, string>)InvoiceBuiltins.CreateLine(l, inputs.Rate, inputs.Culture, inputs.DateFormat)).ToList();
 
     // "today" is left out so a file does not count as changed just because the day passed.
     private static string Hash(Inputs inputs, Company company) =>
@@ -719,5 +721,6 @@ public sealed class InvoicingService
         string Currency,
         IReadOnlyDictionary<string, PlaceholderResult> Placeholders,
         Dictionary<string, string> Values,
-        System.Globalization.CultureInfo Culture);
+        System.Globalization.CultureInfo Culture,
+        string? DateFormat);
 }

@@ -149,6 +149,14 @@
         </StackPanel>
 
         <StackPanel l:FlexWrapPanel.Basis="340" Spacing="6">
+          <TextBlock Classes="fieldLabel" Text="{loc:T invoicing.settings.dateFormat}" />
+          <TextBox Classes="field mono" Width="200" HorizontalAlignment="Left" Text="{Binding DateFormatInput}" AutomationProperties.Name="{loc:T invoicing.settings.dateFormat}" />
+          <TextBlock Classes="hint" TextWrapping="Wrap" Text="{loc:T invoicing.settings.dateFormatHint}" />
+          <TextBlock Classes="hint" Text="{Binding DateFormatExample}" />
+          <TextBlock Classes="error" TextWrapping="Wrap" Text="{loc:T invoicing.settings.dateFormatInvalid}" IsVisible="{Binding HasDateFormatError}" />
+        </StackPanel>
+
+        <StackPanel l:FlexWrapPanel.Basis="340" Spacing="6">
           <TextBlock Classes="fieldLabel" Text="{loc:T invoicing.settings.saveTo}" />
           <CheckBox IsChecked="{Binding AskDestination}" MinHeight="20">
             <TextBlock Classes="fieldLabel" Text="{loc:T invoicing.settings.askEachTime}" />

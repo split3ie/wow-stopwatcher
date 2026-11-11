@@ -56,6 +56,13 @@ public sealed partial class PlaceholdersViewModel : ObservableObject
     [ObservableProperty]
     private bool _amountsHidden;
 
+    /// <summary>Whether the built-in chips show on all lines; collapsed they show one line.</summary>
+    [ObservableProperty]
+    private bool _isBuiltinsExpanded;
+
+    [RelayCommand]
+    private void ToggleBuiltins() => IsBuiltinsExpanded = !IsBuiltinsExpanded;
+
     [ObservableProperty]
     private bool _isBusy;
 
@@ -96,10 +103,11 @@ public sealed partial class PlaceholdersViewModel : ObservableObject
         _saver.Schedule();
     }
 
-    /// <summary>Copies the marker (<c>{{name}}</c>) of a built-in name to the clipboard and shows a note for a moment.</summary>
+    /// <summary>Copies the marker (<c>{{name}}</c>) of a placeholder or built-in name to the clipboard and shows a note for a moment.</summary>
     [RelayCommand]
-    private async Task CopyBuiltinAsync(string? name)
+    private async Task CopyMarkerAsync(string? name)
     {
+        name = name?.Trim();
         if (string.IsNullOrEmpty(name))
         {
             return;

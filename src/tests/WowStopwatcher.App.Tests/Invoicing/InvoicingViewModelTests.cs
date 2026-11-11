@@ -105,7 +105,7 @@ public sealed class InvoicingViewModelTests : IDisposable
         var vm = CreateViewModel();
         await WaitUntilAsync(() => !vm.Placeholders!.IsBusy);
 
-        await vm.Placeholders!.CopyBuiltinCommand.ExecuteAsync("period.month");
+        await vm.Placeholders!.CopyMarkerCommand.ExecuteAsync("period.month");
 
         Assert.Equal(["{{period.month}}"], _clipboard.Texts);
     }

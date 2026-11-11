@@ -99,7 +99,7 @@ public class SqliteDatabaseTests
             var database = new SqliteDatabase(path);
             var after = DateTimeOffset.UtcNow.AddSeconds(2);
 
-            Assert.Equal(12, SqliteDatabase.LatestSchemaVersion);
+            Assert.Equal(13, SqliteDatabase.LatestSchemaVersion);
             Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
             var all = new SqliteStopwatchRepository(database).GetAll(includeDeleted: true);
             Assert.Equal(2, all.Count);
@@ -433,7 +433,7 @@ public class SqliteDatabaseTests
 
             var database = new SqliteDatabase(path);
 
-            Assert.Equal(12, database.GetSchemaVersion());
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
             Assert.NotNull(database.BackupPath);
             using var check = database.OpenConnection();
             using var read = check.CreateCommand();
@@ -468,6 +468,7 @@ public class SqliteDatabaseTests
                 connection.Open();
                 using var command = connection.CreateCommand();
                 command.CommandText = """
+                    CREATE TABLE companies (id TEXT PRIMARY KEY);
                     CREATE TABLE invoice_lines (id INTEGER PRIMARY KEY);
                     INSERT INTO invoice_lines VALUES (1);
                     PRAGMA user_version = 11;
@@ -477,7 +478,7 @@ public class SqliteDatabaseTests
 
             var database = new SqliteDatabase(path);
 
-            Assert.Equal(12, database.GetSchemaVersion());
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
             Assert.NotNull(database.BackupPath);
             using var check = database.OpenConnection();
             using var insert = check.CreateCommand();

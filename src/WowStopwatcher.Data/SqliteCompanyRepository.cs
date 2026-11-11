@@ -7,7 +7,7 @@ namespace WowStopwatcher.Data;
 /// <summary>SQLite implementation of <see cref="ICompanyRepository"/>. Times are unix milliseconds (UTC); the rate is invariant-culture text.</summary>
 public sealed class SqliteCompanyRepository(SqliteDatabase database, TimeProvider? time = null) : ICompanyRepository
 {
-    private const string Columns = "id, name, color, sort_order, rate, currency, template_file, template_name, template_sha256, file_name_pattern, ask_destination, output_folder, next_invoice_number, deleted_utc, day_start_minutes";
+    private const string Columns = "id, name, color, sort_order, rate, currency, template_file, template_name, template_sha256, file_name_pattern, ask_destination, output_folder, next_invoice_number, deleted_utc, day_start_minutes, date_format";
 
     private readonly TimeProvider _time = time ?? TimeProvider.System;
 
@@ -45,8 +45,8 @@ public sealed class SqliteCompanyRepository(SqliteDatabase database, TimeProvide
         using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO companies (id, name, color, sort_order, rate, currency, template_file, template_name, template_sha256,
-                file_name_pattern, ask_destination, output_folder, next_invoice_number, created_utc, deleted_utc, day_start_minutes)
-            VALUES ($id, $name, $color, $order, $rate, $currency, $tfile, $tname, $tsha, $pattern, $ask, $folder, $next, $created, $deleted, $daystart)
+                file_name_pattern, ask_destination, output_folder, next_invoice_number, created_utc, deleted_utc, day_start_minutes, date_format)
+            VALUES ($id, $name, $color, $order, $rate, $currency, $tfile, $tname, $tsha, $pattern, $ask, $folder, $next, $created, $deleted, $daystart, $datefmt)
             """;
         Bind(command, company);
         command.Parameters.AddWithValue("$created", now);
@@ -61,7 +61,7 @@ public sealed class SqliteCompanyRepository(SqliteDatabase database, TimeProvide
         command.CommandText = """
             UPDATE companies SET name = $name, color = $color, sort_order = $order, rate = $rate, currency = $currency,
                 template_file = $tfile, template_name = $tname, template_sha256 = $tsha, file_name_pattern = $pattern,
-                ask_destination = $ask, output_folder = $folder, next_invoice_number = $next, day_start_minutes = $daystart
+                ask_destination = $ask, output_folder = $folder, next_invoice_number = $next, day_start_minutes = $daystart, date_format = $datefmt
             WHERE id = $id
             """;
         Bind(command, company);
@@ -238,6 +238,7 @@ public sealed class SqliteCompanyRepository(SqliteDatabase database, TimeProvide
         command.Parameters.AddWithValue("$folder", (object?)c.OutputFolder ?? DBNull.Value);
         command.Parameters.AddWithValue("$next", c.NextInvoiceNumber);
         command.Parameters.AddWithValue("$daystart", c.DayStartMinutes);
+        command.Parameters.AddWithValue("$datefmt", (object?)c.DateFormat ?? DBNull.Value);
     }
 
     private static Company Read(SqliteDataReader r) => new(
@@ -255,5 +256,6 @@ public sealed class SqliteCompanyRepository(SqliteDatabase database, TimeProvide
         r.IsDBNull(11) ? null : r.GetString(11),
         r.GetInt32(12),
         !r.IsDBNull(13),
-        r.GetInt32(14));
+        r.GetInt32(14),
+        r.IsDBNull(15) ? null : r.GetString(15));
 }

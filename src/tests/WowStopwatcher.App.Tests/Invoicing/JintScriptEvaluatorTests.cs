@@ -49,6 +49,17 @@ public class JintScriptEvaluatorTests
     }
 
     [Fact]
+    public void Format_without_pattern_uses_company_date_format_or_culture_short_date()
+    {
+        var uk = new System.Globalization.CultureInfo("uk-UA");
+        Assert.Equal("10/12/2026", Eval("return format('2026-12-10')", Context() with { Culture = uk, DateFormat = "dd/MM/yyyy" }));
+        Assert.Equal("10.12.2026", Eval("return format('2026-12-10')", Context() with { Culture = uk, DateFormat = null }));
+        Assert.Equal("10 Dec 2026", Eval("return format('2026-12-10', 'dd MMM yyyy')", Context() with { Culture = uk, DateFormat = "dd/MM/yyyy" }));
+        Assert.Equal("abc", Eval("return format('abc')"));
+        Assert.Equal("1.5", Eval("return format(1.5)"));
+    }
+
+    [Fact]
     public void Format_formats_numbers_and_dates_with_invariant_culture()
     {
         Assert.Equal("140.00", Eval("return format(amount, '0.00')"));

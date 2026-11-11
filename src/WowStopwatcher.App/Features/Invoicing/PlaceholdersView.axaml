@@ -14,42 +14,67 @@
     </ResourceDictionary>
   </UserControl.Resources>
 
+  <UserControl.Styles>
+    <Style Selector="c|Icon.chev.open">
+      <Setter Property="RenderTransform" Value="rotate(180deg)" />
+    </Style>
+  </UserControl.Styles>
+
   <StackPanel Spacing="10">
     <StackPanel Spacing="4">
       <TextBlock Classes="h2" Text="{loc:T invoicing.placeholders.title}" />
       <TextBlock Classes="hint" Text="{loc:T invoicing.placeholders.description}" />
     </StackPanel>
 
-    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+    <Grid x:Name="BuiltinsRow"
+          ColumnDefinitions="Auto,*,Auto"
+          ColumnSpacing="6"
+          Background="Transparent"
+          Cursor="Hand"
+          Tapped="OnBuiltinsRowTapped">
       <TextBlock Classes="hint" VerticalAlignment="Top" Text="{loc:T invoicing.placeholders.builtIn}" />
-      <ItemsControl Grid.Column="1" ItemsSource="{Binding BuiltinNames}">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate>
-            <WrapPanel Orientation="Horizontal" />
-          </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="x:String">
-            <Button Classes="builtin"
-                    Command="{Binding $parent[ItemsControl].((vm:PlaceholdersViewModel)DataContext).CopyBuiltinCommand}"
-                    CommandParameter="{Binding}"
-                    ToolTip.Tip="{loc:T invoicing.placeholders.copy}">
-              <TextBlock Text="{Binding}" />
-            </Button>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
+      <Border x:Name="ChipsHost" Grid.Column="1" ClipToBounds="True">
+        <ItemsControl x:Name="Chips" ItemsSource="{Binding BuiltinNames}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <Button Classes="builtin"
+                      Cursor="Arrow"
+                      Command="{Binding $parent[ItemsControl].((vm:PlaceholdersViewModel)DataContext).CopyMarkerCommand}"
+                      CommandParameter="{Binding}"
+                      ToolTip.Tip="{loc:T invoicing.placeholders.copy}">
+                <TextBlock Text="{Binding}" />
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Border>
+      <c:Icon x:Name="BuiltinsChevron"
+              IsVisible="False"
+              Grid.Column="2"
+              Classes="chev"
+              Classes.open="{Binding IsBuiltinsExpanded}"
+              Width="14" Height="14"
+              VerticalAlignment="Top"
+              Margin="0,4,0,0"
+              Data="{StaticResource IconChevronDown}"
+              Stroke="{DynamicResource MutedBrush}"
+              AutomationProperties.Name="{loc:T invoicing.placeholders.builtIn}" />
     </Grid>
     <TextBlock Classes="hint" Text="{Binding CopiedNote}" IsVisible="{Binding HasCopiedNote}" />
 
     <Border Classes="card" Padding="16">
       <StackPanel Spacing="10">
-        <Grid ColumnDefinitions="150,100,*,190,112" ColumnSpacing="10" IsVisible="{Binding HasRows}">
+        <Grid ColumnDefinitions="150,100,*,190,196" ColumnSpacing="10" IsVisible="{Binding HasRows}">
           <TextBlock Classes="th" Text="{loc:T invoicing.placeholders.alias}" />
           <TextBlock Grid.Column="1" Classes="th" Text="{loc:T invoicing.placeholders.source}" />
           <TextBlock Grid.Column="2" Classes="th" Text="{loc:T invoicing.placeholders.value}" />
           <TextBlock Grid.Column="3" Classes="th" Text="{loc:T invoicing.placeholders.result}" />
-          <TextBlock Grid.Column="4" Classes="th" HorizontalAlignment="Right" Text="{loc:T invoicing.placeholders.actions}" />
+          <TextBlock Grid.Column="4" Classes="th" HorizontalAlignment="Right" Margin="0,0,6,0" Text="{loc:T invoicing.placeholders.actions}" />
         </Grid>
 
         <ItemsControl ItemsSource="{Binding Rows}">
@@ -60,7 +85,7 @@
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:PlaceholderRowViewModel">
-              <Grid ColumnDefinitions="150,100,*,190,112" ColumnSpacing="10">
+              <Grid ColumnDefinitions="150,100,*,190,196" ColumnSpacing="10">
                 <StackPanel Spacing="2">
                   <TextBox Classes="field mono"
                            Text="{Binding Alias}"
@@ -82,10 +107,26 @@
                            Text="{Binding Value}"
                            IsVisible="{Binding IsStatic}"
                            AutomationProperties.Name="{loc:T invoicing.placeholders.value}" />
-                  <TextBox Classes="field mono script"
-                           Text="{Binding Value}"
-                           IsVisible="{Binding IsScript}"
-                           AutomationProperties.Name="{loc:T invoicing.placeholders.script}" />
+                  <Panel IsVisible="{Binding IsScript}">
+                    <TextBox Classes="field mono script"
+                             Text="{Binding Value}"
+                             AutomationProperties.Name="{loc:T invoicing.placeholders.script}" />
+                    <Border Width="14" Height="14"
+                            Margin="0,0,3,3"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            Background="Transparent"
+                            Cursor="SizeNorthSouth"
+                            PointerPressed="OnScriptGripPressed"
+                            PointerMoved="OnScriptGripMoved"
+                            PointerReleased="OnScriptGripReleased"
+                            PointerCaptureLost="OnScriptGripCaptureLost">
+                      <Path Data="M 12,3 L 3,12 M 12,7 L 7,12"
+                            Stroke="{DynamicResource MutedBrush}"
+                            StrokeThickness="1.5"
+                            StrokeLineCap="Round" />
+                    </Border>
+                  </Panel>
                   <TextBlock Classes="hint"
                              VerticalAlignment="Center"
                              Text="{loc:T invoicing.placeholders.automaticHint}"
@@ -99,7 +140,14 @@
                            FontSize="13"
                            TextWrapping="Wrap"
                            Text="{Binding ResultText}" />
-                <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right" VerticalAlignment="Top">
+                <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4" Margin="0,0,6,0" HorizontalAlignment="Right" VerticalAlignment="Top">
+                  <Button Classes="iconBtn"
+                          Command="{Binding $parent[ItemsControl].((vm:PlaceholdersViewModel)DataContext).CopyMarkerCommand}"
+                          CommandParameter="{Binding Alias}"
+                          ToolTip.Tip="{loc:T invoicing.placeholders.copyMarker}"
+                          AutomationProperties.Name="{loc:T invoicing.placeholders.copyMarker}">
+                    <c:Icon Width="16" Height="16" Data="{StaticResource InvoicingIconCopy}" Stroke="{Binding $parent[Button].Foreground}" />
+                  </Button>
                   <Button Classes="iconBtn"
                           IsVisible="{Binding IsScript}"
                           Command="{Binding RunCommand}"

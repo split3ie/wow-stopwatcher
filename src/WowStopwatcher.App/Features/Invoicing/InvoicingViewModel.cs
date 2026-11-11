@@ -71,7 +71,7 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
     private bool _amountsHidden;
 
     [ObservableProperty]
-    private bool _isSettingsOpen = true;
+    private bool _isSettingsOpen;
 
     /// <summary>The details view model that replaces the page content; null shows the page.</summary>
     [ObservableProperty]

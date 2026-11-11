@@ -58,7 +58,7 @@ public class InvoicingRepositoryTests
 
             var database = new SqliteDatabase(path);
 
-            Assert.Equal(12, database.GetSchemaVersion());
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
             Assert.NotNull(database.BackupPath);
             Assert.Equal("English", Assert.Single(new SqliteStopwatchRepository(database).GetAll()).Name);
             Assert.NotNull(new SqliteSessionRepository(database).GetLatest());
@@ -471,6 +471,23 @@ public class InvoicingRepositoryTests
     }
 
     [Fact]
+    public void Company_DateFormat_RoundTrips()
+    {
+        var (db, companies, _) = Setup();
+        using (db)
+        {
+            companies.Insert(NewCompany("a"));
+            Assert.Null(companies.Get("a")!.DateFormat);
+
+            companies.Update(companies.Get("a")! with { DateFormat = "dd.MM.yyyy" });
+            Assert.Equal("dd.MM.yyyy", companies.Get("a")!.DateFormat);
+
+            companies.Update(companies.Get("a")! with { DateFormat = null });
+            Assert.Null(companies.Get("a")!.DateFormat);
+        }
+    }
+
+    [Fact]
     public void Company_DayStartMinutes_RoundTrips()
     {
         var (db, companies, _) = Setup();
@@ -514,7 +531,7 @@ public class InvoicingRepositoryTests
 
             var database = new SqliteDatabase(path);
 
-            Assert.Equal(12, database.GetSchemaVersion());
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
             var company = new SqliteCompanyRepository(database).Get("c")!;
             Assert.Equal("ACME", company.Name);
             Assert.Equal(12.5m, company.Rate);

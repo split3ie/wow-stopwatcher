@@ -51,6 +51,9 @@
     <Style Selector="Button.apply:disabled">
       <Setter Property="Opacity" Value="0.45" />
     </Style>
+    <Style Selector="TextBox.pristine:not(:focus-within)">
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+    </Style>
     <Style Selector="Border.lineRow">
       <Setter Property="BorderBrush" Value="{DynamicResource LineSoftBrush}" />
       <Setter Property="BorderThickness" Value="0,1,0,0" />
@@ -138,6 +141,7 @@
         <StackPanel Orientation="Horizontal" Spacing="10">
           <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="{loc:T invoicing.details.reported.label}" />
           <TextBox Classes="field mono" Width="96" TextAlignment="Right"
+                   Classes.pristine="{Binding !ReportedChanged}"
                    IsVisible="{Binding IsEditable}"
                    PlaceholderText="160:00"
                    c:TimeMaskBehavior.Shape="000:00"

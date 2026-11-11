@@ -42,6 +42,7 @@ public sealed partial class CompanySettingsViewModel : ObservableObject
         _currency = company.Currency;
         _nextNumberText = company.NextInvoiceNumber.ToString(CultureInfo.InvariantCulture);
         _dayStartInput = DayStartText.Format(company.DayStartMinutes);
+        _dateFormatInput = company.DateFormat ?? string.Empty;
         List<string> currencies = ["USD", "EUR", "CAD", "CHF", "GBP"];
         if (!string.IsNullOrWhiteSpace(company.Currency) && !currencies.Contains(company.Currency))
             currencies.Add(company.Currency);
@@ -56,6 +57,7 @@ public sealed partial class CompanySettingsViewModel : ObservableObject
         LoadTemplate(company);
         LoadConverter();
         UpdateFileExample();
+        UpdateDateFormatExample();
     }
 
     /// <summary>
@@ -76,6 +78,17 @@ public sealed partial class CompanySettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _hasDayStartError;
+
+    /// <summary>A .NET custom date format for the invoice dates; empty uses the app language's short date.</summary>
+    [ObservableProperty]
+    private string _dateFormatInput;
+
+    [ObservableProperty]
+    private bool _hasDateFormatError;
+
+    /// <summary>Today's date in the typed format, or an empty text when the format is invalid.</summary>
+    [ObservableProperty]
+    private string _dateFormatExample = string.Empty;
 
     public ObservableCollection<InvoicingSwatchViewModel> Swatches { get; } = [];
 
@@ -227,8 +240,21 @@ public sealed partial class CompanySettingsViewModel : ObservableObject
             HasDayStartError = true;
         }
 
+        var dateFormat = existing.DateFormat;
+        HasDateFormatError = false;
+        var typedFormat = DateFormatInput.Trim();
+        if (TryFormatDate(typedFormat, out _))
+        {
+            dateFormat = typedFormat.Length == 0 ? null : typedFormat;
+        }
+        else
+        {
+            HasDateFormatError = true;
+        }
+
         _d.Companies.Update(existing with
         {
+            DateFormat = dateFormat,
             DayStartMinutes = dayStart,
             NextInvoiceNumber = nextNumber,
             Name = string.IsNullOrWhiteSpace(Name) ? existing.Name : Name.Trim(),
@@ -246,6 +272,12 @@ public sealed partial class CompanySettingsViewModel : ObservableObject
     partial void OnNameChanged(string value) => Edited();
 
     partial void OnDayStartInputChanged(string value) => Edited();
+
+    partial void OnDateFormatInputChanged(string value)
+    {
+        UpdateDateFormatExample();
+        Edited();
+    }
 
     partial void OnRateTextChanged(string value) => Edited();
 
@@ -427,6 +459,33 @@ public sealed partial class CompanySettingsViewModel : ObservableObject
         catch (InvalidOperationException)
         {
             FileExample = string.Empty;
+        }
+    }
+
+    private void UpdateDateFormatExample()
+    {
+        if (TryFormatDate(DateFormatInput.Trim(), out var text))
+        {
+            DateFormatExample = Loc.T("invoicing.settings.dateFormatExample", ("date", text));
+        }
+        else
+        {
+            DateFormatExample = string.Empty;
+        }
+    }
+
+    private bool TryFormatDate(string format, out string text)
+    {
+        var today = LocalDays.ToLocalDate(_d.Time.GetUtcNow(), _d.Time.LocalTimeZone);
+        try
+        {
+            text = InvoiceBuiltins.FormatDate(today, Loc.Culture, format);
+            return true;
+        }
+        catch (FormatException)
+        {
+            text = string.Empty;
+            return false;
         }
     }
 

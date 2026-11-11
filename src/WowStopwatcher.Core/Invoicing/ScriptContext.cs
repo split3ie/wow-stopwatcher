@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace WowStopwatcher.Core.Invoicing;
 
 /// <summary>
@@ -15,6 +17,8 @@ namespace WowStopwatcher.Core.Invoicing;
 /// <param name="InvoiceNumber">Invoice number; null when not assigned yet.</param>
 /// <param name="Lines">The invoice lines.</param>
 /// <param name="Placeholder">Resolves another placeholder by alias; null when unknown or failed.</param>
+/// <param name="Culture">Culture of the app language; null means invariant.</param>
+/// <param name="DateFormat">The company's date format; null or empty uses the culture's short date.</param>
 public sealed record ScriptContext(
     decimal Hours,
     int Minutes,
@@ -27,4 +31,6 @@ public sealed record ScriptContext(
     string PeriodName,
     int? InvoiceNumber,
     IReadOnlyList<InvoiceLine> Lines,
-    Func<string, string?> Placeholder);
+    Func<string, string?> Placeholder,
+    CultureInfo? Culture = null,
+    string? DateFormat = null);

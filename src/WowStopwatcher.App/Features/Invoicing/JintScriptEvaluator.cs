@@ -100,23 +100,25 @@ public sealed class JintScriptEvaluator : IScriptEvaluator
         }
 
         engine.SetValue("ph", new Func<string, string?>(alias => context.Placeholder(alias)));
-        engine.SetValue("format", new Func<JsValue, string, string>(Format));
+        engine.SetValue("format", new Func<JsValue, string?, string>((value, pattern) => Format(value, pattern, context)));
     }
 
-    private static string Format(JsValue value, string pattern)
+    private static string Format(JsValue value, string? pattern, ScriptContext context)
     {
         var inv = CultureInfo.InvariantCulture;
         try
         {
             if (value.IsNumber())
             {
-                return value.AsNumber().ToString(pattern, inv);
+                return pattern is null ? value.AsNumber().ToString(inv) : value.AsNumber().ToString(pattern, inv);
             }
 
             var text = value.IsNull() || value.IsUndefined() ? string.Empty : value.ToString();
             if (DateTime.TryParse(text, inv, DateTimeStyles.None, out var date))
             {
-                return date.ToString(pattern, inv);
+                return pattern is null
+                    ? InvoiceBuiltins.FormatDate(DateOnly.FromDateTime(date), context.Culture ?? inv, context.DateFormat)
+                    : date.ToString(pattern, inv);
             }
 
             return text;

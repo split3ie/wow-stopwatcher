@@ -70,6 +70,8 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
         {
             ReportedInput = InvoiceTimeText.FormatPadded(reported);
         }
+
+        NotifyReportedChanged();
     }
 
     public string Title { get; }
@@ -128,7 +130,7 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
     private string _selectionText = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ReportedInvalid), nameof(CanSaveReported), nameof(ReportedHint))]
+    [NotifyPropertyChangedFor(nameof(ReportedInvalid), nameof(CanSaveReported), nameof(ReportedHint), nameof(ReportedChanged))]
     private string _reportedInput = string.Empty;
 
     [ObservableProperty]
@@ -146,7 +148,21 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
     /// <summary>True when the typed text is not empty and not a valid reported time.</summary>
     public bool ReportedInvalid => ReportedInput.Trim().Length > 0 && !TryParseReported(out _);
 
-    public bool CanSaveReported => IsEditable && ReportedInput.Trim().Length > 0 && !ReportedInvalid;
+    /// <summary>The value the input starts from: the saved reported time, or the invoiced time when nothing is saved.</summary>
+    private string ReportedCommitted => _summary.ReportedMinutes is { } reported
+        ? InvoiceTimeText.FormatPadded(reported)
+        : _reportedDefault;
+
+    /// <summary>True when the input differs from the committed value.</summary>
+    public bool ReportedChanged => ReportedInput != ReportedCommitted;
+
+    public bool CanSaveReported => IsEditable && ReportedChanged && ReportedInput.Trim().Length > 0 && !ReportedInvalid;
+
+    private void NotifyReportedChanged()
+    {
+        OnPropertyChanged(nameof(ReportedChanged));
+        OnPropertyChanged(nameof(CanSaveReported));
+    }
 
     public string ReportedHint => ReportedInvalid
         ? Loc.T("invoicing.details.reported.invalid")
@@ -177,6 +193,7 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
             ErrorText = string.Empty;
             Reload(rebuild: false);
             ReportedInput = minutes is { } value ? InvoiceTimeText.FormatPadded(value) : _reportedDefault;
+            NotifyReportedChanged();
             return;
         }
 
@@ -684,6 +701,7 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
             }
 
             HasReported = _summary.ReportedMinutes is not null;
+            NotifyReportedChanged();
             ReportedDifferenceText = _summary.ReportedMinutes is { } reportedMinutes
                 ? InvoicingFormat.ReportedDifference(reportedMinutes, _trackedMinutes)
                 : string.Empty;

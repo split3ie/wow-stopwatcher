@@ -12,7 +12,7 @@ namespace WowStopwatcher.Data;
 public sealed class SqliteDatabase
 {
     /// <summary>Current schema version.</summary>
-    public const int LatestSchemaVersion = 12;
+    public const int LatestSchemaVersion = 13;
 
     private readonly string _connectionString;
 
@@ -414,6 +414,16 @@ public sealed class SqliteDatabase
                     PRIMARY KEY (line_id, sort_order));
                 """, transaction);
             Execute(connection, "PRAGMA user_version = 12;", transaction);
+            transaction.Commit();
+            version = 12;
+        }
+
+        if (version < 13)
+        {
+            // Date format for the date values of a company's invoices (null: the app language's short date).
+            using var transaction = connection.BeginTransaction();
+            Execute(connection, "ALTER TABLE companies ADD COLUMN date_format TEXT NULL;", transaction);
+            Execute(connection, "PRAGMA user_version = 13;", transaction);
             transaction.Commit();
         }
     }
