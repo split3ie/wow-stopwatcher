@@ -22,6 +22,7 @@ public sealed class InvoicingModule : IFeatureModule
         services.AddSingleton<InvoicePdfBuilder>();
         services.AddSingleton<IInvoicingSettings, InvoicingSettings>();
         services.AddSingleton<InvoicingService>();
+        services.AddSingleton<IExchangeRateService, ExchangeRateService>();
         services.AddSingleton<IInvoiceFileLauncher, SystemInvoiceFileLauncher>();
         services.AddSingleton<InvoicingNavigationRequest>();
         services.AddSingleton<IInvoiceDetailsViewModelFactory, InvoiceDetailsViewModelFactory>();

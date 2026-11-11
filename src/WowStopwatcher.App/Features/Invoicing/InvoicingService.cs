@@ -135,6 +135,23 @@ public sealed class InvoicingService
             frozen?.Currency ?? company.Currency);
     }
 
+    /// <summary>Income of the current month per company (not deleted), in each company's currency; companies with nothing to bill are left out.</summary>
+    public IReadOnlyList<CompanyMonthIncome> GetMonthIncome()
+    {
+        var period = InvoicePeriod.From(Today());
+        var result = new List<CompanyMonthIncome>();
+        foreach (var company in _companies.GetAll(includeDeleted: false))
+        {
+            var summary = GetSummary(company.Id, period);
+            if (summary.Amount != 0)
+            {
+                result.Add(new CompanyMonthIncome(company.Name, company.Color, summary.Amount, summary.Currency));
+            }
+        }
+
+        return result;
+    }
+
     /// <summary>
     /// The default sample hours of the preview: the current month's invoiced time (reported when set, otherwise billed; frozen when sent)
     /// in hours, rounded to 2 decimals, or 1 when that is 0.

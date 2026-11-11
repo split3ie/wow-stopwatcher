@@ -617,5 +617,11 @@
   "invoicing.details.reported.save": "Зберегти",
   "invoicing.details.reported.clear": "Очистити",
   "invoicing.details.reported.hint": "Звітний час замінює суму рядків із нотатками в підсумку рахунку. Нотатки й далі заповнюють рядки нижче. Формат г:хх, наприклад 160:00.",
-  "invoicing.details.reported.invalid": "Введіть години як г:хх, наприклад 160:00 (щонайменше 0:01)."
+  "invoicing.details.reported.invalid": "Введіть години як г:хх, наприклад 160:00 (щонайменше 0:01).",
+  "invoicing.income.title": "Цього місяця",
+  "invoicing.income.total": "≈ {amount}",
+  "invoicing.income.empty": "Цього місяця ще немає доходу",
+  "invoicing.income.rates": "Курси від ExchangeRate-API, оновлено {time}",
+  "invoicing.income.unavailable": "Курси валют недоступні",
+  "invoicing.income.noRate": "Немає курсу для {currencies}; не враховано в сумі."
 }

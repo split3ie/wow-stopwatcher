@@ -595,5 +595,11 @@
   "invoicing.details.reported.save": "Save",
   "invoicing.details.reported.clear": "Clear",
   "invoicing.details.reported.hint": "Reported time replaces the noted lines in the invoice total. Notes still fill the lines below. Format h:mm, for example 160:00.",
-  "invoicing.details.reported.invalid": "Enter hours as h:mm, for example 160:00 (at least 0:01)."
+  "invoicing.details.reported.invalid": "Enter hours as h:mm, for example 160:00 (at least 0:01).",
+  "invoicing.income.title": "This month",
+  "invoicing.income.total": "≈ {amount}",
+  "invoicing.income.empty": "No income yet this month",
+  "invoicing.income.rates": "Rates by ExchangeRate-API, updated {time}",
+  "invoicing.income.unavailable": "Exchange rates unavailable",
+  "invoicing.income.noRate": "No exchange rate for {currencies}; not included in the total."
 }
