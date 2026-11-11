@@ -5,7 +5,10 @@ using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using WowStopwatcher.App.Composition;
 using WowStopwatcher.App.Shell;
+using WowStopwatcher.App.ViewModels;
+using WowStopwatcher.App.Views;
 using WowStopwatcher.Core;
+using WowStopwatcher.Data;
 
 namespace WowStopwatcher.App;
 
@@ -19,6 +22,27 @@ public partial class App : Application
         {
             // Composition root: the only place that builds and uses the service provider directly.
             var provider = AppComposition.Build(desktop);
+
+            // The database is inspected read-only first. If it cannot be used safely, show an error and touch nothing:
+            // no services start and no exit handler (which would write) is registered.
+            SqliteDatabase database;
+            try
+            {
+                database = provider.GetRequiredService<SqliteDatabase>();
+            }
+            catch (DatabaseOpenException ex)
+            {
+                StartupLanguage.Apply((string?)null);
+                var errorWindow = new DatabaseErrorWindow(new DatabaseErrorViewModel(ex));
+                desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
+                desktop.MainWindow = errorWindow;
+                errorWindow.Show();
+                base.OnFrameworkInitializationCompleted();
+                return;
+            }
+
+            new DatabaseBackupCleaner(database.Path, provider.GetRequiredService<TimeProvider>())
+                .DeleteOlderThan(DatabaseBackupCleaner.DefaultMaxAge);
 
             // The language must be set before any window or view model is created.
             StartupLanguage.Apply(provider.GetRequiredService<ISettingsRepository>());
