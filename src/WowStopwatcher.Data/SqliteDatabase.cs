@@ -381,6 +381,7 @@ public sealed class SqliteDatabase
         if (version < 10)
         {
             // Invoice day start: a default per company and a start for single dates (a start also ends the previous day).
+            // invoice_day_starts is not read or written yet: only the company default is used.
             using var transaction = connection.BeginTransaction();
             Execute(connection, """
                 ALTER TABLE companies ADD COLUMN day_start_minutes INTEGER NOT NULL DEFAULT 0;

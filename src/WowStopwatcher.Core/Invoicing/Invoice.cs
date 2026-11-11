@@ -7,7 +7,7 @@ namespace WowStopwatcher.Core.Invoicing;
 /// <param name="CompanyId">Billed company.</param>
 /// <param name="Period">Calendar month.</param>
 /// <param name="Status">Pending or sent.</param>
-/// <param name="Number">Invoice number, assigned on the first generation and kept afterwards.</param>
+/// <param name="Number">Invoice number, assigned when the invoice is marked as sent and kept afterwards, also after it is marked pending again.</param>
 /// <param name="FilePath">Path of the last generated PDF.</param>
 /// <param name="GeneratedUtc">When the PDF was last generated.</param>
 /// <param name="GeneratedInputHash">See <see cref="InvoiceInputHash"/>; taken at the last generation.</param>
