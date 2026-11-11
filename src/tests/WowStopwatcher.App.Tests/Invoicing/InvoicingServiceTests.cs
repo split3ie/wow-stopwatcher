@@ -506,6 +506,18 @@ public sealed class InvoicingServiceTests : IDisposable
     }
 
     [Fact]
+    public void Sample_placeholders_show_the_next_invoice_number()
+    {
+        _companies.Update(_companies.Get(CompanyId)! with { NextInvoiceNumber = 7 });
+        _companies.Placeholders[CompanyId] = [new PlaceholderDefinition(1, CompanyId, InvoiceBuiltins.InvoiceNumber, PlaceholderKind.Automatic, string.Empty, false, 0)];
+
+        var result = _service.ResolvePlaceholdersForSample(CompanyId, 1m)[InvoiceBuiltins.InvoiceNumber];
+
+        Assert.True(result.IsOk);
+        Assert.Equal("7", result.Value);
+    }
+
+    [Fact]
     public void Hide_amounts_is_on_by_default_and_notifies_when_changed()
     {
         var settings = new InvoicingSettings(new FakeSettingsRepository());

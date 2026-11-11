@@ -592,7 +592,7 @@ public sealed class InvoicingService
         var minutes = Math.Max(1, (int)Math.Round(sampleHours * 60m, MidpointRounding.AwayFromZero));
         var line = new InvoiceLine(today, minutes, "Sample", [new InvoiceLineSource("sample", "Sample")]);
         var day = new InvoiceDay(today, false, [line], minutes, false);
-        return BuildInputs(company, period, null, [day], null);
+        return BuildInputs(company, period, null, [day], company.NextInvoiceNumber);
     }
 
     private Inputs BuildInputs(Company company, InvoicePeriod period, Invoice? invoice, IReadOnlyList<InvoiceDay> days, int? number)
