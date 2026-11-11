@@ -108,9 +108,9 @@
                            IsVisible="{Binding IsStatic}"
                            AutomationProperties.Name="{loc:T invoicing.placeholders.value}" />
                   <Panel IsVisible="{Binding IsScript}">
-                    <TextBox Classes="field mono script"
-                             Text="{Binding Value}"
-                             AutomationProperties.Name="{loc:T invoicing.placeholders.script}" />
+                    <vm:ScriptEditor Classes="script"
+                                     Value="{Binding Value}"
+                                     AutomationProperties.Name="{loc:T invoicing.placeholders.script}" />
                     <Border Width="14" Height="14"
                             Margin="0,0,3,3"
                             HorizontalAlignment="Right"

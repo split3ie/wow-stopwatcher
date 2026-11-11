@@ -170,6 +170,29 @@ public class StopwatchRepositoryTests
         Assert.Empty(db.Stopwatches.GetGoalChanges());
     }
 
+    [Fact]
+    public void GoalResets_RoundTripInTimeOrder()
+    {
+        using var db = new TempDatabase();
+        db.AddStopwatch("a");
+        db.AddStopwatch("b", 1);
+        var later = new DateTimeOffset(2026, 3, 11, 9, 0, 0, TimeSpan.Zero);
+        var earlier = new DateTimeOffset(2026, 3, 10, 9, 0, 0, TimeSpan.Zero);
+
+        db.Stopwatches.AddGoalReset(new GoalReset("a", later));
+        db.Stopwatches.AddGoalReset(new GoalReset("b", earlier));
+
+        Assert.Equal([new GoalReset("b", earlier), new GoalReset("a", later)], db.Stopwatches.GetGoalResets());
+    }
+
+    [Fact]
+    public void AddGoalReset_UnknownStopwatch_Throws()
+    {
+        using var db = new TempDatabase();
+
+        Assert.ThrowsAny<Exception>(() => db.Stopwatches.AddGoalReset(new GoalReset("missing", DateTimeOffset.UtcNow)));
+    }
+
     private static SqliteStopwatchRepository InLanguage(TempDatabase db, string language) =>
         new(db.Database, null, () => language);
 

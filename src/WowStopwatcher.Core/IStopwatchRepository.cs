@@ -18,6 +18,12 @@ public interface IStopwatchRepository
     /// <summary>All recorded goal changes, ordered by time.</summary>
     IReadOnlyList<GoalChange> GetGoalChanges();
 
+    /// <summary>All recorded goal resets, ordered by time.</summary>
+    IReadOnlyList<GoalReset> GetGoalResets();
+
+    /// <summary>Records a goal reset.</summary>
+    void AddGoalReset(GoalReset reset);
+
     /// <summary>Marks the stopwatch as deleted; its sessions are kept.</summary>
     void SoftDelete(string id);
 

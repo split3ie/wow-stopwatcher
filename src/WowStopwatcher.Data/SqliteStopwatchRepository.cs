@@ -156,6 +156,31 @@ public sealed class SqliteStopwatchRepository(SqliteDatabase database, TimeProvi
         return list;
     }
 
+    public IReadOnlyList<GoalReset> GetGoalResets()
+    {
+        using var connection = database.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT stopwatch_id, reset_utc FROM goal_resets ORDER BY reset_utc, id";
+        var list = new List<GoalReset>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            list.Add(new GoalReset(reader.GetString(0), DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(1))));
+        }
+
+        return list;
+    }
+
+    public void AddGoalReset(GoalReset reset)
+    {
+        using var connection = database.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "INSERT INTO goal_resets (stopwatch_id, reset_utc) VALUES ($id, $reset)";
+        command.Parameters.AddWithValue("$id", reset.StopwatchId);
+        command.Parameters.AddWithValue("$reset", reset.ResetUtc.ToUnixTimeMilliseconds());
+        command.ExecuteNonQuery();
+    }
+
     private void RecordGoalChange(SqliteConnection connection, SqliteTransaction transaction, StopwatchDefinition stopwatch)
     {
         long? previous;

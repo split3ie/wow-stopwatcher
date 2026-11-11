@@ -12,7 +12,7 @@ namespace WowStopwatcher.Data;
 public sealed class SqliteDatabase
 {
     /// <summary>Current schema version.</summary>
-    public const int LatestSchemaVersion = 13;
+    public const int LatestSchemaVersion = 14;
 
     private readonly string _connectionString;
 
@@ -425,6 +425,22 @@ public sealed class SqliteDatabase
             using var transaction = connection.BeginTransaction();
             Execute(connection, "ALTER TABLE companies ADD COLUMN date_format TEXT NULL;", transaction);
             Execute(connection, "PRAGMA user_version = 13;", transaction);
+            transaction.Commit();
+            version = 13;
+        }
+
+        if (version < 14)
+        {
+            // Manual resets of per-cycle goals: each cancels the open cycle and starts a new one.
+            using var transaction = connection.BeginTransaction();
+            Execute(connection, """
+                CREATE TABLE goal_resets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    stopwatch_id TEXT NOT NULL REFERENCES stopwatches(id),
+                    reset_utc INTEGER NOT NULL);
+                """, transaction);
+            Execute(connection, "CREATE INDEX idx_goal_resets_stopwatch ON goal_resets (stopwatch_id);", transaction);
+            Execute(connection, "PRAGMA user_version = 14;", transaction);
             transaction.Commit();
         }
     }

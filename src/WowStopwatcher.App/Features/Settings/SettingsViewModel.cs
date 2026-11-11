@@ -236,6 +236,16 @@ public sealed partial class SettingsViewModel : ObservableObject, INavigationAwa
             });
     }
 
+    internal void ConfirmStartNewCycle(SettingsStopwatchViewModel item)
+    {
+        var title = string.IsNullOrWhiteSpace(item.Name) ? Loc.T("settings.newCycle.titleUnnamed") : Loc.T("settings.newCycle.title", ("name", item.Name));
+        _dialog.Show(
+            title,
+            Loc.T("settings.newCycle.body"),
+            Loc.T("settings.newCycle.confirm"),
+            () => _maintenance.StartNewGoalCycle(item.Id));
+    }
+
     private void SaveOrder()
     {
         // Deleted stopwatches keep a slot after the visible ones so sort orders stay unique.

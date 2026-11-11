@@ -261,4 +261,67 @@ public class GoalCycleEngineTests
         var pin = Assert.Single(timeline.Pins);
         Assert.Equal("During its 1st session (running now) · 1h into today's log", pin.SubText);
     }
+
+    [Fact]
+    public void StartNewGoalCycle_ReturnsFalse_WhenNotPerCycleOrUnknown()
+    {
+        _defs.Add(new StopwatchDefinition("a", "A", "#111111", TimeSpan.FromHours(1), null, 0));
+        _defs.Add(new StopwatchDefinition("b", "B", "#222222", null, null, 1));
+        _defs.Add(new StopwatchDefinition("c", "C", "#333333", TimeSpan.FromHours(1), null, 2, IsDeleted: true, GoalPerCycle: true));
+        var engine = Create();
+
+        Assert.False(engine.StartNewGoalCycle("a"));
+        Assert.False(engine.StartNewGoalCycle("b"));
+        Assert.False(engine.StartNewGoalCycle("c"));
+        Assert.False(engine.StartNewGoalCycle("missing"));
+        Assert.Empty(_defs.GoalResets);
+    }
+
+    [Fact]
+    public void StartNewGoalCycle_PerCycle_CancelsOpenCycleAndZeroesProgress()
+    {
+        AddPerCycle(TimeSpan.FromHours(8), At(9, 0));
+        _time.SetUtcNow(At(9, 10));
+        var engine = Create();
+        engine.Start("a");
+        Advance(engine, TimeSpan.FromHours(2));
+        Assert.Equal(TimeSpan.FromHours(2), engine.GetSnapshot().GetGoalStatus("a")!.Progress);
+        var raised = 0;
+        engine.Changed += (_, _) => raised++;
+
+        Assert.True(engine.StartNewGoalCycle("a"));
+
+        Assert.Equal(1, raised);
+        Assert.Equal(new GoalReset("a", At(9, 12)), Assert.Single(_defs.GoalResets));
+        var snapshot = engine.GetSnapshot();
+        var status = snapshot.GetGoalStatus("a")!;
+        Assert.Equal(TimeSpan.Zero, status.Progress);
+        Assert.False(status.IsReached);
+        var cycles = snapshot.GetGoalCycles("a");
+        Assert.Equal(2, cycles.Count);
+        Assert.True(cycles[0].IsCancelled);
+        Assert.Equal(TimeSpan.FromHours(2), cycles[0].Progress);
+
+        Advance(engine, TimeSpan.FromHours(1));
+        Assert.Equal(TimeSpan.FromHours(1), engine.GetSnapshot().GetGoalStatus("a")!.Progress);
+    }
+
+    [Fact]
+    public void Tracker_AfterReset_NoFalseNotification_ThenNotifiesWhenNewCycleReached()
+    {
+        AddPerCycle(TimeSpan.FromHours(1), At(9, 0));
+        _time.SetUtcNow(At(9, 10));
+        var engine = Create();
+        var tracker = new GoalTracker();
+        tracker.Check(engine.GetSnapshot());
+        engine.Start("a");
+        Advance(engine, TimeSpan.FromMinutes(30));
+        Assert.Empty(tracker.Check(engine.GetSnapshot()));
+
+        engine.StartNewGoalCycle("a");
+        Assert.Empty(tracker.Check(engine.GetSnapshot()));
+
+        Advance(engine, TimeSpan.FromMinutes(70));
+        Assert.Single(tracker.Check(engine.GetSnapshot()));
+    }
 }

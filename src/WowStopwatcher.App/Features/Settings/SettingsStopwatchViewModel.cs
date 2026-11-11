@@ -367,6 +367,9 @@ public sealed partial class SettingsStopwatchViewModel : ObservableObject
     [RelayCommand]
     private void Delete() => _owner.ConfirmDelete(this);
 
+    [RelayCommand]
+    private void StartNewCycle() => _owner.ConfirmStartNewCycle(this);
+
     private static IBrush ParseBrush(string hex) =>
         Avalonia.Media.Color.TryParse(hex, out var color) ? new SolidColorBrush(color) : Brushes.Gray;
 }

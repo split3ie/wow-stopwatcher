@@ -59,6 +59,8 @@
             </TextBlock.Styles>
           </TextBlock>
         </StackPanel>
+        <TextBlock Classes="muted" FontSize="13" TextWrapping="Wrap"
+                   IsVisible="{Binding HasDayRange}" Text="{Binding DayRangeText}" />
       </StackPanel>
       <Button Grid.Column="1"
               Classes="secondary"

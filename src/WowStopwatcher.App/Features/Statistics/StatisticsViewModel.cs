@@ -190,7 +190,7 @@ public sealed partial class StatisticsViewModel : ObservableObject
             sessions = _sessions.GetInRange(from, to);
         }
 
-        var result = DailyStatisticsBuilder.Build(sessions, definitions, _time.GetUtcNow(), zone, _stopwatches.GetGoalChanges());
+        var result = DailyStatisticsBuilder.Build(sessions, definitions, _time.GetUtcNow(), zone, _stopwatches.GetGoalChanges(), _stopwatches.GetGoalResets());
         var today = _state.GetSnapshot().Today;
         var names = definitions.ToDictionary(d => d.Id, d => d.Name);
 

@@ -47,8 +47,24 @@ public sealed partial class InvoiceTimeViewModel : ObservableObject
         Title = Loc.T("invoiceTime.title", ("name", stopwatch.Name), ("day", date.ToString(Loc.T("stats.format.dayWithYear"), Loc.Culture)));
         Subtitle = Loc.T("invoiceTime.subtitle", ("company", companyName), ("month", _period.FirstDay.ToString("MMMM yyyy", Loc.Culture)));
         Brush = Avalonia.Media.Brush.Parse(stopwatch.Color);
+        var range = service.GetDayRanges(companyId, _period).FirstOrDefault(r => r.Date == date);
+        if (range is { IsCalendarDay: false })
+        {
+            const string dayFormat = "d MMM";
+            DayRangeText = Loc.T(
+                "invoiceTime.dayRange",
+                ("from", date.ToString(dayFormat, Loc.Culture) + " " + DayStartText.Format(range.StartMinutes)),
+                ("to", date.AddDays(1).ToString(dayFormat, Loc.Culture) + " " + DayStartText.Format(range.EndMinutes)),
+                ("time", DayStartText.Format(range.StartMinutes)));
+        }
+
         Reload();
     }
+
+    /// <summary>Explains an invoice day that is not a calendar day; empty otherwise.</summary>
+    public string DayRangeText { get; } = string.Empty;
+
+    public bool HasDayRange => DayRangeText.Length > 0;
 
     public string Title { get; }
 

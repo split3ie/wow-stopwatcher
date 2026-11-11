@@ -12,7 +12,7 @@ public partial class PlaceholdersView : UserControl
 
     private PlaceholdersViewModel? _viewModel;
     private bool _canExpand;
-    private TextBox? _resizingScript;
+    private ScriptEditor? _resizingScript;
     private double _resizeStartY;
     private double _resizeStartHeight;
     private Panel? _resizingPanel;
@@ -64,7 +64,7 @@ public partial class PlaceholdersView : UserControl
 
     private void OnScriptGripPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (sender is not Control { Parent: Panel { Children: [TextBox script, ..] } panel } grip ||
+        if (sender is not Control { Parent: Panel { Children: [ScriptEditor script, ..] } panel } grip ||
             !e.GetCurrentPoint(grip).Properties.IsLeftButtonPressed)
         {
             return;

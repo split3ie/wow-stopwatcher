@@ -19,6 +19,7 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
     private IReadOnlyList<Session> _todaySessions = [];
     private IReadOnlyList<Session> _cycleSessions = [];
     private IReadOnlyList<GoalChange> _goalChanges = [];
+    private IReadOnlyList<GoalReset> _goalResets = [];
     private DateOnly _today;
     private string? _lastUsedId;
 
@@ -168,6 +169,7 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
         _definitions = _stopwatches.GetAll(includeDeleted: true);
         UpdateGoalAnchors(now);
         _goalChanges = _stopwatches.GetGoalChanges();
+        _goalResets = _stopwatches.GetGoalResets();
         var open = _open.AllOpen().ToList();
         _open.Clear();
 
@@ -237,6 +239,30 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
         return restored;
     }
 
+    /// <summary>
+    /// Ends the open goal cycle of a per-cycle stopwatch as cancelled and starts a new one now.
+    /// Returns false when the stopwatch is unknown, deleted, or has no per-cycle goal with an anchor.
+    /// </summary>
+    public bool StartNewGoalCycle(string id)
+    {
+        var started = false;
+        Mutate(now =>
+        {
+            var target = _definitions.FirstOrDefault(d => d.Id == id);
+            if (target is not { IsDeleted: false, HasGoal: true, GoalPerCycle: true, GoalSinceUtc: not null })
+            {
+                return false;
+            }
+
+            _stopwatches.AddGoalReset(new GoalReset(id, now));
+            _goalResets = _stopwatches.GetGoalResets();
+            started = true;
+            return true;
+        });
+
+        return started;
+    }
+
     // Hides temporary stopwatches unused for a full local day. Returns true when any were hidden.
     private bool ApplyExpiry()
     {
@@ -294,6 +320,7 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
             ApplyExpiry();
             UpdateGoalAnchors(now);
             _goalChanges = _stopwatches.GetGoalChanges();
+            _goalResets = _stopwatches.GetGoalResets();
             RefreshToday();
         }
     }
@@ -541,12 +568,12 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
             var sessions = _sessions.GetInRange(from, to);
             return new StopwatchEngineSnapshot(
                 now, today, _definitions, sessions, _open.AllOpen().OrderBy(o => o.StartUtc).ToArray(), _lastUsedId,
-                _cycleSessions, _goalChanges, _time.LocalTimeZone);
+                _cycleSessions, _goalChanges, _time.LocalTimeZone, _goalResets);
         }
 
         return new StopwatchEngineSnapshot(
             now, _today, _definitions, _todaySessions, _open.AllOpen().OrderBy(o => o.StartUtc).ToArray(), _lastUsedId,
-            _cycleSessions, _goalChanges, _time.LocalTimeZone);
+            _cycleSessions, _goalChanges, _time.LocalTimeZone, _goalResets);
     }
 
     // Millisecond precision, matching what the database stores.
