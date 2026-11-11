@@ -38,7 +38,8 @@ public sealed class InvoiceTemplateStore
     /// <summary>The full path of a stored template; the file may be missing.</summary>
     public string Resolve(string fileName)
     {
-        if (fileName != Path.GetFileName(fileName))
+        // Both separators on every system: on Linux "..\x.docx" is a valid file name, but not a template name.
+        if (fileName != Path.GetFileName(fileName) || fileName.IndexOfAny(['/', '\\']) >= 0)
         {
             throw new ArgumentException("A template is a file name without folders.", nameof(fileName));
         }
