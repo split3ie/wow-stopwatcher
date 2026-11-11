@@ -14,4 +14,10 @@ public enum DatabaseProblem
 
     /// <summary>A backup required before updating the schema could not be made.</summary>
     BackupFailed,
+
+    /// <summary><c>location.json</c> exists but cannot be read, so the database location is unknown.</summary>
+    LocationDamaged,
+
+    /// <summary>The configured database folder does not exist (unplugged drive, sync not finished). No database is created.</summary>
+    FolderMissing,
 }

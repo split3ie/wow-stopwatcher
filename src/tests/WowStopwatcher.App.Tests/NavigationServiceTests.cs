@@ -71,6 +71,31 @@ public class NavigationServiceTests
         Assert.Equal("a", nav.CurrentKey);
     }
 
+    [Fact]
+    public void Start_page_is_the_preferred_one_even_with_a_higher_order()
+    {
+        PageDescriptor[] pages =
+        [
+            new("inv", "t", null, -10, typeof(PageA)),
+            new("today", "t", null, 0, typeof(PageA), IsPreferredStart: true),
+            new("settings", "t", null, 100, typeof(PageB)),
+        ];
+
+        Assert.Equal("today", PageDescriptor.PickStartPage(pages).Key);
+    }
+
+    [Fact]
+    public void Start_page_is_the_lowest_order_without_a_preferred_page()
+    {
+        PageDescriptor[] pages =
+        [
+            new("settings", "t", null, 100, typeof(PageB)),
+            new("stats", "t", null, 10, typeof(PageA)),
+        ];
+
+        Assert.Equal("stats", PageDescriptor.PickStartPage(pages).Key);
+    }
+
     private sealed class PageA(List<string> log) : INavigationAware
     {
         public void OnNavigatedTo() => log.Add("a-to");

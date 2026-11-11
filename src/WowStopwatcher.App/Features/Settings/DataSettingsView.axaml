@@ -1,0 +1,157 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
+             xmlns:local="using:WowStopwatcher.App.Features.Settings"
+             x:Class="WowStopwatcher.App.Features.Settings.DataSettingsView"
+             x:DataType="local:DataSettingsViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="Button.dataAction">
+      <Setter Property="Height" Value="40" />
+      <Setter Property="Padding" Value="14,0" />
+      <Setter Property="FontSize" Value="13" />
+    </Style>
+    <Style Selector="Button.panelAction">
+      <Setter Property="Height" Value="38" />
+      <Setter Property="Padding" Value="14,0" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+  </UserControl.Styles>
+
+  <StackPanel Spacing="10" Margin="0,16,0,0">
+    <TextBlock FontSize="18"
+               FontWeight="Bold"
+               LetterSpacing="-0.18"
+               Text="{loc:T data.title}" />
+
+    <Border Classes="card" Padding="20,16">
+      <StackPanel Spacing="14">
+
+        <!-- Database folder -->
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="3" Margin="0,0,16,0" VerticalAlignment="Center">
+            <TextBlock Text="{loc:T data.folder.title}" FontWeight="SemiBold" />
+            <SelectableTextBlock Text="{Binding FolderPath}"
+                                 FontFamily="{DynamicResource MonoFont}"
+                                 FontSize="13"
+                                 TextWrapping="Wrap" />
+            <TextBlock Classes="muted"
+                       FontSize="13"
+                       TextWrapping="Wrap"
+                       Text="{loc:T data.folder.description}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Button Classes="secondary dataAction"
+                    Command="{Binding OpenFolderCommand}"
+                    Content="{loc:T data.folder.open}" />
+            <Button Classes="secondary dataAction"
+                    Command="{Binding ChangeFolderCommand}"
+                    Content="{loc:T data.folder.change}" />
+          </StackPanel>
+        </Grid>
+
+        <!-- A database already exists in the chosen folder -->
+        <Border IsVisible="{Binding IsExistingPanelVisible}"
+                Padding="16,14"
+                Background="{DynamicResource AccentSoftBrush}"
+                BorderBrush="{DynamicResource LineBrush}"
+                BorderThickness="1"
+                CornerRadius="10">
+          <StackPanel Spacing="10">
+            <TextBlock Text="{Binding ExistingTitle}"
+                       FontWeight="SemiBold"
+                       TextWrapping="Wrap" />
+            <TextBlock FontSize="13"
+                       Foreground="{DynamicResource SecondaryBrush}"
+                       TextWrapping="Wrap"
+                       IsVisible="{Binding CanUseExisting}">
+              <Run Text="{Binding ExistingSummary}" /><Run Text=" " /><Run Text="{loc:T data.existing.hint}" />
+            </TextBlock>
+            <TextBlock FontSize="13"
+                       Foreground="{DynamicResource DangerBrush}"
+                       TextWrapping="Wrap"
+                       Text="{Binding ExistingError}"
+                       IsVisible="{Binding HasExistingError}" />
+            <WrapPanel>
+              <Button Classes="primary panelAction"
+                      Margin="0,0,8,8"
+                      IsEnabled="{Binding CanUseExisting}"
+                      Command="{Binding UseExistingCommand}"
+                      Content="{loc:T data.existing.use}" />
+              <Button Classes="secondary panelAction"
+                      Margin="0,0,8,8"
+                      IsVisible="{Binding CanUseExisting}"
+                      Command="{Binding ReplaceWithMineCommand}"
+                      Content="{loc:T data.existing.replace}" />
+              <Button Classes="secondary panelAction"
+                      Margin="0,0,8,8"
+                      Command="{Binding CancelExistingCommand}"
+                      Content="{loc:T common.cancel}" />
+            </WrapPanel>
+            <TextBlock Classes="muted"
+                       FontSize="12"
+                       TextWrapping="Wrap"
+                       Text="{loc:T data.existing.restartNote}"
+                       IsVisible="{Binding CanUseExisting}" />
+          </StackPanel>
+        </Border>
+
+        <!-- Synced folder warning -->
+        <Border Padding="12,10"
+                Background="{DynamicResource StarSoftBrush}"
+                CornerRadius="{DynamicResource RadiusControl}">
+          <Grid ColumnDefinitions="Auto,*">
+            <c:Icon Width="16" Height="16"
+                    Margin="0,1,8,0"
+                    VerticalAlignment="Top"
+                    Data="{StaticResource IconInfo}"
+                    Stroke="{DynamicResource ReachedAccentBrush}"
+                    StrokeThickness="2" />
+            <TextBlock Grid.Column="1"
+                       FontSize="13"
+                       Foreground="{DynamicResource ReachedAccentBrush}"
+                       TextWrapping="Wrap"
+                       Text="{loc:T data.sync.warning}" />
+          </Grid>
+        </Border>
+
+        <!-- Backup file -->
+        <Border BorderBrush="{DynamicResource LineSoftBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="0,14,0,0">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="3" Margin="0,0,16,0" VerticalAlignment="Center">
+              <TextBlock Text="{loc:T data.backup.title}" FontWeight="SemiBold" />
+              <TextBlock Classes="muted"
+                         FontSize="13"
+                         TextWrapping="Wrap"
+                         Text="{loc:T data.backup.description}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Button Classes="secondary dataAction"
+                      Command="{Binding ImportCommand}"
+                      Content="{loc:T data.backup.import}" />
+              <Button Classes="secondary dataAction"
+                      Command="{Binding ExportCommand}"
+                      Content="{loc:T data.backup.export}" />
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <!-- Result of the last action -->
+        <SelectableTextBlock FontSize="13"
+                             Foreground="{DynamicResource SecondaryBrush}"
+                             TextWrapping="Wrap"
+                             Text="{Binding StatusText}"
+                             IsVisible="{Binding HasInfoStatus}" />
+        <SelectableTextBlock FontSize="13"
+                             Foreground="{DynamicResource DangerBrush}"
+                             TextWrapping="Wrap"
+                             Text="{Binding StatusText}"
+                             IsVisible="{Binding HasErrorStatus}" />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

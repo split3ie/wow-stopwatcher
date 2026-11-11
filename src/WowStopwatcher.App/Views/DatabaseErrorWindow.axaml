@@ -54,6 +54,29 @@
                              FontSize="12"
                              TextWrapping="Wrap" />
       </StackPanel>
+      <TextBlock Text="{Binding ActionError}"
+                 IsVisible="{Binding HasActionError}"
+                 FontSize="13"
+                 Foreground="{DynamicResource DangerBrush}"
+                 TextWrapping="Wrap" />
+      <WrapPanel Margin="0,4,0,0"
+                 HorizontalAlignment="Right">
+        <Button Classes="primary"
+                Margin="8,0,0,0"
+                IsVisible="{Binding CanRetry}"
+                Click="OnRetryClick"
+                Content="{loc:T dbError.retry}" />
+        <Button Classes="secondary"
+                Margin="8,0,0,0"
+                IsVisible="{Binding CanChooseFolder}"
+                Click="OnChooseFolderClick"
+                Content="{loc:T dbError.chooseFolder}" />
+        <Button Classes="secondary"
+                Margin="8,0,0,0"
+                IsVisible="{Binding CanUseDefault}"
+                Click="OnUseDefaultClick"
+                Content="{loc:T dbError.useDefault}" />
+      </WrapPanel>
       <StackPanel Margin="0,4,0,0"
                   HorizontalAlignment="Right"
                   Orientation="Horizontal"

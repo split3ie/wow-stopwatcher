@@ -13,9 +13,16 @@ public static class LocalDays
     /// The UTC instant at which local <paramref name="day"/> begins in <paramref name="zone"/>.
     /// Handles DST: a skipped midnight moves to the first valid local time, an ambiguous one uses its first occurrence.
     /// </summary>
-    public static DateTimeOffset StartOfDayUtc(DateOnly day, TimeZoneInfo zone)
+    public static DateTimeOffset StartOfDayUtc(DateOnly day, TimeZoneInfo zone) =>
+        LocalTimeUtc(day, TimeOnly.MinValue, zone);
+
+    /// <summary>
+    /// The UTC instant of local <paramref name="time"/> on <paramref name="day"/> in <paramref name="zone"/>.
+    /// Handles DST: a skipped time moves to the first valid local time, an ambiguous one uses its first occurrence.
+    /// </summary>
+    public static DateTimeOffset LocalTimeUtc(DateOnly day, TimeOnly time, TimeZoneInfo zone)
     {
-        var local = day.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
+        var local = day.ToDateTime(time, DateTimeKind.Unspecified);
         while (zone.IsInvalidTime(local))
         {
             local = local.AddMinutes(15);

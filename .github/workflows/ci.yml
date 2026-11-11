@@ -24,12 +24,12 @@ jobs:
       - name: Build and test with everything off except Today
         shell: bash
         run: |
-          FLAGS="-p:FeatureStatistics=false -p:FeatureSettings=false -p:FeatureIndependent=false -p:FeatureGoals=false -p:FeaturePermanent=false -p:FeatureTray=false -p:FeatureHotkeys=false -p:FeatureGoalNotifications=false -p:FeatureAutostart=false -p:FeatureUpdateCheck=false"
+          FLAGS="-p:FeatureStatistics=false -p:FeatureSettings=false -p:FeatureInvoicing=false -p:FeatureIndependent=false -p:FeatureGoals=false -p:FeaturePermanent=false -p:FeatureTray=false -p:FeatureHotkeys=false -p:FeatureGoalNotifications=false -p:FeatureAutostart=false -p:FeatureUpdateCheck=false"
           dotnet build src/WowStopwatcher.slnx -c Release $FLAGS
           dotnet test src/WowStopwatcher.slnx -c Release --no-build $FLAGS
       - name: Build and test with everything off except Settings
         shell: bash
         run: |
-          FLAGS="-p:FeatureToday=false -p:FeatureStatistics=false -p:FeatureIndependent=false -p:FeatureGoals=false -p:FeaturePermanent=false -p:FeatureTray=false -p:FeatureHotkeys=false -p:FeatureGoalNotifications=false -p:FeatureAutostart=false -p:FeatureUpdateCheck=false"
+          FLAGS="-p:FeatureToday=false -p:FeatureStatistics=false -p:FeatureInvoicing=false -p:FeatureIndependent=false -p:FeatureGoals=false -p:FeaturePermanent=false -p:FeatureTray=false -p:FeatureHotkeys=false -p:FeatureGoalNotifications=false -p:FeatureAutostart=false -p:FeatureUpdateCheck=false"
           dotnet build src/WowStopwatcher.slnx -c Release $FLAGS
           dotnet test src/WowStopwatcher.slnx -c Release --no-build $FLAGS

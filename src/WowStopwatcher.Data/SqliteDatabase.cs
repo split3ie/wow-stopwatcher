@@ -12,7 +12,7 @@ namespace WowStopwatcher.Data;
 public sealed class SqliteDatabase
 {
     /// <summary>Current schema version.</summary>
-    public const int LatestSchemaVersion = 7;
+    public const int LatestSchemaVersion = 13;
 
     private readonly string _connectionString;
 
@@ -318,6 +318,113 @@ public sealed class SqliteDatabase
                     PRIMARY KEY (stopwatch_id, language));
                 """, transaction);
             Execute(connection, "PRAGMA user_version = 7;", transaction);
+            transaction.Commit();
+            version = 7;
+        }
+
+        if (version < 8)
+        {
+            // Invoicing: companies, their stopwatches and placeholders, invoices with stored days and lines.
+            using var transaction = connection.BeginTransaction();
+            Execute(connection, """
+                CREATE TABLE companies (
+                    id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, color TEXT NOT NULL, sort_order INTEGER NOT NULL,
+                    rate TEXT NOT NULL DEFAULT '0', currency TEXT NOT NULL DEFAULT 'USD', template_file TEXT NULL, template_name TEXT NULL,
+                    template_sha256 TEXT NULL, file_name_pattern TEXT NOT NULL, ask_destination INTEGER NOT NULL DEFAULT 1, output_folder TEXT NULL,
+                    next_invoice_number INTEGER NOT NULL DEFAULT 1, created_utc INTEGER NOT NULL, deleted_utc INTEGER NULL);
+                CREATE TABLE company_stopwatches (
+                    company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                    stopwatch_id TEXT NOT NULL UNIQUE, PRIMARY KEY (company_id, stopwatch_id));
+                CREATE TABLE invoice_placeholders (
+                    id INTEGER PRIMARY KEY, company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                    alias TEXT NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('static','script')), value TEXT NOT NULL DEFAULT '',
+                    hidden INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL, UNIQUE (company_id, alias));
+                CREATE TABLE invoices (
+                    id INTEGER PRIMARY KEY, company_id TEXT NOT NULL REFERENCES companies(id), year INTEGER NOT NULL,
+                    month INTEGER NOT NULL, status TEXT NOT NULL CHECK (status IN ('pending','sent')), number INTEGER NULL, file_path TEXT NULL,
+                    generated_utc INTEGER NULL, generated_input_hash TEXT NULL, sent_utc INTEGER NULL, snapshot_json TEXT NULL,
+                    UNIQUE (company_id, year, month));
+                CREATE TABLE invoice_days (
+                    invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE, local_date TEXT NOT NULL,
+                    edited INTEGER NOT NULL, PRIMARY KEY (invoice_id, local_date));
+                CREATE TABLE invoice_lines (
+                    id INTEGER PRIMARY KEY, invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+                    local_date TEXT NOT NULL, minutes INTEGER NOT NULL CHECK (minutes > 0), note TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL);
+                CREATE TABLE invoice_line_sources (
+                    line_id INTEGER NOT NULL REFERENCES invoice_lines(id) ON DELETE CASCADE,
+                    stopwatch_id TEXT NOT NULL, stopwatch_name TEXT NOT NULL, sort_order INTEGER NOT NULL, PRIMARY KEY (line_id, stopwatch_id));
+                """, transaction);
+            Execute(connection, "PRAGMA user_version = 8;", transaction);
+            transaction.Commit();
+            version = 8;
+        }
+
+        if (version < 9)
+        {
+            // Placeholder kind 'automatic' (the built-in value). SQLite cannot change a CHECK constraint, so the table is rebuilt.
+            using var transaction = connection.BeginTransaction();
+            Execute(connection, """
+                CREATE TABLE invoice_placeholders_new (
+                    id INTEGER PRIMARY KEY, company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                    alias TEXT NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('static','script','automatic')), value TEXT NOT NULL DEFAULT '',
+                    hidden INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL, UNIQUE (company_id, alias));
+                INSERT INTO invoice_placeholders_new (id, company_id, alias, kind, value, hidden, sort_order)
+                    SELECT id, company_id, alias, kind, value, hidden, sort_order FROM invoice_placeholders;
+                DROP TABLE invoice_placeholders;
+                ALTER TABLE invoice_placeholders_new RENAME TO invoice_placeholders;
+                """, transaction);
+            Execute(connection, "PRAGMA user_version = 9;", transaction);
+            transaction.Commit();
+            version = 9;
+        }
+
+        if (version < 10)
+        {
+            // Invoice day start: a default per company and a start for single dates (a start also ends the previous day).
+            // invoice_day_starts is not read or written yet: only the company default is used.
+            using var transaction = connection.BeginTransaction();
+            Execute(connection, """
+                ALTER TABLE companies ADD COLUMN day_start_minutes INTEGER NOT NULL DEFAULT 0;
+                CREATE TABLE invoice_day_starts (
+                    company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE, date TEXT NOT NULL,
+                    start_minutes INTEGER NOT NULL CHECK (start_minutes BETWEEN 0 AND 1439), PRIMARY KEY (company_id, date));
+                """, transaction);
+            Execute(connection, "PRAGMA user_version = 10;", transaction);
+            transaction.Commit();
+            version = 10;
+        }
+
+        if (version < 11)
+        {
+            // Reported time for a month: replaces the sum of the billed lines when set.
+            using var transaction = connection.BeginTransaction();
+            Execute(connection, "ALTER TABLE invoices ADD COLUMN reported_minutes INTEGER NULL CHECK (reported_minutes > 0);", transaction);
+            Execute(connection, "PRAGMA user_version = 11;", transaction);
+            transaction.Commit();
+            version = 11;
+        }
+
+        if (version < 12)
+        {
+            // Time a line holds from other days (merged across days), so moving time does not show as drift.
+            using var transaction = connection.BeginTransaction();
+            Execute(connection, """
+                CREATE TABLE invoice_line_moves (
+                    line_id INTEGER NOT NULL REFERENCES invoice_lines(id) ON DELETE CASCADE,
+                    from_date TEXT NOT NULL, minutes INTEGER NOT NULL CHECK (minutes > 0), sort_order INTEGER NOT NULL,
+                    PRIMARY KEY (line_id, sort_order));
+                """, transaction);
+            Execute(connection, "PRAGMA user_version = 12;", transaction);
+            transaction.Commit();
+            version = 12;
+        }
+
+        if (version < 13)
+        {
+            // Date format for the date values of a company's invoices (null: the app language's short date).
+            using var transaction = connection.BeginTransaction();
+            Execute(connection, "ALTER TABLE companies ADD COLUMN date_format TEXT NULL;", transaction);
+            Execute(connection, "PRAGMA user_version = 13;", transaction);
             transaction.Commit();
         }
     }

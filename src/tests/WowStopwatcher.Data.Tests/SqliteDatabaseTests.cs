@@ -99,8 +99,8 @@ public class SqliteDatabaseTests
             var database = new SqliteDatabase(path);
             var after = DateTimeOffset.UtcNow.AddSeconds(2);
 
-            Assert.Equal(7, SqliteDatabase.LatestSchemaVersion);
-            Assert.Equal(7, database.GetSchemaVersion());
+            Assert.Equal(13, SqliteDatabase.LatestSchemaVersion);
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
             var all = new SqliteStopwatchRepository(database).GetAll(includeDeleted: true);
             Assert.Equal(2, all.Count);
             Assert.All(all, d =>
@@ -149,7 +149,7 @@ public class SqliteDatabaseTests
 
             var database = new SqliteDatabase(path);
 
-            Assert.Equal(7, database.GetSchemaVersion());
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
             var def = Assert.Single(new SqliteStopwatchRepository(database).GetAll());
             Assert.Equal("English", def.Name);
             Assert.Equal(TimeSpan.FromHours(5), def.Goal);
@@ -196,7 +196,7 @@ public class SqliteDatabaseTests
 
             var database = new SqliteDatabase(path);
 
-            Assert.Equal(7, database.GetSchemaVersion());
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
             Assert.Equal("English", Assert.Single(new SqliteStopwatchRepository(database).GetAll()).Name);
             var uk = new SqliteStopwatchRepository(database, null, () => "uk");
             Assert.Equal("English", Assert.Single(uk.GetAll()).Name);
@@ -401,6 +401,96 @@ public class SqliteDatabaseTests
         }
         finally
         {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void MigratingFromV8_KeepsPlaceholdersAndAllowsAutomaticKind()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "wowstopwatcher-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "old.db");
+        try
+        {
+            using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString()))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE companies (id TEXT PRIMARY KEY NOT NULL);
+                    CREATE TABLE invoices (id INTEGER PRIMARY KEY);
+                    CREATE TABLE invoice_placeholders (
+                        id INTEGER PRIMARY KEY, company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                        alias TEXT NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('static','script')), value TEXT NOT NULL DEFAULT '',
+                        hidden INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL, UNIQUE (company_id, alias));
+                    INSERT INTO companies VALUES ('c');
+                    INSERT INTO invoice_placeholders VALUES (1, 'c', 'a', 'script', 'return 1', 1, 0);
+                    PRAGMA user_version = 8;
+                    """;
+                command.ExecuteNonQuery();
+            }
+
+            var database = new SqliteDatabase(path);
+
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
+            Assert.NotNull(database.BackupPath);
+            using var check = database.OpenConnection();
+            using var read = check.CreateCommand();
+            read.CommandText = "SELECT alias, kind, value, hidden FROM invoice_placeholders";
+            using (var reader = read.ExecuteReader())
+            {
+                Assert.True(reader.Read());
+                Assert.Equal(("a", "script", "return 1", 1L), (reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetInt64(3)));
+            }
+
+            using var insert = check.CreateCommand();
+            insert.CommandText = "INSERT INTO invoice_placeholders (company_id, alias, kind, sort_order) VALUES ('c', 'hours', 'automatic', 1)";
+            Assert.Equal(1, insert.ExecuteNonQuery());
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void MigratingFromV11_AddsTheLineMovesTable()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "wowstopwatcher-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "v11.db");
+        try
+        {
+            using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString()))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE companies (id TEXT PRIMARY KEY);
+                    CREATE TABLE invoice_lines (id INTEGER PRIMARY KEY);
+                    INSERT INTO invoice_lines VALUES (1);
+                    PRAGMA user_version = 11;
+                    """;
+                command.ExecuteNonQuery();
+            }
+
+            var database = new SqliteDatabase(path);
+
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
+            Assert.NotNull(database.BackupPath);
+            using var check = database.OpenConnection();
+            using var insert = check.CreateCommand();
+            insert.CommandText = "INSERT INTO invoice_line_moves (line_id, from_date, minutes, sort_order) VALUES (1, '2026-11-03', 240, 0)";
+            Assert.Equal(1, insert.ExecuteNonQuery());
+            using var delete = check.CreateCommand();
+            delete.CommandText = "DELETE FROM invoice_lines WHERE id = 1; SELECT COUNT(*) FROM invoice_line_moves";
+            Assert.Equal(0L, Convert.ToInt64(delete.ExecuteScalar()));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
             Directory.Delete(folder, recursive: true);
         }
     }
