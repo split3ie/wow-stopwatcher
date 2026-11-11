@@ -19,6 +19,8 @@ public sealed class MainWindowService : IMainWindowService
     /// <summary>The main window instance.</summary>
     public MainWindow Window { get; }
 
+    Window IMainWindowService.Owner => Window;
+
     public void Show()
     {
         Window.Show();

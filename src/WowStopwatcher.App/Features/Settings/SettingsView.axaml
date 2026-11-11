@@ -98,6 +98,9 @@
           </Grid>
         </Button>
 
+        <!-- Data: database folder and backup file -->
+        <vm:DataSettingsView DataContext="{Binding Data}" />
+
         <!-- Footer -->
         <Border Margin="0,20,0,0"
                 Padding="0,18,0,0"

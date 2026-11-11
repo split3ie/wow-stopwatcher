@@ -12,7 +12,7 @@
         property for the whole app (see StopwatchCapabilities).
 
     Groups:
-      Pages:      FeatureToday, FeatureStatistics, FeatureSettings (at least one must stay on).
+      Pages:      FeatureToday, FeatureStatistics, FeatureSettings, FeatureInvoicing (at least one must stay on).
       Stopwatches: FeatureIndependent, FeatureGoals, FeaturePermanent.
       System:     FeatureTray, FeatureHotkeys, FeatureGoalNotifications, FeatureAutostart, FeatureUpdateCheck.
 
@@ -25,6 +25,7 @@
     <FeatureToday Condition="'$(FeatureToday)' == ''">true</FeatureToday>
     <FeatureStatistics Condition="'$(FeatureStatistics)' == ''">true</FeatureStatistics>
     <FeatureSettings Condition="'$(FeatureSettings)' == ''">true</FeatureSettings>
+    <FeatureInvoicing Condition="'$(FeatureInvoicing)' == ''">true</FeatureInvoicing>
     <!-- Stopwatches -->
     <FeatureIndependent Condition="'$(FeatureIndependent)' == ''">true</FeatureIndependent>
     <FeatureGoals Condition="'$(FeatureGoals)' == ''">true</FeatureGoals>
@@ -51,6 +52,7 @@
     <DefineConstants Condition="'$(FeatureToday)' == 'true'">$(DefineConstants);FEATURE_TODAY</DefineConstants>
     <DefineConstants Condition="'$(FeatureStatistics)' == 'true'">$(DefineConstants);FEATURE_STATISTICS</DefineConstants>
     <DefineConstants Condition="'$(FeatureSettings)' == 'true'">$(DefineConstants);FEATURE_SETTINGS</DefineConstants>
+    <DefineConstants Condition="'$(FeatureInvoicing)' == 'true'">$(DefineConstants);FEATURE_INVOICING</DefineConstants>
     <!-- Stopwatches -->
     <DefineConstants Condition="'$(FeatureIndependent)' == 'true'">$(DefineConstants);FEATURE_INDEPENDENT</DefineConstants>
     <DefineConstants Condition="'$(FeatureGoals)' == 'true'">$(DefineConstants);FEATURE_GOALS</DefineConstants>
@@ -78,6 +80,11 @@
     <Compile Remove="Features/Settings/**" />
     <AvaloniaXaml Remove="Features/Settings/**" />
     <AvaloniaResource Remove="Features/Settings/**" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(FeatureInvoicing)' != 'true'">
+    <Compile Remove="Features/Invoicing/**" />
+    <AvaloniaXaml Remove="Features/Invoicing/**" />
+    <AvaloniaResource Remove="Features/Invoicing/**" />
   </ItemGroup>
 
   <!-- System: folder removal -->
@@ -108,8 +115,8 @@
   </ItemGroup>
 
   <Target Name="EnsureAtLeastOnePage" BeforeTargets="BeforeBuild;BeforeCompile;CoreCompile"
-          Condition="'$(FeatureToday)' != 'true' And '$(FeatureStatistics)' != 'true' And '$(FeatureSettings)' != 'true'">
-    <Error Text="At least one page must be enabled: FeatureToday, FeatureStatistics or FeatureSettings." />
+          Condition="'$(FeatureToday)' != 'true' And '$(FeatureStatistics)' != 'true' And '$(FeatureSettings)' != 'true' And '$(FeatureInvoicing)' != 'true'">
+    <Error Text="At least one page must be enabled: FeatureToday, FeatureStatistics, FeatureSettings or FeatureInvoicing." />
   </Target>
 
   <Target Name="EnsureFeatureDependencies" BeforeTargets="BeforeBuild;BeforeCompile;CoreCompile">

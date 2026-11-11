@@ -31,12 +31,14 @@ public sealed partial class SettingsViewModel : ObservableObject, INavigationAwa
         IAppVersion version,
         IUiDispatcher dispatcher,
         StopwatchCapabilities capabilities,
+        DataSettingsViewModel data,
         IEnumerable<ISettingsGeneralItem> generalItems,
         IEnumerable<ISettingsFooterItem> footerItems)
     {
         _version = version;
         _dispatcher = dispatcher;
         _capabilities = capabilities;
+        Data = data;
         GeneralItems = [.. generalItems.OrderBy(i => i.Order)];
         FooterItems = [.. footerItems.OrderBy(i => i.Order)];
         _maintenance = maintenance;
@@ -56,6 +58,9 @@ public sealed partial class SettingsViewModel : ObservableObject, INavigationAwa
     }
 
     public string Title => Loc.T("settings.title");
+
+    /// <summary>The Data section: database folder and backup file.</summary>
+    public DataSettingsViewModel Data { get; }
 
     public ObservableCollection<SettingsStopwatchViewModel> Items { get; } = [];
 

@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
+             xmlns:vm="using:WowStopwatcher.App.Features.Invoicing"
+             x:Class="WowStopwatcher.App.Features.Invoicing.PreviewView"
+             x:DataType="vm:PreviewViewModel">
+
+  <StackPanel Spacing="10">
+    <Grid ColumnDefinitions="*,Auto">
+      <TextBlock Classes="h2" VerticalAlignment="Center" Text="{loc:T invoicing.preview.title}" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+        <TextBlock Classes="fieldLabel" VerticalAlignment="Center" Text="{loc:T invoicing.preview.sampleHours}" />
+        <TextBox Classes="field mono" Width="72" Text="{Binding SampleHoursText}" AutomationProperties.Name="{loc:T invoicing.preview.sampleHours}" />
+        <Button Classes="outline" Command="{Binding RefreshCommand}" Content="{loc:T invoicing.preview.refresh}" />
+      </StackPanel>
+    </Grid>
+
+    <Border Classes="card" Padding="16">
+      <StackPanel Spacing="10">
+        <ProgressBar IsIndeterminate="True" Height="4" IsVisible="{Binding IsBusy}" />
+
+        <!-- Cover while amounts are hidden: the invoice contains the rate and amounts -->
+        <StackPanel Spacing="8" HorizontalAlignment="Center" Margin="0,24" IsVisible="{Binding IsCoverVisible}">
+          <TextBlock HorizontalAlignment="Center" FontWeight="SemiBold" Text="{loc:T invoicing.preview.hiddenTitle}" />
+          <TextBlock Classes="hint" HorizontalAlignment="Center" TextAlignment="Center" Text="{loc:T invoicing.preview.hiddenBody}" />
+          <Button Classes="outline" HorizontalAlignment="Center" Command="{Binding ShowAmountsCommand}" Content="{loc:T invoicing.showAmounts}" />
+        </StackPanel>
+
+        <Border Background="{DynamicResource PageBrush}"
+                BorderBrush="{DynamicResource LineBrush}"
+                BorderThickness="1"
+                CornerRadius="{DynamicResource RadiusControl}"
+                Padding="12"
+                HorizontalAlignment="Center"
+                IsVisible="{Binding IsImageVisible}">
+          <Image Source="{Binding Image}" MaxWidth="640" MaxHeight="900" Stretch="Uniform" />
+        </Border>
+
+        <TextBlock Classes="hint" HorizontalAlignment="Center" Margin="0,16" Text="{loc:T invoicing.preview.hint}" IsVisible="{Binding IsHintVisible}" />
+        <TextBlock Classes="error" Text="{Binding ErrorText}" IsVisible="{Binding HasError}" />
+        <TextBlock Classes="hint" Text="{Binding Info}" IsVisible="{Binding IsImageVisible}" />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

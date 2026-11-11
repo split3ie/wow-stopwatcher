@@ -27,7 +27,17 @@
                       Title="Cannot build" Message="{Binding ProblemsText}" />
         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
           <TextBlock Text="{Binding StatusText}" IsVisible="{Binding HasStatus}" VerticalAlignment="Center"
-                     TextTrimming="CharacterEllipsis" />
+                     TextTrimming="CharacterEllipsis"
+                     Classes.error="{Binding StatusIsError}" Classes.success="{Binding StatusIsSuccess}">
+            <TextBlock.Styles>
+              <Style Selector="TextBlock.error">
+                <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+              </Style>
+              <Style Selector="TextBlock.success">
+                <Setter Property="Foreground" Value="{DynamicResource SystemFillColorSuccessBrush}" />
+              </Style>
+            </TextBlock.Styles>
+          </TextBlock>
           <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelCommand}" MinWidth="88" />
           <Button Grid.Column="2" Content="Build" Command="{Binding BuildCommand}" Classes="accent" MinWidth="88" />
         </Grid>

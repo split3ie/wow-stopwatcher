@@ -15,6 +15,7 @@ public sealed class SettingsModule : IFeatureModule
     {
         services.AddTransient<ISettingsGeneralItem, LanguageSettingsViewModel>();
         services.AddSingleton(new ViewMapping(typeof(LanguageSettingsViewModel), () => new LanguageSettingsView()));
+        services.AddTransient<DataSettingsViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddSingleton(new PageDescriptor(PageKeys.Settings, "settings.title", "IconGear", 100, typeof(SettingsViewModel)));
         services.AddSingleton(new ViewMapping(typeof(SettingsViewModel), () => new SettingsView()));

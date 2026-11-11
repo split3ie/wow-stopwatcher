@@ -36,8 +36,7 @@ public sealed partial class MainViewModel : ObservableObject
         _state.Changed += OnEngineChanged;
         UpdateDate();
 
-        // The first page in navigation order is shown at startup.
-        _navigation.NavigateTo(ordered[0].Key);
+        _navigation.NavigateTo(PageDescriptor.PickStartPage(ordered).Key);
     }
 
     /// <summary>The confirmation dialog shown over the whole window.</summary>

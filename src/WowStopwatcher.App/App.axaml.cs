@@ -8,6 +8,7 @@ using WowStopwatcher.App.Shell;
 using WowStopwatcher.App.ViewModels;
 using WowStopwatcher.App.Views;
 using WowStopwatcher.Core;
+using WowStopwatcher.Core.Localization;
 using WowStopwatcher.Data;
 
 namespace WowStopwatcher.App;
@@ -25,15 +26,18 @@ public partial class App : Application
 
             // The database is inspected read-only first. If it cannot be used safely, show an error and touch nothing:
             // no services start and no exit handler (which would write) is registered.
+            // First the pending move/import step and the location checks run, then the database is opened.
             SqliteDatabase database;
+            PendingOutcome? pendingOutcome;
             try
             {
+                pendingOutcome = provider.GetRequiredService<DatabaseStartup>().Run();
                 database = provider.GetRequiredService<SqliteDatabase>();
             }
             catch (DatabaseOpenException ex)
             {
                 StartupLanguage.Apply((string?)null);
-                var errorWindow = new DatabaseErrorWindow(new DatabaseErrorViewModel(ex));
+                var errorWindow = new DatabaseErrorWindow(new DatabaseErrorViewModel(ex), provider.GetRequiredService<DatabaseRecovery>());
                 desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
                 desktop.MainWindow = errorWindow;
                 errorWindow.Show();
@@ -57,6 +61,8 @@ public partial class App : Application
             desktop.ShutdownMode = options.CloseHidesWindow ? ShutdownMode.OnExplicitShutdown : ShutdownMode.OnMainWindowClose;
 
             var mainWindow = provider.GetRequiredService<IMainWindowService>();
+            // File pickers and the folder launcher find their window through desktop.MainWindow.
+            desktop.MainWindow = mainWindow.Owner;
             var services = provider.GetServices<IAppService>().ToList();
             foreach (var service in services)
             {
@@ -85,6 +91,13 @@ public partial class App : Application
             if (!options.CloseHidesWindow || desktop.Args?.Contains("--minimized") != true)
             {
                 mainWindow.Show();
+            }
+
+            // The result of a move, replace or import that ran at startup is shown once.
+            if (pendingOutcome is not null)
+            {
+                var (title, body) = TransferMessages.DescribeOutcome(pendingOutcome);
+                provider.GetRequiredService<IDialogService>().Show(title, body, Loc.T("common.ok"), () => { });
             }
         }
 

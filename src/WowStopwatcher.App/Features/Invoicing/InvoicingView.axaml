@@ -1,0 +1,154 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
+             xmlns:vm="using:WowStopwatcher.App.Features.Invoicing"
+             x:Class="WowStopwatcher.App.Features.Invoicing.InvoicingView"
+             x:DataType="vm:InvoicingViewModel">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/Features/Invoicing/InvoicingIcons.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <Style Selector="c|Icon.chev.open">
+      <Setter Property="RenderTransform" Value="rotate(180deg)" />
+    </Style>
+    <StyleInclude Source="/Features/Invoicing/InvoicingStyles.axaml" />
+  </UserControl.Styles>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <Border MaxWidth="920" Padding="28,28,28,32">
+      <Panel>
+        <StackPanel Spacing="16" IsVisible="{Binding IsPageVisible}">
+
+          <!-- Header -->
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="4">
+              <TextBlock Text="{loc:T invoicing.title}" FontSize="24" FontWeight="Bold" LetterSpacing="-0.48" />
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="{loc:T invoicing.subtitle}" />
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Classes="outline"
+                    VerticalAlignment="Top"
+                    Command="{Binding ToggleAmountsCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <c:Icon Width="16" Height="16"
+                        Data="{StaticResource InvoicingIconEyeOff}"
+                        Stroke="{Binding $parent[Button].Foreground}"
+                        IsVisible="{Binding AmountsHidden}" />
+                <c:Icon Width="16" Height="16"
+                        Data="{StaticResource InvoicingIconEye}"
+                        Stroke="{Binding $parent[Button].Foreground}"
+                        IsVisible="{Binding !AmountsHidden}" />
+                <TextBlock VerticalAlignment="Center" Text="{Binding HideButtonText}" />
+              </StackPanel>
+            </Button>
+          </Grid>
+
+          <!-- Company tabs -->
+          <Grid ColumnDefinitions="*,Auto">
+            <ItemsControl ItemsSource="{Binding Tabs}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:CompanyTabViewModel">
+                  <Button Classes="tab"
+                          Classes.selected="{Binding IsSelected}"
+                          Margin="0,0,8,8"
+                          Command="{Binding SelectCommand}"
+                          AutomationProperties.Name="{Binding Name}">
+                    <Panel>
+                      <Border IsVisible="{Binding IsSelected}"
+                              Background="{Binding TintBrush}"
+                              BorderBrush="{Binding Brush}"
+                              BorderThickness="1.5"
+                              CornerRadius="{DynamicResource RadiusPill}" />
+                      <StackPanel Orientation="Horizontal" Spacing="8" Margin="16,0" VerticalAlignment="Center">
+                        <Border Width="10" Height="10" CornerRadius="3" Background="{Binding Brush}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Name}" Foreground="{DynamicResource SecondaryBrush}" IsVisible="{Binding !IsSelected}" />
+                        <TextBlock Text="{Binding Name}" Foreground="{Binding InkBrush}" FontWeight="SemiBold" IsVisible="{Binding IsSelected}" />
+                      </StackPanel>
+                    </Panel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button Grid.Column="1"
+                    Classes="tab"
+                    VerticalAlignment="Top"
+                    Padding="16,0"
+                    VerticalContentAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    Command="{Binding AddCompanyCommand}"
+                    Content="{loc:T invoicing.addCompany}" />
+          </Grid>
+
+          <!-- No companies -->
+          <Border Classes="card" Padding="24" IsVisible="{Binding HasNoCompanies}">
+            <TextBlock Classes="muted" TextWrapping="Wrap" Text="{loc:T invoicing.noCompanies}" />
+          </Border>
+
+          <!-- Company settings (collapsible) -->
+          <Border Classes="card" IsVisible="{Binding HasCompanies}">
+            <StackPanel>
+              <Button Classes="outline"
+                      Height="NaN"
+                      MinHeight="60"
+                      Padding="20,12"
+                      Background="Transparent"
+                      BorderThickness="0"
+                      CornerRadius="{DynamicResource RadiusCard}"
+                      HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Stretch"
+                      Command="{Binding ToggleSettingsCommand}"
+                      AutomationProperties.Name="{loc:T invoicing.settings.title}">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="2">
+                    <TextBlock Classes="h2" Text="{loc:T invoicing.settings.title}" />
+                    <TextBlock Classes="hint" Text="{Binding CompanySettings.Summary}" />
+                  </StackPanel>
+                  <c:Icon Grid.Column="1"
+                          Classes="chev"
+                          Classes.open="{Binding IsSettingsOpen}"
+                          Width="18" Height="18"
+                          VerticalAlignment="Center"
+                          Data="{StaticResource IconChevronDown}"
+                          Stroke="{Binding $parent[Button].Foreground}" />
+                </Grid>
+              </Button>
+              <Panel IsVisible="{Binding IsSettingsOpen}">
+                <vm:CompanySettingsView DataContext="{Binding CompanySettings}" />
+              </Panel>
+            </StackPanel>
+          </Border>
+
+          <!-- Placeholders -->
+          <Panel IsVisible="{Binding HasCompanies}">
+            <vm:PlaceholdersView DataContext="{Binding Placeholders}" />
+          </Panel>
+
+          <!-- Preview -->
+          <Panel IsVisible="{Binding HasCompanies}">
+            <vm:PreviewView DataContext="{Binding Preview}" />
+          </Panel>
+
+          <!-- Invoices -->
+          <Panel IsVisible="{Binding HasCompanies}">
+            <vm:InvoicesView DataContext="{Binding Invoices}" />
+          </Panel>
+        </StackPanel>
+
+        <!-- Details view that replaces the page content -->
+        <ContentControl Content="{Binding CurrentDetails}" IsVisible="{Binding IsDetailsOpen}" />
+      </Panel>
+    </Border>
+  </ScrollViewer>
+</UserControl>
