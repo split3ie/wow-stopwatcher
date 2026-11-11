@@ -1,0 +1,172 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
+             xmlns:l="using:WowStopwatcher.App.Layout"
+             xmlns:vm="using:WowStopwatcher.App.Features.Invoicing"
+             x:Class="WowStopwatcher.App.Features.Invoicing.CompanySettingsView"
+             x:DataType="vm:CompanySettingsViewModel">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://WowStopwatcher.App/Features/Invoicing/InvoicingIcons.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <Style Selector="Border.destination.off">
+      <Setter Property="Opacity" Value="0.5" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="20,16,20,20">
+    <StackPanel Spacing="20">
+
+      <!-- Name, color, rate, currency -->
+      <Grid ColumnDefinitions="2*,*" ColumnSpacing="20">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="fieldLabel" Text="{loc:T invoicing.settings.name}" />
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+            <Button Classes="colorPick" AutomationProperties.Name="{Binding ColorName}">
+              <Button.Flyout>
+                <Flyout Placement="BottomEdgeAlignedLeft" FlyoutPresenterClasses="colorMenu">
+                  <ItemsControl ItemsSource="{Binding Swatches}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <UniformGrid Columns="4" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:InvoicingSwatchViewModel">
+                        <Button Classes="swatch"
+                                Command="{Binding PickCommand}"
+                                AutomationProperties.Name="{Binding Label}">
+                          <Border Classes="swatchFace"
+                                  Classes.selected="{Binding IsSelected}"
+                                  Background="{Binding Brush}" />
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </Flyout>
+              </Button.Flyout>
+              <Border CornerRadius="4" Background="{Binding ColorBrush}" />
+            </Button>
+            <TextBox Grid.Column="1"
+                     Classes="field"
+                     Text="{Binding Name}"
+                     AutomationProperties.Name="{loc:T invoicing.settings.name}" />
+          </Grid>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Spacing="6">
+          <TextBlock Classes="fieldLabel" Text="{loc:T invoicing.settings.rate}" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox Classes="field mono"
+                     Text="{Binding RateDisplay}"
+                     IsReadOnly="{Binding IsRateReadOnly}"
+                     AutomationProperties.Name="{loc:T invoicing.settings.rate}" />
+            <AutoCompleteBox Grid.Column="1"
+                             Classes="field"
+                             Width="96"
+                             MinimumPrefixLength="0"
+                             ItemsSource="{Binding Currencies}"
+                             Text="{Binding Currency, Mode=TwoWay}"
+                             AutomationProperties.Name="{loc:T invoicing.settings.currency}" />
+          </Grid>
+          <TextBlock Classes="hint" Text="{loc:T invoicing.settings.rateHidden}" IsVisible="{Binding AmountsHidden}" />
+          <TextBlock Classes="error" Text="{loc:T invoicing.settings.rateInvalid}" IsVisible="{Binding HasRateError}" />
+        </StackPanel>
+      </Grid>
+
+      <!-- Billed stopwatches -->
+      <StackPanel Spacing="8">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock Classes="fieldLabel" Text="{loc:T invoicing.settings.stopwatches}" />
+          <TextBlock Classes="hint" Text="{loc:T invoicing.settings.stopwatchesHint}" />
+        </StackPanel>
+        <ItemsControl ItemsSource="{Binding Chips}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:StopwatchChipViewModel">
+              <ToggleButton Classes="chip"
+                            IsChecked="{Binding IsAssigned, Mode=TwoWay}"
+                            IsEnabled="{Binding IsFree}"
+                            AutomationProperties.Name="{Binding Name}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Ellipse Width="8" Height="8" Fill="{Binding Brush}" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding OwnerText}" VerticalAlignment="Center" IsVisible="{Binding IsTaken}" />
+                </StackPanel>
+              </ToggleButton>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Classes="hint" Text="{loc:T invoicing.settings.noStopwatches}" IsVisible="{Binding !HasChips}" />
+      </StackPanel>
+
+      <!-- Template, file name, destination, converter -->
+      <l:FlexWrapPanel Spacing="28">
+        <StackPanel l:FlexWrapPanel.Basis="340" Spacing="6">
+          <TextBlock Classes="fieldLabel" Text="{loc:T invoicing.settings.template}" />
+          <Border Background="{DynamicResource PageBrush}" CornerRadius="{DynamicResource RadiusControl}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" Padding="10,0,6,0" MinHeight="40">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+              <c:Icon Width="18" Height="18" Data="{StaticResource InvoicingIconDoc}" Stroke="{DynamicResource MutedBrush}" />
+              <TextBlock Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Text="{Binding TemplateName}" IsVisible="{Binding HasTemplate}" />
+              <TextBlock Grid.Column="1" VerticalAlignment="Center" Classes="muted" Text="{loc:T invoicing.settings.noTemplate}" IsVisible="{Binding !HasTemplate}" />
+              <Button Grid.Column="2" Classes="outline" Command="{Binding PickTemplateCommand}" Content="{loc:T invoicing.settings.chooseTemplate}" />
+            </Grid>
+          </Border>
+          <TextBlock Classes="hint" Text="{Binding TemplateInfo}" />
+        </StackPanel>
+
+        <StackPanel l:FlexWrapPanel.Basis="340" Spacing="6">
+          <TextBlock Classes="fieldLabel" Text="{loc:T invoicing.settings.fileName}" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox Classes="field mono" Text="{Binding FileNamePattern}" AutomationProperties.Name="{loc:T invoicing.settings.fileName}" />
+            <TextBlock Grid.Column="1" VerticalAlignment="Center" Classes="muted" Text=".pdf" />
+          </Grid>
+          <TextBlock Classes="hint" Text="{Binding FileExample}" />
+        </StackPanel>
+
+        <StackPanel l:FlexWrapPanel.Basis="340" Spacing="6">
+          <TextBlock Classes="fieldLabel" Text="{loc:T invoicing.settings.saveTo}" />
+          <CheckBox IsChecked="{Binding AskDestination}" MinHeight="20">
+            <TextBlock Classes="fieldLabel" Text="{loc:T invoicing.settings.askEachTime}" />
+          </CheckBox>
+          <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="{DynamicResource RadiusControl}" Padding="12,0,6,0" MinHeight="40" Classes="destination" Classes.off="{Binding AskDestination}">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <TextBlock VerticalAlignment="Center" Classes="mono" FontSize="13" TextTrimming="CharacterEllipsis" Text="{Binding OutputFolder}" />
+              <Button Grid.Column="1" Classes="outline" IsEnabled="{Binding IsFolderEnabled}" Command="{Binding PickFolderCommand}" Content="{loc:T invoicing.settings.chooseFolder}" />
+            </Grid>
+          </Border>
+        </StackPanel>
+
+        <StackPanel l:FlexWrapPanel.Basis="340" Spacing="6">
+          <TextBlock Classes="fieldLabel" Text="{loc:T invoicing.settings.converter}" />
+          <Border Background="{DynamicResource PageBrush}" CornerRadius="{DynamicResource RadiusControl}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" Padding="12,0" MinHeight="40">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+              <c:Icon Width="16" Height="16" VerticalAlignment="Center" Data="{StaticResource InvoicingIconCheck}" Stroke="{DynamicResource AccentBrush}" IsVisible="{Binding IsConverterFound}" />
+              <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding ConverterText}" />
+            </Grid>
+          </Border>
+          <TextBlock Classes="hint" Text="{loc:T invoicing.settings.converterHint}" />
+        </StackPanel>
+      </l:FlexWrapPanel>
+
+      <TextBlock Classes="error" Text="{Binding MessageText}" IsVisible="{Binding HasMessage}" />
+
+      <Button Classes="danger small"
+              HorizontalAlignment="Left"
+              Padding="16,0"
+              Command="{Binding DeleteCommand}"
+              Content="{loc:T invoicing.company.delete}" />
+    </StackPanel>
+  </Border>
+</UserControl>

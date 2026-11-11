@@ -4,6 +4,9 @@ using WowStopwatcher.App.Features.Settings;
 #if FEATURE_TODAY
 using WowStopwatcher.App.Features.Today;
 #endif
+#if FEATURE_INVOICING
+using WowStopwatcher.App.Features.Invoicing;
+#endif
 #if FEATURE_AUTOSTART
 using WowStopwatcher.App.Features.Autostart;
 #endif
@@ -64,6 +67,9 @@ public static class FeatureModules
 #endif
 #if FEATURE_SETTINGS
         modules.Add(new SettingsModule());
+#endif
+#if FEATURE_INVOICING
+        modules.Add(new InvoicingModule());
 #endif
 #if FEATURE_HOTKEYS
         modules.Add(new HotkeysModule());

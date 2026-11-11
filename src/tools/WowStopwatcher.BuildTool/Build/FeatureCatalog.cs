@@ -20,6 +20,7 @@ public static class FeatureCatalog
         new("FeatureToday", "Today", "Today page: timeline, stopwatch rows, totals, goals card", Pages),
         new("FeatureStatistics", "Statistics", "The Statistics screen with per-day timelines and totals.", Pages),
         new("FeatureSettings", "Settings", "Settings page: stopwatches, colors, goals, shortcuts, general options", Pages),
+        new("FeatureInvoicing", "Invoices", "Invoices page: companies, DOCX templates, monthly PDF invoices, Invoice button in Statistics", Pages),
 
         new("FeatureIndependent", "Independent", "Stopwatches that run alongside the others", Stopwatches),
         new("FeatureGoals", "Goals", "Daily goals, goal progress and the goals card", Stopwatches),

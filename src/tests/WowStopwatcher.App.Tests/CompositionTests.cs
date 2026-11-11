@@ -86,6 +86,9 @@ public class CompositionTests
 #if FEATURE_UPDATE_CHECK
         expected.Add("UpdateCheckModule");
 #endif
+#if FEATURE_INVOICING
+        expected.Add("InvoicingModule");
+#endif
         Assert.Equal(expected.Order().ToList(), actual);
     }
 

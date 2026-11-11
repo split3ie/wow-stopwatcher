@@ -12,7 +12,7 @@ namespace WowStopwatcher.Data;
 public sealed class SqliteDatabase
 {
     /// <summary>Current schema version.</summary>
-    public const int LatestSchemaVersion = 7;
+    public const int LatestSchemaVersion = 8;
 
     private readonly string _connectionString;
 
@@ -318,6 +318,43 @@ public sealed class SqliteDatabase
                     PRIMARY KEY (stopwatch_id, language));
                 """, transaction);
             Execute(connection, "PRAGMA user_version = 7;", transaction);
+            transaction.Commit();
+            version = 7;
+        }
+
+        if (version < 8)
+        {
+            // Invoicing: companies, their stopwatches and placeholders, invoices with stored days and lines.
+            using var transaction = connection.BeginTransaction();
+            Execute(connection, """
+                CREATE TABLE companies (
+                    id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, color TEXT NOT NULL, sort_order INTEGER NOT NULL,
+                    rate TEXT NOT NULL DEFAULT '0', currency TEXT NOT NULL DEFAULT 'USD', template_file TEXT NULL, template_name TEXT NULL,
+                    template_sha256 TEXT NULL, file_name_pattern TEXT NOT NULL, ask_destination INTEGER NOT NULL DEFAULT 1, output_folder TEXT NULL,
+                    next_invoice_number INTEGER NOT NULL DEFAULT 1, created_utc INTEGER NOT NULL, deleted_utc INTEGER NULL);
+                CREATE TABLE company_stopwatches (
+                    company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                    stopwatch_id TEXT NOT NULL UNIQUE, PRIMARY KEY (company_id, stopwatch_id));
+                CREATE TABLE invoice_placeholders (
+                    id INTEGER PRIMARY KEY, company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                    alias TEXT NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('static','script')), value TEXT NOT NULL DEFAULT '',
+                    hidden INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL, UNIQUE (company_id, alias));
+                CREATE TABLE invoices (
+                    id INTEGER PRIMARY KEY, company_id TEXT NOT NULL REFERENCES companies(id), year INTEGER NOT NULL,
+                    month INTEGER NOT NULL, status TEXT NOT NULL CHECK (status IN ('pending','sent')), number INTEGER NULL, file_path TEXT NULL,
+                    generated_utc INTEGER NULL, generated_input_hash TEXT NULL, sent_utc INTEGER NULL, snapshot_json TEXT NULL,
+                    UNIQUE (company_id, year, month));
+                CREATE TABLE invoice_days (
+                    invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE, local_date TEXT NOT NULL,
+                    edited INTEGER NOT NULL, PRIMARY KEY (invoice_id, local_date));
+                CREATE TABLE invoice_lines (
+                    id INTEGER PRIMARY KEY, invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+                    local_date TEXT NOT NULL, minutes INTEGER NOT NULL CHECK (minutes > 0), note TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL);
+                CREATE TABLE invoice_line_sources (
+                    line_id INTEGER NOT NULL REFERENCES invoice_lines(id) ON DELETE CASCADE,
+                    stopwatch_id TEXT NOT NULL, stopwatch_name TEXT NOT NULL, sort_order INTEGER NOT NULL, PRIMARY KEY (line_id, stopwatch_id));
+                """, transaction);
+            Execute(connection, "PRAGMA user_version = 8;", transaction);
             transaction.Commit();
         }
     }

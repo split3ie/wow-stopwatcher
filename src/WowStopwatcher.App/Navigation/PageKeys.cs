@@ -6,4 +6,5 @@ public static class PageKeys
     public const string Today = "today";
     public const string Statistics = "statistics";
     public const string Settings = "settings";
+    public const string Invoicing = "invoicing";
 }

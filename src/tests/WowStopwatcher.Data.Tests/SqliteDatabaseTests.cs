@@ -99,8 +99,8 @@ public class SqliteDatabaseTests
             var database = new SqliteDatabase(path);
             var after = DateTimeOffset.UtcNow.AddSeconds(2);
 
-            Assert.Equal(7, SqliteDatabase.LatestSchemaVersion);
-            Assert.Equal(7, database.GetSchemaVersion());
+            Assert.Equal(8, SqliteDatabase.LatestSchemaVersion);
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
             var all = new SqliteStopwatchRepository(database).GetAll(includeDeleted: true);
             Assert.Equal(2, all.Count);
             Assert.All(all, d =>
@@ -149,7 +149,7 @@ public class SqliteDatabaseTests
 
             var database = new SqliteDatabase(path);
 
-            Assert.Equal(7, database.GetSchemaVersion());
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
             var def = Assert.Single(new SqliteStopwatchRepository(database).GetAll());
             Assert.Equal("English", def.Name);
             Assert.Equal(TimeSpan.FromHours(5), def.Goal);
@@ -196,7 +196,7 @@ public class SqliteDatabaseTests
 
             var database = new SqliteDatabase(path);
 
-            Assert.Equal(7, database.GetSchemaVersion());
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
             Assert.Equal("English", Assert.Single(new SqliteStopwatchRepository(database).GetAll()).Name);
             var uk = new SqliteStopwatchRepository(database, null, () => "uk");
             Assert.Equal("English", Assert.Single(uk.GetAll()).Name);

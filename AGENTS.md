@@ -25,7 +25,8 @@ WowStopwatcher is a personal desktop app for Windows, macOS and Linux that track
   and can be restored from Statistics (`StopwatchEngine.Restore`).
 - Screens: **Today** (timeline, stopwatch rows, total, Stop all, goals), **Statistics** (one timeline per day with a Combine toggle that groups the day's time into one block per stopwatch in order of first use, splitting overlaps so each stopwatch shows its full time (animated; the shared scale fits these longer bars),
   expandable per-stopwatch totals (share bars; time past the goal is drawn darker; per-cycle goals show a mark on the cycle's start day, with a note such as "×2", "reached Mon 20:00" or "3h 00m so far") with a hover **Restore** button on hidden stopwatches, select/clear days), **Settings** (language picker, autostart, goal notification toggle, stopwatches: name, color
-  (16 presets or a custom color), goal, carry goal over, independent, permanent, shortcut, order, delete; version and update check; an available update can be installed in place: it downloads the platform asset, verifies its `.sha256`, replaces the app and restarts with `--after-update`, and running stopwatches keep running).
+  (16 presets or a custom color), goal, carry goal over, independent, permanent, shortcut, order, delete; version and update check; an available update can be installed in place: it downloads the platform asset, verifies its `.sha256`, replaces the app and restarts with `--after-update`, and running stopwatches keep running). **Settings › Data** changes the database folder (a folder without a database: the data is copied there; a folder with one: use it or replace it with the current data) and exports or imports one backup `.zip` (database and `templates/`); a folder change or import is applied at the next start after a restart, and running stopwatches keep running except when switching to or importing another database).
+- **Invoices** (first in the navigation; the app still opens on Today): companies as tabs, each with billed stopwatches (a stopwatch belongs to one company), hourly rate and currency, a DOCX template with `{{alias}}` markers, a file name pattern, and placeholders (static text or a JavaScript snippet run by Jint, sandboxed). One invoice per company per calendar month, generated as PDF (DOCX filled with the OpenXML SDK, converted by Microsoft Word or LibreOffice — one must be installed). **Only allocated time is billed**: a line with a note; time without a note is unallocated. Invoice lines never change sessions: days nobody edited follow tracked time; an edited day keeps its stored lines and shows drift; Mark as sent freezes lines, rate, currency and placeholder values (`InvoiceLineBuilder`, `InvoiceReconciler`, `InvoiceBilling`, `InvoicingService`). Invoice details: split, merge, adjust time, notes. Statistics rows of billed stopwatches have an **Invoice** button (time and notes for that stopwatch and day, `StopwatchDayAllocation`), contributed through `IStatisticsStopwatchAction`. Amounts can be hidden (`****`, setting `invoicing_hide_amounts`, on by default). Templates are copied to `templates/` next to the database.
 - **System tray**: icon with a menu listing stopwatches with live times, running ones highlighted, switch on click,
   Stop all (stops every running stopwatch), Open, Quit. Double-clicking the tray icon stops the current regular
   stopwatch and starts the next regular one in order (independent ones are skipped).
@@ -48,10 +49,11 @@ Sources of truth:
 
 - .NET 10, C# (nullable enabled, implicit usings).
 - UI: Avalonia 12 with the Fluent theme, MVVM via CommunityToolkit.Mvvm (source generators).
-- Storage: SQLite through `Microsoft.Data.Sqlite` (no ORM). Database file: `wowstopwatcher.db` in `WowStopwatcher` under `Environment.SpecialFolder.ApplicationData`
-  (Windows: `%AppData%\WowStopwatcher`).
+- Storage: SQLite through `Microsoft.Data.Sqlite` (no ORM). Database file: `wowstopwatcher.db` in the database folder. The default folder is `WowStopwatcher` under `Environment.SpecialFolder.ApplicationData`
+  (Windows: `%AppData%\WowStopwatcher`); it also holds `location.json`, which stores a different folder chosen in Settings › Data and an optional pending step (`DatabaseLocation`).
 - Tests: xUnit.
 - Platforms: Windows, macOS and Linux. Platform-specific code stays behind small services in the App project.
+- Invoicing packages (only with FeatureInvoicing): DocumentFormat.OpenXml, Jint, PDFtoImage (PDFium). PDF conversion uses Microsoft Word (Windows) or LibreOffice found on the machine.
 
 ## Layout
 
@@ -69,7 +71,7 @@ src/
     Shell/                 Shell abstractions (window, lifetime, dispatcher, dialogs, version, `ShellOptions`, view locator,
                            settings contribution interfaces, `IShortcutService`) and their default implementations.
     Navigation/            `PageDescriptor`, `PageKeys`, `INavigationService`, `INavigationAware`.
-    Features/<Name>/       Feature modules: Autostart, GoalNotifications, Hotkeys, Settings, Statistics, Today, Tray, UpdateCheck.
+    Features/<Name>/       Feature modules: Autostart, GoalNotifications, Hotkeys, Invoicing, Settings, Statistics, Today, Tray, UpdateCheck.
     ViewModels/, Views/, Controls/, Layout/, Theme/, Services/   Always-present UI (main window, timeline, dialogs) and helpers.
   tests/
     WowStopwatcher.Core.Tests/
@@ -90,8 +92,8 @@ tools/                         Only the published `WowStopwatcher.BuildTool.exe`
 - `IAppService.Start` is called after the main window is created, in registration order; services are disposed in reverse order.
 - **Build flags** are in `src/WowStopwatcher.App/Features.props`; all default to true and a flag that is true defines `FEATURE_<NAME>`.
   They come in three groups:
-  - Pages: `FeatureToday`, `FeatureStatistics`, `FeatureSettings`. **At least one page must be on**: a target fails the build with
-    "At least one page must be enabled: FeatureToday, FeatureStatistics or FeatureSettings." The app opens on the page with the lowest `Order`.
+  - Pages: `FeatureToday`, `FeatureStatistics`, `FeatureSettings`, `FeatureInvoicing`. **At least one page must be on**: a target fails the build with
+    "At least one page must be enabled: FeatureToday, FeatureStatistics, FeatureSettings or FeatureInvoicing." The app opens on Today (`PageDescriptor.IsPreferredStart`), or on the page with the lowest `Order` when Today is off.
   - Stopwatches (capability flags): `FeatureIndependent`, `FeatureGoals`, `FeaturePermanent`.
   - System: `FeatureTray`, `FeatureHotkeys`, `FeatureGoalNotifications`, `FeatureAutostart`, `FeatureUpdateCheck`.
 - **Folder flags vs capability flags:** a page or system flag that is false removes the feature folder `Features/<Name>/` from the build
@@ -111,12 +113,13 @@ tools/                         Only the published `WowStopwatcher.BuildTool.exe`
 - **Optional capabilities use a null object:** the shell registers a default that does nothing, and the feature replaces it.
   Example: `IShortcutService` defaults to `NullShortcutService` (`IsAvailable` is false, so Settings hides the shortcut fields);
   `HotkeysModule` registers the real one.
-- **Behavior with a feature off:** Today off: no Today page, the app opens on the first remaining page; Settings off: no Settings page,
+- **Behavior with a feature off:** Today off: no Today page, the app opens on the first remaining page in order; Settings off: no Settings page,
   no link to it from Today, and no Autostart or UpdateCheck; Goals off: no goal field on Settings cards, no Goals card on Today, no goal pins,
   shading or notifications; Independent off: no independent toggle, every stopwatch is a normal one; Permanent off: no permanent toggle,
   every stopwatch is temporary and auto-hides after a full unused day (the stored flag is kept). Tray off: `ShellOptions.CloseHidesWindow` stays false, so closing the main window quits the app
   (the Tray module sets it to true); Hotkeys off: no shortcut fields in Settings; Statistics off: no Statistics page in the navigation;
   GoalNotifications, Autostart, UpdateCheck off: their Settings card/button and background work are absent.
+  Invoicing off: no Invoices page, no Invoice button in Statistics, and its packages (DocumentFormat.OpenXml, Jint, PDFtoImage) are not referenced;
   Autostart also registers nothing on an unsupported system or when the process path is unknown.
 
 ## Commands
@@ -169,6 +172,7 @@ If the exe is locked because the tool is running, ask the owner to close it; do 
 ## Conventions
 
 - Keep logic in Core so it can be unit tested. View models call Core; views only bind.
+- Startup order: `DatabaseStartup` checks `location.json` and runs its pending step (move, replace or import; `DatabaseTransfer.ApplyPending`) before the database is opened. A damaged `location.json` or a configured folder that is missing shows `DatabaseErrorWindow` with recovery choices (try again, choose folder, use the default location); the app never creates a database at a configured path by itself. The result of a pending step is shown once in the confirmation dialog.
 - The database is inspected read-only at startup; a newer schema, a damaged file or an open failure shows `DatabaseErrorWindow` and the app does not write to the file. Before migrating an existing database to a newer schema, a verified backup goes to `backups/<name>-v<old>.db` next to it (never overwritten; deleted at startup 7 days after they were made by `DatabaseBackupCleaner`, which only deletes files matching the backup name pattern); if the backup fails, nothing is migrated.
 - Dependencies come through the container (constructor injection); depend on interfaces from Core or Shell. Do not add `#if` outside `FeatureModules.cs`.
 - Time comes from `TimeProvider` (injected), never `DateTime.Now` directly, so tests can control the clock.

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Avalonia.Controls;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -13,6 +14,7 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
 {
     private readonly StatisticsViewModel _owner;
     private string? _color;
+    private (string StopwatchId, string Name, DateOnly Day)? _actionsFor;
 
     public DayStopwatchRowViewModel(StatisticsViewModel owner) => _owner = owner;
 
@@ -26,6 +28,15 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
     /// <summary>True while the pointer is over the row or keyboard focus is inside it (shows the Restore button).</summary>
     [ObservableProperty]
     private bool _isActive;
+
+    /// <summary>Buttons contributed by features (for example Invoice) for this stopwatch and day.</summary>
+    public ObservableCollection<DayStopwatchActionViewModel> Actions { get; } = [];
+
+    /// <summary>Width of the actions column: reserved for every row of a day when any row has an action, so the bars stay comparable.</summary>
+    [ObservableProperty]
+    private GridLength _actionsWidth = new(0);
+
+    public bool HasActions => Actions.Count > 0;
 
     public string RestoreLabel => Loc.T("stats.restore.label", ("name", Name));
 
@@ -68,6 +79,7 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
         TimeText = TimeFormat.HoursMinutes(total.Total)
             + (total.Goal is { } goal ? " / " + TimeFormat.GoalLabel(goal) : string.Empty);
         NoteText = BuildNote(total, day, zone);
+        UpdateActions(total, day);
         var overtime = Math.Clamp(total.OvertimeShare, 0, share);
         ShareWidth = new GridLength(share - overtime, GridUnitType.Star);
         OvertimeWidth = new GridLength(overtime, GridUnitType.Star);
@@ -77,6 +89,24 @@ public sealed partial class DayStopwatchRowViewModel : ObservableObject
             _color = total.Color;
             Brush = Avalonia.Media.Brush.Parse(total.Color);
         }
+    }
+
+    private void UpdateActions(DayStopwatchTotal total, DateOnly day)
+    {
+        var key = (total.StopwatchId, total.Name, day);
+        if (_actionsFor == key)
+        {
+            return;
+        }
+
+        _actionsFor = key;
+        Actions.Clear();
+        foreach (var action in _owner.ActionsFor(total.StopwatchId))
+        {
+            Actions.Add(new DayStopwatchActionViewModel(action, total.StopwatchId, day, Loc.T("stats.action.label", ("action", action.Label), ("name", total.Name))));
+        }
+
+        OnPropertyChanged(nameof(HasActions));
     }
 
     private static string BuildNote(DayStopwatchTotal total, DateOnly day, TimeZoneInfo zone)

@@ -20,6 +20,8 @@ public sealed partial class StatisticsViewModel : ObservableObject
     private readonly ISessionRepository _sessions;
     private readonly TimeProvider _time;
     private readonly IDialogService _dialog;
+    private readonly IReadOnlyList<IStatisticsStopwatchAction> _actions;
+    private readonly Dictionary<string, IReadOnlyList<IStatisticsStopwatchAction>> _actionsByStopwatch = [];
     private readonly DispatcherTimer _timer;
     private bool _expandedToday;
 
@@ -29,7 +31,8 @@ public sealed partial class StatisticsViewModel : ObservableObject
         IStopwatchRepository stopwatches,
         ISessionRepository sessions,
         TimeProvider time,
-        IDialogService dialog)
+        IDialogService dialog,
+        IEnumerable<IStatisticsStopwatchAction> actions)
     {
         _state = state;
         _maintenance = maintenance;
@@ -37,6 +40,7 @@ public sealed partial class StatisticsViewModel : ObservableObject
         _sessions = sessions;
         _time = time;
         _dialog = dialog;
+        _actions = actions.ToList();
 
         _timer = new DispatcherTimer(RefreshInterval, DispatcherPriority.Normal, (_, _) => Reload());
         Reload();
@@ -139,6 +143,18 @@ public sealed partial class StatisticsViewModel : ObservableObject
             EndSelect();
             Reload();
         });
+    }
+
+    /// <summary>The actions that apply to a stopwatch; asked once per page, which is created fresh each time it is opened.</summary>
+    internal IReadOnlyList<IStatisticsStopwatchAction> ActionsFor(string stopwatchId)
+    {
+        if (!_actionsByStopwatch.TryGetValue(stopwatchId, out var applicable))
+        {
+            applicable = _actions.Where(a => a.AppliesTo(stopwatchId)).ToList();
+            _actionsByStopwatch[stopwatchId] = applicable;
+        }
+
+        return applicable;
     }
 
     /// <summary>Un-hides a stopwatch and refreshes the page so its row updates right away.</summary>

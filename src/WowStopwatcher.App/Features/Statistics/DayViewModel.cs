@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WowStopwatcher.App.ViewModels;
@@ -11,6 +12,9 @@ namespace WowStopwatcher.App.Features.Statistics;
 /// <summary>One day card on the Statistics page. Kept across refreshes so expanded and selected state survive.</summary>
 public sealed partial class DayViewModel : ObservableObject
 {
+    // Room for an action button plus the gap before it.
+    private const double ActionsColumnWidth = 108;
+
     private readonly StatisticsViewModel _owner;
     private DayPieceViewModel? _hoveredPiece;
 
@@ -179,6 +183,12 @@ public sealed partial class DayViewModel : ObservableObject
         for (var i = 0; i < day.Totals.Count; i++)
         {
             Rows[i].Update(day.Totals[i], Date, zone);
+        }
+
+        var reserveActions = Rows.Any(r => r.HasActions);
+        foreach (var row in Rows)
+        {
+            row.ActionsWidth = new GridLength(reserveActions ? ActionsColumnWidth : 0);
         }
 
         RefreshHover();

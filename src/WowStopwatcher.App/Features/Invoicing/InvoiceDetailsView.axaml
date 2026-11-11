@@ -1,0 +1,281 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
+             xmlns:vm="using:WowStopwatcher.App.Features.Invoicing"
+             x:Class="WowStopwatcher.App.Features.Invoicing.InvoiceDetailsView"
+             x:DataType="vm:InvoiceDetailsViewModel">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://WowStopwatcher.App/Features/Invoicing/InvoicingIcons.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <StyleInclude Source="avares://WowStopwatcher.App/Features/Invoicing/InvoicingStyles.axaml" />
+    <Style Selector="Border.badge">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.badge > TextBlock">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Border.badge.edited">
+      <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+    </Style>
+    <Style Selector="Border.badge.edited > TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource AccentStrongBrush}" />
+    </Style>
+    <Style Selector="Border.badge.running">
+      <Setter Property="Background" Value="{DynamicResource StarSoftBrush}" />
+    </Style>
+    <Style Selector="Border.badge.running > TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource ReachedAccentBrush}" />
+    </Style>
+    <Style Selector="Button.small">
+      <Setter Property="Height" Value="28" />
+      <Setter Property="Padding" Value="10,0" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="Button.apply">
+      <Setter Property="Height" Value="34" />
+      <Setter Property="Padding" Value="14,0" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+    <Style Selector="Button.apply:disabled">
+      <Setter Property="Opacity" Value="0.45" />
+    </Style>
+    <Style Selector="Border.lineRow">
+      <Setter Property="BorderBrush" Value="{DynamicResource LineSoftBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+      <Setter Property="Padding" Value="16,8" />
+    </Style>
+    <Style Selector="Border.lineRow.selected">
+      <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+    </Style>
+    <Style Selector="TextBlock.lineTime">
+      <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+      <Setter Property="TextAlignment" Value="Right" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.lineTime.unallocated">
+      <Setter Property="Foreground" Value="{DynamicResource CappedBrush}" />
+    </Style>
+    <Style Selector="TextBlock.total">
+      <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+      <Setter Property="FontSize" Value="18" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+  </UserControl.Styles>
+
+  <StackPanel Spacing="16">
+
+    <!-- Back link -->
+    <Button Classes="link"
+            HorizontalAlignment="Left"
+            Padding="0,0,8,0"
+            Command="{Binding BackCommand}">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <c:Icon Width="14" Height="14"
+                StrokeThickness="2"
+                Data="{StaticResource InvoicingIconChevronLeft}"
+                Stroke="{Binding $parent[Button].Foreground}" />
+        <TextBlock VerticalAlignment="Center" Text="{loc:T invoicing.details.back}" />
+      </StackPanel>
+    </Button>
+
+    <!-- Title, totals and the amounts toggle -->
+    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="24">
+      <StackPanel Spacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Border Width="12" Height="12" CornerRadius="3" VerticalAlignment="Center" Background="{Binding CompanyBrush}" />
+          <TextBlock FontSize="24" FontWeight="Bold" LetterSpacing="-0.48" TextWrapping="Wrap" Text="{Binding Title}" />
+          <Border Classes="pill" VerticalAlignment="Center" Classes.pending="{Binding IsPendingStatus}" Classes.sent="{Binding IsSent}">
+            <TextBlock Text="{Binding StatusText}" />
+          </Border>
+        </StackPanel>
+        <TextBlock Classes="muted" TextWrapping="Wrap" Text="{loc:T invoicing.details.subtitle}" />
+      </StackPanel>
+
+      <Grid Grid.Column="1" ColumnDefinitions="Auto,Auto,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="28" VerticalAlignment="Bottom">
+        <TextBlock Classes="hint" Text="{loc:T invoicing.details.tracked}" />
+        <TextBlock Grid.Column="1" Classes="hint" Text="{loc:T invoicing.details.inInvoice}" />
+        <TextBlock Grid.Column="2" Classes="hint" Text="{loc:T invoicing.details.unallocated}" />
+        <TextBlock Grid.Column="3" Classes="hint" Text="{Binding AmountLabel}" />
+        <TextBlock Grid.Row="1" Classes="total" Foreground="{DynamicResource MutedBrush}" Text="{Binding TrackedText}" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Classes="total" FontWeight="Bold" Text="{Binding InvoicedText}" />
+        <TextBlock Grid.Row="1" Grid.Column="2" Classes="total" Foreground="{DynamicResource CappedBrush}" Text="{Binding UnallocatedText}" />
+        <TextBlock Grid.Row="1" Grid.Column="3" Classes="total" Text="{Binding AmountText}" />
+      </Grid>
+
+      <Button Grid.Column="2"
+              Classes="outline"
+              VerticalAlignment="Bottom"
+              Command="{Binding ToggleAmountsCommand}">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <c:Icon Width="16" Height="16"
+                  Data="{StaticResource InvoicingIconEyeOff}"
+                  Stroke="{Binding $parent[Button].Foreground}"
+                  IsVisible="{Binding AmountsHidden}" />
+          <c:Icon Width="16" Height="16"
+                  Data="{StaticResource InvoicingIconEye}"
+                  Stroke="{Binding $parent[Button].Foreground}"
+                  IsVisible="{Binding !AmountsHidden}" />
+          <TextBlock VerticalAlignment="Center" Text="{Binding HideButtonText}" />
+        </StackPanel>
+      </Button>
+    </Grid>
+
+    <!-- Sent banner -->
+    <Border IsVisible="{Binding IsSent}"
+            Padding="16,12"
+            Background="{DynamicResource SuccessBgBrush}"
+            CornerRadius="{DynamicResource RadiusRow}">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <c:Icon Width="16" Height="16"
+                  StrokeThickness="2"
+                  Data="{StaticResource InvoicingIconLock}"
+                  Stroke="{DynamicResource SuccessTextBrush}" />
+          <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource SuccessTextBrush}" Text="{Binding SentText}" />
+        </StackPanel>
+        <Button Grid.Column="1"
+                Classes="outline"
+                Background="{DynamicResource CardBrush}"
+                BorderBrush="{DynamicResource SuccessBorderBrush}"
+                Foreground="{DynamicResource SuccessTextBrush}"
+                Command="{Binding MarkPendingCommand}"
+                Content="{loc:T invoicing.action.markPending}" />
+      </Grid>
+    </Border>
+
+    <!-- Toolbar -->
+    <Border Classes="card" Padding="12,10" IsVisible="{Binding IsEditable}">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="8">
+        <TextBlock MinWidth="92" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding SelectionText}" />
+        <Button Grid.Column="1" Classes="outline" IsEnabled="{Binding CanChangeOne}"
+                Command="{Binding OpenSplitCommand}" Content="{loc:T invoicing.details.split}" />
+        <Button Grid.Column="2" Classes="outline" IsEnabled="{Binding CanMerge}"
+                Command="{Binding MergeCommand}" Content="{loc:T invoicing.details.merge}"
+                ToolTip.Tip="{Binding MergeHint}" />
+        <Button Grid.Column="3" Classes="outline" IsEnabled="{Binding CanChangeOne}"
+                Command="{Binding OpenAdjustCommand}" Content="{loc:T invoicing.details.adjust}" />
+        <TextBlock Grid.Column="4" Classes="hint" VerticalAlignment="Center" HorizontalAlignment="Right"
+                   TextAlignment="Right" Text="{Binding MergeHint}" />
+      </Grid>
+    </Border>
+
+    <!-- Inline form: split or adjust -->
+    <Border IsVisible="{Binding IsFormOpen}"
+            Padding="14,12"
+            Background="{DynamicResource AccentSoftBrush}"
+            BorderBrush="{DynamicResource LineBrush}"
+            BorderThickness="1"
+            CornerRadius="{DynamicResource RadiusRow}">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" ColumnSpacing="10">
+        <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding FormTitle}" />
+        <TextBlock Grid.Column="1" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryBrush}" Text="{Binding FormLabel}" />
+        <TextBox Grid.Column="2" Classes="field mono" Width="84" TextAlignment="Right"
+                 AutomationProperties.Name="{Binding FormLabel}"
+                 Text="{Binding FormInput}">
+          <TextBox.KeyBindings>
+            <KeyBinding Gesture="Enter" Command="{Binding ApplyFormCommand}" />
+            <KeyBinding Gesture="Escape" Command="{Binding CancelFormCommand}" />
+          </TextBox.KeyBindings>
+        </TextBox>
+        <TextBlock Grid.Column="3" Classes="hint" VerticalAlignment="Center"
+                   Classes.error="{Binding FormInvalid}" Text="{Binding FormRest}" />
+        <Button Grid.Column="4" Classes="outline" Command="{Binding CancelFormCommand}" Content="{loc:T invoicing.details.cancel}" />
+        <Button Grid.Column="5" Classes="primary apply" IsEnabled="{Binding !FormInvalid}"
+                Command="{Binding ApplyFormCommand}" Content="{Binding ApplyText}" />
+      </Grid>
+    </Border>
+
+    <TextBlock Classes="error" IsVisible="{Binding HasError}" Text="{Binding ErrorText}" />
+
+    <!-- Lines grouped by day -->
+    <Border Classes="card" ClipToBounds="True">
+      <StackPanel>
+        <Grid ColumnDefinitions="44,180,90,*" ColumnSpacing="12" Margin="16,10" >
+          <TextBlock Grid.Column="1" Classes="th" Text="{loc:T invoicing.details.col.stopwatch}" />
+          <TextBlock Grid.Column="2" Classes="th" TextAlignment="Right" Text="{loc:T invoicing.details.col.time}" />
+          <TextBlock Grid.Column="3" Classes="th" Text="{loc:T invoicing.details.col.note}" />
+        </Grid>
+
+        <ItemsControl ItemsSource="{Binding Days}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:InvoiceDetailsDayViewModel">
+              <StackPanel>
+                <Border Background="{DynamicResource PageBrush}"
+                        BorderBrush="{DynamicResource LineSoftBrush}"
+                        BorderThickness="0,1,0,0"
+                        Padding="16,10">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                      <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" Text="{Binding Label}" />
+                      <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Classes="mono muted" FontSize="12" Text="{Binding SumText}" />
+                      <Border Classes="badge edited" Margin="0,0,10,0" IsVisible="{Binding IsEdited}">
+                        <TextBlock Text="{loc:T invoicing.details.edited}" />
+                      </Border>
+                      <Border Classes="badge running" IsVisible="{Binding IsRunning}">
+                        <TextBlock Text="{Binding RunningText}" />
+                      </Border>
+                    </WrapPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
+                                VerticalAlignment="Center" IsVisible="{Binding HasDrift}">
+                      <TextBlock VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource ReachedAccentBrush}" Text="{Binding DriftText}" />
+                      <Button Classes="outline small" IsVisible="{Binding CanApplyDrift}"
+                              Command="{Binding ApplyDriftCommand}" Content="{loc:T invoicing.details.addToLast}" />
+                    </StackPanel>
+                    <Button Grid.Column="2" Classes="outline small" VerticalAlignment="Center" IsVisible="{Binding CanReset}"
+                            Command="{Binding ResetCommand}" Content="{loc:T invoicing.details.resetToTracked}" />
+                  </Grid>
+                </Border>
+
+                <ItemsControl ItemsSource="{Binding Lines}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:InvoiceDetailsLineViewModel">
+                      <Border Classes="lineRow" Classes.selected="{Binding IsSelected}">
+                        <Grid ColumnDefinitions="44,180,90,*" ColumnSpacing="12">
+                          <CheckBox Margin="4,0,0,0" MinWidth="0"
+                                    IsVisible="{Binding IsEditable}"
+                                    IsChecked="{Binding IsSelected}"
+                                    AutomationProperties.Name="{Binding SelectLabel}" />
+                          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Border Width="10" Height="10" CornerRadius="{DynamicResource RadiusLegend}"
+                                    VerticalAlignment="Center" Background="{Binding DotBrush}" />
+                            <StackPanel>
+                              <TextBlock FontWeight="Medium" TextTrimming="CharacterEllipsis" MaxWidth="148" Text="{Binding NameText}" />
+                              <TextBlock FontSize="11" Classes="muted" TextTrimming="CharacterEllipsis" MaxWidth="148"
+                                         IsVisible="{Binding IsMerged}" Text="{Binding PartsText}" />
+                              <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource ReachedAccentBrush}"
+                                         IsVisible="{Binding IsUnallocated}" Text="{loc:T invoicing.details.notBilled}" />
+                            </StackPanel>
+                          </StackPanel>
+                          <TextBlock Grid.Column="2" Classes="lineTime" Classes.unallocated="{Binding IsUnallocated}" Text="{Binding TimeText}" />
+                          <TextBox Grid.Column="3" Classes="field"
+                                   Text="{Binding Note}"
+                                   IsReadOnly="{Binding IsReadOnly}"
+                                   PlaceholderText="{loc:T invoicing.details.unallocatedHint}"
+                                   AutomationProperties.Name="{Binding NoteLabel}" />
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+
+    <TextBlock Classes="hint" Text="{loc:T invoicing.details.footer}" />
+  </StackPanel>
+</UserControl>

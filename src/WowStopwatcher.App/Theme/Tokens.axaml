@@ -21,6 +21,9 @@
   <Color x:Key="ReachedBgColor">#FFF8E6</Color>
   <Color x:Key="ReachedTextColor">#5C3D00</Color>
   <Color x:Key="ReachedAccentColor">#8A5300</Color>
+  <Color x:Key="SuccessBgColor">#EAF6EF</Color>
+  <Color x:Key="SuccessTextColor">#14663A</Color>
+  <Color x:Key="SuccessBorderColor">#A6D9BB</Color>
   <Color x:Key="LineColor">#D5D9E0</Color>
   <Color x:Key="LineSoftColor">#EEF0F3</Color>
   <Color x:Key="ChipColor">#F0F2F5</Color>
@@ -53,6 +56,9 @@
   <SolidColorBrush x:Key="ReachedBgBrush" Color="{DynamicResource ReachedBgColor}" />
   <SolidColorBrush x:Key="ReachedTextBrush" Color="{DynamicResource ReachedTextColor}" />
   <SolidColorBrush x:Key="ReachedAccentBrush" Color="{DynamicResource ReachedAccentColor}" />
+  <SolidColorBrush x:Key="SuccessBgBrush" Color="{DynamicResource SuccessBgColor}" />
+  <SolidColorBrush x:Key="SuccessTextBrush" Color="{DynamicResource SuccessTextColor}" />
+  <SolidColorBrush x:Key="SuccessBorderBrush" Color="{DynamicResource SuccessBorderColor}" />
   <SolidColorBrush x:Key="LineBrush" Color="{DynamicResource LineColor}" />
   <SolidColorBrush x:Key="LineSoftBrush" Color="{DynamicResource LineSoftColor}" />
   <SolidColorBrush x:Key="ChipBrush" Color="{DynamicResource ChipColor}" />

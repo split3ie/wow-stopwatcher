@@ -65,6 +65,15 @@
       <Setter Property="Opacity" Value="1" />
     </Style>
 
+    <!-- Button a feature adds to a stopwatch row (for example Invoice) -->
+    <Style Selector="Button.secondary.rowAction">
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="10,0" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Margin" Value="12,0,0,0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
     <!-- Combine toggle of a day: small pill, accent-soft while on -->
     <Style Selector="Button.secondary.combine">
       <Setter Property="Height" Value="24" />
@@ -352,6 +361,11 @@
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="local:DayStopwatchRowViewModel">
                             <c:HoverBorder Background="Transparent" IsActive="{Binding IsActive, Mode=TwoWay}">
+                            <Grid>
+                              <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="{Binding ActionsWidth}" />
+                              </Grid.ColumnDefinitions>
                             <Grid ColumnDefinitions="120,*,Auto" ColumnSpacing="12">
                               <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6" VerticalAlignment="Center">
                                 <Border Width="10" Height="10"
@@ -417,6 +431,26 @@
                                       Command="{Binding RestoreCommand}"
                                       Content="{loc:T stats.restore}"
                                       AutomationProperties.Name="{Binding RestoreLabel}" />
+                            </Grid>
+                              <!-- Buttons contributed by other features (for example Invoice); the column is empty without any -->
+                              <ItemsControl Grid.Column="1"
+                                            ItemsSource="{Binding Actions}"
+                                            VerticalAlignment="Center"
+                                            HorizontalAlignment="Right">
+                                <ItemsControl.ItemsPanel>
+                                  <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" />
+                                  </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                  <DataTemplate x:DataType="local:DayStopwatchActionViewModel">
+                                    <Button Classes="secondary rowAction"
+                                            Command="{Binding InvokeCommand}"
+                                            Content="{Binding Label}"
+                                            AutomationProperties.Name="{Binding AutomationName}" />
+                                  </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                              </ItemsControl>
                             </Grid>
                             </c:HoverBorder>
                           </DataTemplate>

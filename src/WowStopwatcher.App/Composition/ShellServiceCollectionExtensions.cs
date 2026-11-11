@@ -15,6 +15,9 @@ public static class ShellServiceCollectionExtensions
         services.AddSingleton<IAppLifetime, DesktopAppLifetime>();
         services.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
         services.AddSingleton<IAppVersion, AppVersion>();
+        services.AddSingleton<IFilePickerService, AvaloniaFilePickerService>();
+        services.AddSingleton<IFolderLauncher, AvaloniaFolderLauncher>();
+        services.AddSingleton<DatabaseRecovery>();
 
         // Without a feature that keeps the app alive (the tray), closing the main window quits the app.
         services.AddSingleton(new ShellOptions { CloseHidesWindow = false });

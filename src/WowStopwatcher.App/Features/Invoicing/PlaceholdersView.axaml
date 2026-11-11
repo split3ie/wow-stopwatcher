@@ -1,0 +1,137 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
+             xmlns:vm="using:WowStopwatcher.App.Features.Invoicing"
+             x:Class="WowStopwatcher.App.Features.Invoicing.PlaceholdersView"
+             x:DataType="vm:PlaceholdersViewModel">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://WowStopwatcher.App/Features/Invoicing/InvoicingIcons.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <StackPanel Spacing="10">
+    <StackPanel Spacing="4">
+      <TextBlock Classes="h2" Text="{loc:T invoicing.placeholders.title}" />
+      <TextBlock Classes="hint" Text="{loc:T invoicing.placeholders.description}" />
+    </StackPanel>
+
+    <StackPanel Orientation="Horizontal" Spacing="6">
+      <TextBlock Classes="hint" VerticalAlignment="Top" Text="{loc:T invoicing.placeholders.builtIn}" />
+      <ItemsControl ItemsSource="{Binding BuiltinNames}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel Orientation="Horizontal" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <Border Classes="builtin"><TextBlock Text="{Binding}" /></Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+
+    <Border Classes="card" Padding="16">
+      <StackPanel Spacing="10">
+        <Grid ColumnDefinitions="150,100,*,190,112" ColumnSpacing="10" IsVisible="{Binding HasRows}">
+          <TextBlock Classes="th" Text="{loc:T invoicing.placeholders.alias}" />
+          <TextBlock Grid.Column="1" Classes="th" Text="{loc:T invoicing.placeholders.source}" />
+          <TextBlock Grid.Column="2" Classes="th" Text="{loc:T invoicing.placeholders.value}" />
+          <TextBlock Grid.Column="3" Classes="th" Text="{loc:T invoicing.placeholders.result}" />
+          <TextBlock Grid.Column="4" Classes="th" HorizontalAlignment="Right" Text="{loc:T invoicing.placeholders.actions}" />
+        </Grid>
+
+        <ItemsControl ItemsSource="{Binding Rows}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="10" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:PlaceholderRowViewModel">
+              <Grid ColumnDefinitions="150,100,*,190,112" ColumnSpacing="10">
+                <StackPanel Spacing="2">
+                  <TextBox Classes="field mono"
+                           Text="{Binding Alias}"
+                           AutomationProperties.Name="{loc:T invoicing.placeholders.alias}" />
+                  <TextBlock Classes="error" Text="{Binding AliasError}" IsVisible="{Binding HasAliasError}" />
+                </StackPanel>
+                <ComboBox Grid.Column="1"
+                          Classes="field"
+                          HorizontalAlignment="Stretch"
+                          SelectedIndex="{Binding KindIndex, Mode=TwoWay}"
+                          AutomationProperties.Name="{loc:T invoicing.placeholders.source}">
+                  <ComboBoxItem Content="{loc:T invoicing.placeholders.static}" />
+                  <ComboBoxItem Content="{loc:T invoicing.placeholders.script}" />
+                </ComboBox>
+                <Panel Grid.Column="2">
+                  <TextBox Classes="field"
+                           Text="{Binding Value}"
+                           IsVisible="{Binding IsStatic}"
+                           AutomationProperties.Name="{loc:T invoicing.placeholders.value}" />
+                  <TextBox Classes="field mono script"
+                           Text="{Binding Value}"
+                           IsVisible="{Binding IsScript}"
+                           AutomationProperties.Name="{loc:T invoicing.placeholders.script}" />
+                </Panel>
+                <TextBlock Grid.Column="3"
+                           VerticalAlignment="Top"
+                           Margin="0,8,0,0"
+                           Classes="mono"
+                           Classes.error="{Binding ResultIsError}"
+                           FontSize="13"
+                           TextWrapping="Wrap"
+                           Text="{Binding ResultText}" />
+                <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right" VerticalAlignment="Top">
+                  <Button Classes="iconBtn"
+                          IsVisible="{Binding IsScript}"
+                          Command="{Binding RunCommand}"
+                          ToolTip.Tip="{loc:T invoicing.placeholders.run}"
+                          AutomationProperties.Name="{loc:T invoicing.placeholders.run}">
+                    <c:Icon Width="14" Height="14" Data="{StaticResource InvoicingIconRun}" Fill="{Binding $parent[Button].Foreground}" StrokeThickness="0" />
+                  </Button>
+                  <ToggleButton Classes="iconBtn"
+                                IsChecked="{Binding Hidden, Mode=TwoWay}"
+                                ToolTip.Tip="{loc:T invoicing.placeholders.hide}"
+                                AutomationProperties.Name="{loc:T invoicing.placeholders.hide}">
+                    <Panel>
+                      <c:Icon Width="16" Height="16" Data="{StaticResource InvoicingIconEyeOff}" Stroke="{Binding $parent[ToggleButton].Foreground}" IsVisible="{Binding Hidden}" />
+                      <c:Icon Width="16" Height="16" Data="{StaticResource InvoicingIconEye}" Stroke="{Binding $parent[ToggleButton].Foreground}" IsVisible="{Binding !Hidden}" />
+                    </Panel>
+                  </ToggleButton>
+                  <Button Classes="iconBtn"
+                          Command="{Binding DeleteCommand}"
+                          ToolTip.Tip="{loc:T invoicing.placeholders.delete}"
+                          AutomationProperties.Name="{loc:T invoicing.placeholders.delete}">
+                    <c:Icon Width="16" Height="16" Data="{StaticResource InvoicingIconTrash}" Stroke="{Binding $parent[Button].Foreground}" />
+                  </Button>
+                </StackPanel>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock Classes="hint" Text="{loc:T invoicing.placeholders.empty}" IsVisible="{Binding !HasRows}" />
+        <TextBlock Classes="hint" Text="{loc:T invoicing.placeholders.hideNote}" />
+        <TextBlock Classes="error" Text="{loc:T invoicing.placeholders.notSaved}" IsVisible="{Binding HasErrors}" />
+        <ItemsControl ItemsSource="{Binding Warnings}" IsVisible="{Binding HasWarnings}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <TextBlock Foreground="{DynamicResource ReachedAccentBrush}" FontSize="12" TextWrapping="Wrap" Text="{Binding}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+          <Button Classes="outline" Command="{Binding AddCommand}" Content="{loc:T invoicing.placeholders.add}" />
+          <ProgressBar Grid.Column="1" IsIndeterminate="True" Height="4" VerticalAlignment="Center" IsVisible="{Binding IsBusy}" />
+        </Grid>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>
