@@ -102,7 +102,7 @@
                   <ComboBoxItem Content="{loc:T invoicing.placeholders.script}" />
                   <ComboBoxItem Content="{loc:T invoicing.placeholders.automatic}" IsVisible="{Binding CanBeAutomatic}" />
                 </ComboBox>
-                <Panel Grid.Column="2">
+                <Panel Grid.Column="2" ZIndex="1">
                   <TextBox Classes="field"
                            Text="{Binding Value}"
                            IsVisible="{Binding IsStatic}"
@@ -116,7 +116,7 @@
                             HorizontalAlignment="Right"
                             VerticalAlignment="Bottom"
                             Background="Transparent"
-                            Cursor="SizeNorthSouth"
+                            Cursor="BottomRightCorner"
                             PointerPressed="OnScriptGripPressed"
                             PointerMoved="OnScriptGripMoved"
                             PointerReleased="OnScriptGripReleased"
