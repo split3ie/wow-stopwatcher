@@ -1,0 +1,71 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:WowStopwatcher.App.Controls"
+        xmlns:loc="using:WowStopwatcher.App.Localization"
+        xmlns:vm="using:WowStopwatcher.App.ViewModels"
+        x:Class="WowStopwatcher.App.Views.DatabaseErrorWindow"
+        x:DataType="vm:DatabaseErrorViewModel"
+        Icon="/Assets/app.ico"
+        Title="WowStopwatcher"
+        Width="480"
+        SizeToContent="Height"
+        CanResize="False"
+        CanMaximize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource PageBrush}"
+        Foreground="{DynamicResource TextBrush}"
+        FontFamily="{DynamicResource UiFont}"
+        FontSize="14">
+
+  <Border Margin="16"
+          Padding="22,22,22,18"
+          Background="{DynamicResource CardBrush}"
+          CornerRadius="{DynamicResource RadiusDialog}">
+    <StackPanel Spacing="14">
+      <Grid ColumnDefinitions="Auto,*">
+        <Border Width="40" Height="40"
+                VerticalAlignment="Top"
+                CornerRadius="20"
+                Background="{DynamicResource DangerSoftBrush}">
+          <c:Icon Width="20" Height="20"
+                  Data="{StaticResource IconReset}"
+                  Stroke="{DynamicResource DangerBrush}"
+                  StrokeThickness="2" />
+        </Border>
+        <StackPanel Grid.Column="1" Margin="14,0,0,0" Spacing="6">
+          <TextBlock Text="{Binding Title}"
+                     FontSize="17"
+                     FontWeight="Bold"
+                     LetterSpacing="-0.17"
+                     TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Body}"
+                     FontSize="14"
+                     LineHeight="21"
+                     Foreground="{DynamicResource SecondaryBrush}"
+                     TextWrapping="Wrap" />
+        </StackPanel>
+      </Grid>
+      <StackPanel Spacing="4">
+        <TextBlock Text="{Binding FileLabel}"
+                   FontSize="12"
+                   Foreground="{DynamicResource SecondaryBrush}" />
+        <SelectableTextBlock Text="{Binding Path}"
+                             FontFamily="{DynamicResource MonoFont}"
+                             FontSize="12"
+                             TextWrapping="Wrap" />
+      </StackPanel>
+      <StackPanel Margin="0,4,0,0"
+                  HorizontalAlignment="Right"
+                  Orientation="Horizontal"
+                  Spacing="8">
+        <Button Classes="primary"
+                IsVisible="{Binding CanDownload}"
+                Click="OnDownloadClick"
+                Content="{loc:T dbError.download}" />
+        <Button Classes="secondary"
+                Click="OnCloseClick"
+                Content="{loc:T dbError.close}" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

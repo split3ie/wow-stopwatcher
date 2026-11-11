@@ -268,5 +268,13 @@
   "update.confirmBody": "Version {version} will be downloaded and installed, then the app restarts. Running stopwatches keep running.",
   "update.confirmInstall": "Install and restart",
   "update.installFailed": "Couldn’t install the update",
-  "update.installedRestart": "Update installed. Restart the app to use it"
+  "update.installedRestart": "Update installed. Restart the app to use it",
+  "dbError.title": "Can’t open your data",
+  "dbError.newerVersion": "Your data was saved by a newer version of WowStopwatcher. Install the latest version to open it. Nothing was changed.",
+  "dbError.damaged": "The data file looks damaged, so the app stopped to keep it safe. Nothing was changed. Keep a copy of the file before trying to fix it.",
+  "dbError.unavailable": "The data file could not be opened. It may be in use or not accessible. Nothing was changed.",
+  "dbError.backupFailed": "A backup of your data could not be made before updating it, so the app stopped. Nothing was changed. Check that there is free disk space and the data folder is writable.",
+  "dbError.file": "Data file",
+  "dbError.download": "Download latest version",
+  "dbError.close": "Close"
 }

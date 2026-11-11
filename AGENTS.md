@@ -169,6 +169,7 @@ If the exe is locked because the tool is running, ask the owner to close it; do 
 ## Conventions
 
 - Keep logic in Core so it can be unit tested. View models call Core; views only bind.
+- The database is inspected read-only at startup; a newer schema, a damaged file or an open failure shows `DatabaseErrorWindow` and the app does not write to the file. Before migrating an existing database to a newer schema, a verified backup goes to `backups/<name>-v<old>.db` next to it (never overwritten; deleted at startup 7 days after they were made by `DatabaseBackupCleaner`, which only deletes files matching the backup name pattern); if the backup fails, nothing is migrated.
 - Dependencies come through the container (constructor injection); depend on interfaces from Core or Shell. Do not add `#if` outside `FeatureModules.cs`.
 - Time comes from `TimeProvider` (injected), never `DateTime.Now` directly, so tests can control the clock.
 - Store timestamps as UTC; group sessions into days by **local** date of the session start.

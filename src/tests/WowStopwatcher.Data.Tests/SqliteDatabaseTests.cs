@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.Data.Sqlite;
 using WowStopwatcher.Core;
 
@@ -203,6 +204,200 @@ public class SqliteDatabaseTests
             // The first rename claims the original and sets its language.
             uk.Update(uk.Get("a")! with { Name = "Anhliiska" });
             Assert.Equal("Anhliiska", new SqliteStopwatchRepository(database, null, () => "en").Get("a")!.Name);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    private const string V6Schema = """
+        CREATE TABLE stopwatches (
+            id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, color TEXT NOT NULL,
+            goal_seconds INTEGER NULL, shortcut TEXT NULL, sort_order INTEGER NOT NULL,
+            is_deleted INTEGER NOT NULL DEFAULT 0, is_independent INTEGER NOT NULL DEFAULT 0,
+            is_permanent INTEGER NOT NULL DEFAULT 0, active_since_utc INTEGER NULL,
+            goal_since_utc INTEGER NULL, goal_per_cycle INTEGER NOT NULL DEFAULT 0);
+        CREATE TABLE sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, stopwatch_id TEXT NOT NULL REFERENCES stopwatches(id),
+            start_utc INTEGER NOT NULL, stop_utc INTEGER NULL);
+        CREATE TABLE settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
+        CREATE TABLE goal_changes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, stopwatch_id TEXT NOT NULL REFERENCES stopwatches(id),
+            changed_utc INTEGER NOT NULL, previous_goal_seconds INTEGER NULL);
+        INSERT INTO stopwatches VALUES ('a', 'English', '#2F6FEB', 18000, 'Ctrl+F1', 0, 0, 0, 1, 1000, NULL, 0);
+        PRAGMA user_version = 6;
+        """;
+
+    private static string NewFolder()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "wowstopwatcher-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        return folder;
+    }
+
+    private static void CreateV6(string path)
+    {
+        using var connection = new SqliteConnection($"Data Source={path};Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = V6Schema;
+        command.ExecuteNonQuery();
+    }
+
+    private static long ReadOnlyScalar(string path, string sql)
+    {
+        using var connection = new SqliteConnection($"Data Source={path};Mode=ReadOnly;Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        return Convert.ToInt64(command.ExecuteScalar());
+    }
+
+    [Fact]
+    public void Migration_FromOlderVersion_MakesVerifiedBackupFirst_AndOnlyOnce()
+    {
+        var folder = NewFolder();
+        var path = Path.Combine(folder, "v6.db");
+        try
+        {
+            CreateV6(path);
+
+            var database = new SqliteDatabase(path);
+
+            var expected = Path.Combine(folder, "backups", "v6-v6.db");
+            Assert.Equal(expected, database.BackupPath);
+            Assert.True(File.Exists(expected));
+            Assert.Equal(6, ReadOnlyScalar(expected, "PRAGMA user_version;"));
+            Assert.Equal(1, ReadOnlyScalar(expected, "SELECT COUNT(*) FROM stopwatches;"));
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
+
+            var again = new SqliteDatabase(path);
+
+            Assert.Null(again.BackupPath);
+            Assert.Single(Directory.GetFiles(Path.Combine(folder, "backups")));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Backup_DoesNotOverwriteExistingBackup()
+    {
+        var folder = NewFolder();
+        var path = Path.Combine(folder, "v6.db");
+        try
+        {
+            var backups = Path.Combine(folder, "backups");
+            Directory.CreateDirectory(backups);
+            var existing = Path.Combine(backups, "v6-v6.db");
+            File.WriteAllText(existing, "keep me");
+            CreateV6(path);
+
+            var database = new SqliteDatabase(path);
+
+            Assert.Equal(Path.Combine(backups, "v6-v6-2.db"), database.BackupPath);
+            Assert.Equal("keep me", File.ReadAllText(existing));
+            Assert.Equal(6, ReadOnlyScalar(database.BackupPath!, "PRAGMA user_version;"));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void NewFile_MakesNoBackup()
+    {
+        var folder = NewFolder();
+        try
+        {
+            var database = new SqliteDatabase(Path.Combine(folder, "new.db"));
+
+            Assert.Null(database.BackupPath);
+            Assert.False(Directory.Exists(Path.Combine(folder, "backups")));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void BackupFailure_Throws_AndDoesNotMigrate()
+    {
+        var folder = NewFolder();
+        var path = Path.Combine(folder, "v6.db");
+        try
+        {
+            CreateV6(path);
+            File.WriteAllText(Path.Combine(folder, "backups"), "not a folder");
+
+            var ex = Assert.Throws<DatabaseOpenException>(() => new SqliteDatabase(path));
+
+            Assert.Equal(DatabaseProblem.BackupFailed, ex.Problem);
+            Assert.Equal(6, ReadOnlyScalar(path, "PRAGMA user_version;"));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void NewerSchemaVersion_Throws_AndLeavesFileUntouched()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "wowstopwatcher-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "newer.db");
+        try
+        {
+            var newer = SqliteDatabase.LatestSchemaVersion + 1;
+            using (var connection = new SqliteConnection($"Data Source={path};Pooling=False"))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = $"CREATE TABLE future (id INTEGER); INSERT INTO future VALUES (1); PRAGMA user_version = {newer};";
+                command.ExecuteNonQuery();
+            }
+
+            var before = SHA256.HashData(File.ReadAllBytes(path));
+
+            var ex = Assert.Throws<DatabaseOpenException>(() => new SqliteDatabase(path));
+
+            Assert.Equal(DatabaseProblem.NewerVersion, ex.Problem);
+            Assert.Equal(before, SHA256.HashData(File.ReadAllBytes(path)));
+            Assert.False(File.Exists(path + "-wal"));
+            using var check = new SqliteConnection($"Data Source={path};Mode=ReadOnly;Pooling=False");
+            check.Open();
+            using var read = check.CreateCommand();
+            read.CommandText = "PRAGMA user_version;";
+            Assert.Equal((long)newer, Convert.ToInt64(read.ExecuteScalar()));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void NonSqliteFile_ThrowsDamaged_AndLeavesFileUntouched()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "wowstopwatcher-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "junk.db");
+        try
+        {
+            var bytes = new byte[4096];
+            new Random(42).NextBytes(bytes);
+            File.WriteAllBytes(path, bytes);
+
+            var ex = Assert.Throws<DatabaseOpenException>(() => new SqliteDatabase(path));
+
+            Assert.Equal(DatabaseProblem.Damaged, ex.Problem);
+            Assert.Equal(bytes, File.ReadAllBytes(path));
         }
         finally
         {
