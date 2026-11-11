@@ -50,6 +50,33 @@
             </Button>
           </Grid>
 
+          <!-- This month -->
+          <Border Classes="card" Padding="20,16" IsVisible="{Binding HasCompanies}">
+            <StackPanel Spacing="8" DataContext="{Binding MonthIncome}" x:DataType="vm:MonthIncomeViewModel">
+              <TextBlock Classes="hint" Text="{loc:T invoicing.income.title}" />
+              <TextBlock Classes="muted" Text="{loc:T invoicing.income.empty}" IsVisible="{Binding HasNoIncome}" />
+              <TextBlock FontFamily="{DynamicResource MonoFont}" FontSize="28" FontWeight="Bold"
+                         Text="{Binding TotalText}" IsVisible="{Binding HasTotal}" />
+              <ItemsControl ItemsSource="{Binding Items}" IsVisible="{Binding HasIncome}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:MonthIncomeItemViewModel">
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,20,4">
+                      <Border Width="10" Height="10" CornerRadius="3" Background="{Binding Brush}" VerticalAlignment="Center" />
+                      <TextBlock FontFamily="{DynamicResource MonoFont}" FontSize="13" Text="{Binding Text}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Classes="hint" Text="{Binding NoRateText}" IsVisible="{Binding HasNoRate}" />
+              <TextBlock Classes="hint" Text="{Binding HintText}" IsVisible="{Binding HasHint}" />
+            </StackPanel>
+          </Border>
+
           <!-- Company tabs -->
           <Grid ColumnDefinitions="*,Auto">
             <ItemsControl ItemsSource="{Binding Tabs}">

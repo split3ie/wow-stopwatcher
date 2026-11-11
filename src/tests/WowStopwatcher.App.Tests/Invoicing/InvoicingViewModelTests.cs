@@ -74,7 +74,7 @@ public sealed class InvoicingViewModelTests : IDisposable
     private static Company Company(string id, string name, string color, int order) =>
         new(id, name, color, order, 60m, "EUR", null, null, null, "Invoice", true, null, 5);
 
-    private InvoicingViewModel CreateViewModel() => new(
+    private InvoicingViewModel CreateViewModel(StubRates? rates = null) => new(
         _companies,
         _stopwatches,
         _service,
@@ -89,7 +89,8 @@ public sealed class InvoicingViewModelTests : IDisposable
         new ImmediateDispatcher(),
         _time,
         new InvoiceDetailsViewModelFactory(_service, _companies, _stopwatches, _settings, _dialog, new ImmediateDispatcher(), _time),
-        _request);
+        _request,
+        rates ?? new StubRates());
 
     private void UseTemplate(string companyId)
     {
@@ -251,6 +252,59 @@ public sealed class InvoicingViewModelTests : IDisposable
         Assert.False(vm.Tabs[0].IsSelected);
         Assert.True(vm.Tabs[1].IsSelected);
         Assert.Equal("Beta", vm.CompanySettings!.Name);
+    }
+
+    [Fact]
+    public void Month_income_is_empty_without_allocated_time()
+    {
+        var vm = CreateViewModel();
+
+        Assert.True(vm.MonthIncome.HasNoIncome);
+        Assert.False(vm.MonthIncome.HasTotal);
+    }
+
+    [Fact]
+    public void Month_income_shows_the_breakdown_and_the_total_in_usd()
+    {
+        AllocateAll();
+        var vm = CreateViewModel();
+
+        Assert.True(vm.AmountsHidden);
+        Assert.Contains(MoneyMask.Mask, vm.MonthIncome.TotalText);
+        Assert.Contains(MoneyMask.Mask, vm.MonthIncome.Items[0].Text);
+
+        vm.ToggleAmountsCommand.Execute(null);
+
+        Assert.Single(vm.MonthIncome.Items);
+        Assert.Contains("ACME", vm.MonthIncome.Items[0].Text);
+        Assert.Contains("90", vm.MonthIncome.Items[0].Text);
+        Assert.True(vm.MonthIncome.HasTotal);
+        Assert.Contains("180", vm.MonthIncome.TotalText);
+        Assert.Contains("USD", vm.MonthIncome.TotalText);
+        Assert.True(vm.MonthIncome.HasHint);
+        Assert.False(vm.MonthIncome.HasNoRate);
+    }
+
+    [Fact]
+    public void Month_income_without_rates_has_no_total()
+    {
+        AllocateAll();
+        var vm = CreateViewModel(new StubRates { Rates = null });
+
+        Assert.Single(vm.MonthIncome.Items);
+        Assert.False(vm.MonthIncome.HasTotal);
+        Assert.True(vm.MonthIncome.HasHint);
+    }
+
+    [Fact]
+    public void Month_income_leaves_a_currency_without_a_rate_out_of_the_total()
+    {
+        AllocateAll();
+        var vm = CreateViewModel(new StubRates { Rates = new([new("CAD", 1.5m)], new DateTimeOffset(2026, 11, 15, 11, 0, 0, TimeSpan.Zero)) });
+
+        Assert.False(vm.MonthIncome.HasTotal);
+        Assert.True(vm.MonthIncome.HasNoRate);
+        Assert.Contains("EUR", vm.MonthIncome.NoRateText);
     }
 
     [Fact]
@@ -665,6 +719,13 @@ public sealed class InvoicingViewModelTests : IDisposable
             SaveCalls++;
             return Task.FromResult(SavePath);
         }
+    }
+
+    private sealed class StubRates : IExchangeRateService
+    {
+        public ExchangeRates? Rates { get; set; } = new([new("EUR", 0.5m)], new DateTimeOffset(2026, 11, 15, 11, 0, 0, TimeSpan.Zero));
+
+        public Task<ExchangeRates?> GetRatesAsync(CancellationToken cancellationToken) => Task.FromResult(Rates);
     }
 
     private sealed class FakeLauncher : IInvoiceFileLauncher

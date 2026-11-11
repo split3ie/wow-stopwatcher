@@ -35,18 +35,24 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
         IUiDispatcher dispatcher,
         TimeProvider time,
         IInvoiceDetailsViewModelFactory detailsFactory,
-        InvoicingNavigationRequest request)
+        InvoicingNavigationRequest request,
+        IExchangeRateService rates)
     {
         _d = new InvoicingDependencies(companies, stopwatches, service, templates, scanner, converter, picker, clipboard, files, dialog, dispatcher, time);
         _settings = settings;
         _detailsFactory = detailsFactory;
         _request = request;
         _amountsHidden = settings.HideAmounts;
+        MonthIncome = new MonthIncomeViewModel(service, rates, dispatcher, time, _amountsHidden);
         settings.HideAmountsChanged += OnHideAmountsChanged;
         LoadTabs(null);
+        MonthIncome.Refresh();
     }
 
     public ObservableCollection<CompanyTabViewModel> Tabs { get; } = [];
+
+    /// <summary>The "This month" income card.</summary>
+    public MonthIncomeViewModel MonthIncome { get; }
 
     public bool HasCompanies => Tabs.Count > 0;
 
@@ -87,6 +93,7 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
 
     public void OnNavigatedTo()
     {
+        MonthIncome.Refresh();
         // A request made elsewhere (for example the Statistics dialog) opens that invoice's details once.
         if (_request.Take() is { } request)
         {
@@ -102,6 +109,7 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
     {
         (CurrentDetails as IDisposable)?.Dispose();
         _settings.HideAmountsChanged -= OnHideAmountsChanged;
+        MonthIncome.Cancel();
         FlushAndStop();
     }
 
@@ -121,6 +129,7 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
         (CurrentDetails as IDisposable)?.Dispose();
         CurrentDetails = null;
         Invoices?.Refresh();
+        MonthIncome.Refresh();
     }
 
     [RelayCommand]
@@ -173,6 +182,7 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
             1);
         _d.Companies.Insert(company);
         LoadTabs(company.Id);
+        MonthIncome.Refresh();
         IsSettingsOpen = true;
     }
 
@@ -215,6 +225,7 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
         }
 
         Invoices?.Refresh();
+        MonthIncome.Refresh();
         _ = Placeholders?.RunAsync();
         Preview?.ClearForCompanyChange();
     }
@@ -224,6 +235,7 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
         CompanySettings = null;
         SelectedCompanyId = null;
         LoadTabs(null);
+        MonthIncome.Refresh();
     }
 
     private void OnHideAmountsChanged(object? sender, EventArgs e)
@@ -233,6 +245,7 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
         Placeholders?.SetAmountsHidden(AmountsHidden);
         Preview?.SetAmountsHidden(AmountsHidden);
         Invoices?.SetAmountsHidden(AmountsHidden);
+        MonthIncome.SetAmountsHidden(AmountsHidden);
     }
 
     private void FlushAndStop()
