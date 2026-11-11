@@ -11,7 +11,7 @@ public static partial class PlaceholderAlias
     /// <summary>Error code: the alias has characters outside letters, digits, '_' and '.', or does not start with a letter.</summary>
     public const string InvalidCharacters = "invalid";
 
-    /// <summary>Error code: the alias is a built-in name (any letter case) or starts with "line.".</summary>
+    /// <summary>Error code: the alias starts with "line." (any letter case). A built-in name is allowed: it overrides the built-in value.</summary>
     public const string Reserved = "reserved";
 
     [GeneratedRegex("^[A-Za-z][A-Za-z0-9_.]*$")]
@@ -30,8 +30,7 @@ public static partial class PlaceholderAlias
             return InvalidCharacters;
         }
 
-        if (alias.StartsWith("line.", StringComparison.OrdinalIgnoreCase)
-            || InvoiceBuiltins.All.Any(n => string.Equals(n, alias, StringComparison.OrdinalIgnoreCase)))
+        if (alias.StartsWith("line.", StringComparison.OrdinalIgnoreCase))
         {
             return Reserved;
         }

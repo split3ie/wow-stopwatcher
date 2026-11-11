@@ -9,7 +9,7 @@
   <UserControl.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <ResourceInclude Source="avares://WowStopwatcher.App/Features/Invoicing/InvoicingIcons.axaml" />
+        <ResourceInclude Source="/Features/Invoicing/InvoicingIcons.axaml" />
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </UserControl.Resources>
@@ -18,7 +18,7 @@
     <Style Selector="c|Icon.chev.open">
       <Setter Property="RenderTransform" Value="rotate(180deg)" />
     </Style>
-    <StyleInclude Source="avares://WowStopwatcher.App/Features/Invoicing/InvoicingStyles.axaml" />
+    <StyleInclude Source="/Features/Invoicing/InvoicingStyles.axaml" />
   </UserControl.Styles>
 
   <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
@@ -85,6 +85,8 @@
                     Classes="tab"
                     VerticalAlignment="Top"
                     Padding="16,0"
+                    VerticalContentAlignment="Center"
+                    HorizontalContentAlignment="Center"
                     Command="{Binding AddCompanyCommand}"
                     Content="{loc:T invoicing.addCompany}" />
           </Grid>

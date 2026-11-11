@@ -82,22 +82,18 @@ internal sealed class FakeInvoiceRepository : IInvoiceRepository
         days.Add(day);
     }
 
+    public void ReplaceDays(long invoiceId, IReadOnlyList<StoredInvoiceDay> days)
+    {
+        foreach (var day in days)
+        {
+            ReplaceDay(invoiceId, day);
+        }
+    }
+
     public void DeleteDay(long invoiceId, DateOnly date) => _days[invoiceId].RemoveAll(d => d.Date == date);
 
-    public int MarkGenerated(long invoiceId, string filePath, DateTimeOffset generatedUtc, string inputHash)
-    {
-        var invoice = Find(invoiceId);
-        var company = _companies.Get(invoice.CompanyId)!;
-        var number = invoice.Number;
-        if (number is null)
-        {
-            number = company.NextInvoiceNumber;
-            _companies.Update(company with { NextInvoiceNumber = company.NextInvoiceNumber + 1 });
-        }
-
-        Replace(invoice with { Number = number, FilePath = filePath, GeneratedUtc = generatedUtc, GeneratedInputHash = inputHash });
-        return number.Value;
-    }
+    public void MarkGenerated(long invoiceId, string filePath, DateTimeOffset generatedUtc, string inputHash) =>
+        Replace(Find(invoiceId) with { FilePath = filePath, GeneratedUtc = generatedUtc, GeneratedInputHash = inputHash });
 
     public void MarkSent(long invoiceId, DateTimeOffset sentUtc, string snapshotJson, IReadOnlyList<StoredInvoiceDay> daysToFreeze)
     {
@@ -106,8 +102,19 @@ internal sealed class FakeInvoiceRepository : IInvoiceRepository
             ReplaceDay(invoiceId, day);
         }
 
-        Replace(Find(invoiceId) with { Status = InvoiceStatus.Sent, SentUtc = sentUtc, SnapshotJson = snapshotJson });
+        var invoice = Find(invoiceId);
+        var number = invoice.Number;
+        if (number is null)
+        {
+            var company = _companies.Get(invoice.CompanyId)!;
+            number = company.NextInvoiceNumber;
+            _companies.Update(company with { NextInvoiceNumber = number.Value + 1 });
+        }
+
+        Replace(invoice with { Number = number, Status = InvoiceStatus.Sent, SentUtc = sentUtc, SnapshotJson = snapshotJson });
     }
+
+    public void SetReportedMinutes(long invoiceId, int? minutes) => Replace(Find(invoiceId) with { ReportedMinutes = minutes });
 
     public void MarkPending(long invoiceId)
     {

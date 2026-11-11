@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -23,6 +24,7 @@ public sealed partial class CompanySettingsViewModel : ObservableObject
     private readonly Action _deleted;
     private readonly InvoicingSaveDebouncer _saver;
     private bool _loading;
+    private bool _nextNumberEdited;
 
     internal CompanySettingsViewModel(InvoicingDependencies dependencies, Company company, bool amountsHidden, Action saved, Action deleted)
     {
@@ -38,6 +40,12 @@ public sealed partial class CompanySettingsViewModel : ObservableObject
         _colorHex = company.Color;
         _rateText = InvoicingFormat.Rate(company.Rate);
         _currency = company.Currency;
+        _nextNumberText = company.NextInvoiceNumber.ToString(CultureInfo.InvariantCulture);
+        _dayStartInput = DayStartText.Format(company.DayStartMinutes);
+        List<string> currencies = ["USD", "EUR", "CAD", "CHF", "GBP"];
+        if (!string.IsNullOrWhiteSpace(company.Currency) && !currencies.Contains(company.Currency))
+            currencies.Add(company.Currency);
+        Currencies = currencies;
         _fileNamePattern = company.FileNamePattern;
         _askDestination = company.AskDestination;
         _outputFolder = company.OutputFolder ?? string.Empty;
@@ -50,8 +58,24 @@ public sealed partial class CompanySettingsViewModel : ObservableObject
         UpdateFileExample();
     }
 
-    /// <summary>The currencies offered in the list; any other code can be typed.</summary>
-    public IReadOnlyList<string> Currencies { get; } = ["USD", "EUR", "GBP", "UAH", "PLN", "CHF"];
+    /// <summary>
+    /// The currencies offered in the dropdown. A stored code outside the standard list is appended so the company keeps it.
+    /// </summary>
+    public IReadOnlyList<string> Currencies { get; }
+
+    /// <summary>The number the next invoice marked as sent gets (a whole number, at least 1).</summary>
+    [ObservableProperty]
+    private string _nextNumberText;
+
+    [ObservableProperty]
+    private bool _hasNextNumberError;
+
+    /// <summary>When an invoice day starts, as "HH:mm" (00:00 gives calendar days).</summary>
+    [ObservableProperty]
+    private string _dayStartInput;
+
+    [ObservableProperty]
+    private bool _hasDayStartError;
 
     public ObservableCollection<InvoicingSwatchViewModel> Swatches { get; } = [];
 
@@ -176,8 +200,37 @@ public sealed partial class CompanySettingsViewModel : ObservableObject
             }
         }
 
+        // The counter is also advanced when an invoice is marked as sent, so it is written only when the user edited it here.
+        var nextNumber = existing.NextInvoiceNumber;
+        HasNextNumberError = false;
+        if (_nextNumberEdited)
+        {
+            if (int.TryParse(NextNumberText.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var parsedNumber) && parsedNumber >= 1)
+            {
+                nextNumber = parsedNumber;
+                _nextNumberEdited = false;
+            }
+            else
+            {
+                HasNextNumberError = true;
+            }
+        }
+
+        var dayStart = existing.DayStartMinutes;
+        HasDayStartError = false;
+        if (DayStartText.TryParse(DayStartInput, out var parsedStart))
+        {
+            dayStart = parsedStart;
+        }
+        else
+        {
+            HasDayStartError = true;
+        }
+
         _d.Companies.Update(existing with
         {
+            DayStartMinutes = dayStart,
+            NextInvoiceNumber = nextNumber,
             Name = string.IsNullOrWhiteSpace(Name) ? existing.Name : Name.Trim(),
             Color = ColorHex,
             Rate = rate,
@@ -192,7 +245,32 @@ public sealed partial class CompanySettingsViewModel : ObservableObject
 
     partial void OnNameChanged(string value) => Edited();
 
+    partial void OnDayStartInputChanged(string value) => Edited();
+
     partial void OnRateTextChanged(string value) => Edited();
+
+    partial void OnNextNumberTextChanged(string value)
+    {
+        if (!_loading)
+        {
+            _nextNumberEdited = true;
+            Edited();
+        }
+    }
+
+    /// <summary>Shows the stored counter again (it moves when an invoice is marked as sent), unless the user is editing it.</summary>
+    internal void RefreshNextNumber()
+    {
+        if (_nextNumberEdited || _d.Companies.Get(_companyId) is not { } company)
+        {
+            return;
+        }
+
+        _loading = true;
+        NextNumberText = company.NextInvoiceNumber.ToString(CultureInfo.InvariantCulture);
+        HasNextNumberError = false;
+        _loading = false;
+    }
 
     partial void OnCurrencyChanged(string value) => Edited();
 
@@ -364,11 +442,11 @@ public sealed partial class CompanySettingsViewModel : ObservableObject
             return;
         }
 
-        int count;
+        IReadOnlyList<string> markers;
         StoredTemplate stored;
         try
         {
-            count = await Task.Run(() => _d.Scanner.Scan(path).Count);
+            markers = await Task.Run(() => _d.Scanner.Scan(path));
             stored = _d.Templates.Import(_companyId, path);
         }
         catch (Exception ex) when (IsUnreadable(ex))
@@ -384,7 +462,7 @@ public sealed partial class CompanySettingsViewModel : ObservableObject
 
         _d.Companies.Update(company with { TemplateFile = stored.FileName, TemplateName = stored.OriginalName, TemplateSha256 = stored.Sha256 });
         TemplateName = stored.OriginalName;
-        TemplateInfo = TemplateInfoText(count);
+        TemplateInfo = TemplateInfoText(markers.Count);
         MessageText = string.Empty;
         _saved();
     }

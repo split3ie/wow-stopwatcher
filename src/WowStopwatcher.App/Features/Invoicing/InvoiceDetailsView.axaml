@@ -9,13 +9,13 @@
   <UserControl.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <ResourceInclude Source="avares://WowStopwatcher.App/Features/Invoicing/InvoicingIcons.axaml" />
+        <ResourceInclude Source="/Features/Invoicing/InvoicingIcons.axaml" />
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </UserControl.Resources>
 
   <UserControl.Styles>
-    <StyleInclude Source="avares://WowStopwatcher.App/Features/Invoicing/InvoicingStyles.axaml" />
+    <StyleInclude Source="/Features/Invoicing/InvoicingStyles.axaml" />
     <Style Selector="Border.badge">
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
       <Setter Property="Padding" Value="8,2" />
@@ -132,6 +132,36 @@
       </Button>
     </Grid>
 
+    <!-- Reported hours for the month -->
+    <Border Classes="card" Padding="14,10">
+      <StackPanel Spacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="{loc:T invoicing.details.reported.label}" />
+          <TextBox Classes="field mono" Width="96" TextAlignment="Right"
+                   IsVisible="{Binding IsEditable}"
+                   PlaceholderText="160:00"
+                   c:TimeMaskBehavior.Shape="000:00"
+                   AutomationProperties.Name="{loc:T invoicing.details.reported.label}"
+                   Text="{Binding ReportedInput}">
+            <TextBox.KeyBindings>
+              <KeyBinding Gesture="Enter" Command="{Binding SaveReportedCommand}" />
+            </TextBox.KeyBindings>
+          </TextBox>
+          <TextBlock Classes="mono" VerticalAlignment="Center"
+                     IsVisible="{Binding IsSent}"
+                     Text="{Binding ReportedValueText}" />
+          <Button Classes="primary apply" IsVisible="{Binding IsEditable}" IsEnabled="{Binding CanSaveReported}"
+                  Command="{Binding SaveReportedCommand}" Content="{loc:T invoicing.details.reported.save}" />
+          <Button Classes="outline" IsVisible="{Binding ShowReportedClear}"
+                  Command="{Binding ClearReportedCommand}" Content="{loc:T invoicing.details.reported.clear}" />
+          <TextBlock Classes="mono" VerticalAlignment="Center" FontWeight="SemiBold"
+                     IsVisible="{Binding HasReported}"
+                     Text="{Binding ReportedDifferenceText}" />
+        </StackPanel>
+        <TextBlock Classes="hint" Classes.error="{Binding ReportedInvalid}" Text="{Binding ReportedHint}" />
+      </StackPanel>
+    </Border>
+
     <!-- Sent banner -->
     <Border IsVisible="{Binding IsSent}"
             Padding="16,12"
@@ -157,7 +187,7 @@
 
     <!-- Toolbar -->
     <Border Classes="card" Padding="12,10" IsVisible="{Binding IsEditable}">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="8">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*" ColumnSpacing="8">
         <TextBlock MinWidth="92" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding SelectionText}" />
         <Button Grid.Column="1" Classes="outline" IsEnabled="{Binding CanChangeOne}"
                 Command="{Binding OpenSplitCommand}" Content="{loc:T invoicing.details.split}" />
@@ -166,7 +196,11 @@
                 ToolTip.Tip="{Binding MergeHint}" />
         <Button Grid.Column="3" Classes="outline" IsEnabled="{Binding CanChangeOne}"
                 Command="{Binding OpenAdjustCommand}" Content="{loc:T invoicing.details.adjust}" />
-        <TextBlock Grid.Column="4" Classes="hint" VerticalAlignment="Center" HorizontalAlignment="Right"
+        <Button Grid.Column="4" Classes="outline" IsEnabled="{Binding CanDelete}"
+                Command="{Binding DeleteCustomCommand}" Content="{loc:T invoicing.details.delete}" />
+        <Button Grid.Column="5" Classes="outline"
+                Command="{Binding OpenAddCommand}" Content="{loc:T invoicing.details.addTime}" />
+        <TextBlock Grid.Column="6" Classes="hint" VerticalAlignment="Center" HorizontalAlignment="Right"
                    TextAlignment="Right" Text="{Binding MergeHint}" />
       </Grid>
     </Border>
@@ -178,11 +212,17 @@
             BorderBrush="{DynamicResource LineBrush}"
             BorderThickness="1"
             CornerRadius="{DynamicResource RadiusRow}">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" ColumnSpacing="10">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10">
         <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding FormTitle}" />
-        <TextBlock Grid.Column="1" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryBrush}" Text="{Binding FormLabel}" />
-        <TextBox Grid.Column="2" Classes="field mono" Width="84" TextAlignment="Right"
+        <TextBlock Grid.Column="1" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryBrush}"
+                   Text="{Binding FormLabel}" />
+        <ComboBox Grid.Column="2" Width="200" IsVisible="{Binding IsMergeDaysForm}"
+                  ItemsSource="{Binding MergeTargets}"
+                  SelectedIndex="{Binding MergeTargetIndex}"
+                  AutomationProperties.Name="{Binding FormLabel}" />
+        <TextBox Grid.Column="2" Classes="field mono" Width="84" TextAlignment="Right" IsVisible="{Binding IsTimeForm}"
                  AutomationProperties.Name="{Binding FormLabel}"
+                 c:TimeMaskBehavior.Shape="00:00"
                  Text="{Binding FormInput}">
           <TextBox.KeyBindings>
             <KeyBinding Gesture="Enter" Command="{Binding ApplyFormCommand}" />
@@ -192,8 +232,25 @@
         <TextBlock Grid.Column="3" Classes="hint" VerticalAlignment="Center"
                    Classes.error="{Binding FormInvalid}" Text="{Binding FormRest}" />
         <Button Grid.Column="4" Classes="outline" Command="{Binding CancelFormCommand}" Content="{loc:T invoicing.details.cancel}" />
-        <Button Grid.Column="5" Classes="primary apply" IsEnabled="{Binding !FormInvalid}"
-                Command="{Binding ApplyFormCommand}" Content="{Binding ApplyText}" />
+        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="8">
+          <Button Classes="primary apply" IsEnabled="{Binding !FormInvalid}"
+                  Command="{Binding ApplyFormCommand}" Content="{Binding ApplyText}" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="6" Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsAddForm}">
+          <ComboBox Width="200"
+                    ItemsSource="{Binding FormDays}"
+                    SelectedIndex="{Binding FormDayIndex}"
+                    AutomationProperties.Name="{loc:T invoicing.details.add.day}" />
+          <TextBox Classes="field" Width="320"
+                   Text="{Binding FormNote}"
+                   PlaceholderText="{loc:T invoicing.details.add.note}"
+                   AutomationProperties.Name="{loc:T invoicing.details.add.note}">
+            <TextBox.KeyBindings>
+              <KeyBinding Gesture="Enter" Command="{Binding ApplyFormCommand}" />
+              <KeyBinding Gesture="Escape" Command="{Binding CancelFormCommand}" />
+            </TextBox.KeyBindings>
+          </TextBox>
+        </StackPanel>
       </Grid>
     </Border>
 
@@ -216,10 +273,12 @@
                         BorderBrush="{DynamicResource LineSoftBrush}"
                         BorderThickness="0,1,0,0"
                         Padding="16,10">
-                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                  <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
                     <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
                       <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" Text="{Binding Label}" />
                       <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Classes="mono muted" FontSize="12" Text="{Binding SumText}" />
+                      <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Classes="mono muted" FontSize="12"
+                                 IsVisible="{Binding HasRange}" Text="{Binding RangeText}" />
                       <Border Classes="badge edited" Margin="0,0,10,0" IsVisible="{Binding IsEdited}">
                         <TextBlock Text="{loc:T invoicing.details.edited}" />
                       </Border>
@@ -227,13 +286,14 @@
                         <TextBlock Text="{Binding RunningText}" />
                       </Border>
                     </WrapPanel>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
-                                VerticalAlignment="Center" IsVisible="{Binding HasDrift}">
-                      <TextBlock VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource ReachedAccentBrush}" Text="{Binding DriftText}" />
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" TextAlignment="Right" TextWrapping="Wrap"
+                               FontSize="12" Foreground="{DynamicResource ReachedAccentBrush}"
+                               IsVisible="{Binding HasDrift}" Text="{Binding DriftText}" />
+                    <Panel Grid.Column="2" VerticalAlignment="Center" IsVisible="{Binding HasDrift}">
                       <Button Classes="outline small" IsVisible="{Binding CanApplyDrift}"
                               Command="{Binding ApplyDriftCommand}" Content="{loc:T invoicing.details.addToLast}" />
-                    </StackPanel>
-                    <Button Grid.Column="2" Classes="outline small" VerticalAlignment="Center" IsVisible="{Binding CanReset}"
+                    </Panel>
+                    <Button Grid.Column="3" Classes="outline small" VerticalAlignment="Center" IsVisible="{Binding CanReset}"
                             Command="{Binding ResetCommand}" Content="{loc:T invoicing.details.resetToTracked}" />
                   </Grid>
                 </Border>
@@ -249,7 +309,11 @@
                                     AutomationProperties.Name="{Binding SelectLabel}" />
                           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Border Width="10" Height="10" CornerRadius="{DynamicResource RadiusLegend}"
-                                    VerticalAlignment="Center" Background="{Binding DotBrush}" />
+                                    VerticalAlignment="Center" Background="{Binding DotBrush}"
+                                    IsVisible="{Binding !IsCustom}" />
+                            <Border Width="10" Height="10" CornerRadius="{DynamicResource RadiusLegend}"
+                                    VerticalAlignment="Center" Background="{DynamicResource MutedBrush}"
+                                    IsVisible="{Binding IsCustom}" />
                             <StackPanel>
                               <TextBlock FontWeight="Medium" TextTrimming="CharacterEllipsis" MaxWidth="148" Text="{Binding NameText}" />
                               <TextBlock FontSize="11" Classes="muted" TextTrimming="CharacterEllipsis" MaxWidth="148"

@@ -15,7 +15,8 @@ namespace WowStopwatcher.Core.Invoicing;
 /// <param name="FileNamePattern">Output file name with <c>{{name}}</c> markers (see <see cref="InvoiceFileName"/>).</param>
 /// <param name="AskDestination">True to ask where to save each generated file; false to use <paramref name="OutputFolder"/>.</param>
 /// <param name="OutputFolder">Fixed output folder; used when <paramref name="AskDestination"/> is false.</param>
-/// <param name="NextInvoiceNumber">The number the next first-time generated invoice receives.</param>
+/// <param name="NextInvoiceNumber">The number the next invoice marked as sent receives (shown on generated files until then).</param>
+/// <param name="DayStartMinutes">Default start of an invoice day, minutes after local midnight (0 to 1439); 0 is plain calendar days.</param>
 /// <param name="IsDeleted">True when the company was deleted.</param>
 public sealed record Company(
     string Id,
@@ -31,7 +32,8 @@ public sealed record Company(
     bool AskDestination,
     string? OutputFolder,
     int NextInvoiceNumber,
-    bool IsDeleted = false)
+    bool IsDeleted = false,
+    int DayStartMinutes = 0)
 {
     /// <summary>Creates a new unique company id.</summary>
     public static string NewId() => Guid.NewGuid().ToString("N");

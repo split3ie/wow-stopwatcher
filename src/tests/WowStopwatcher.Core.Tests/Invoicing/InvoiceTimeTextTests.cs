@@ -41,4 +41,27 @@ public class InvoiceTimeTextTests
     {
         Assert.Equal(expected, InvoiceTimeText.Format(minutes));
     }
+
+    [Theory]
+    [InlineData(0, "000:00")]
+    [InlineData(483, "008:03")]
+    [InlineData(9600, "160:00")]
+    public void FormatPadded_pads_hours_to_three_digits(int minutes, string expected)
+    {
+        Assert.Equal(expected, InvoiceTimeText.FormatPadded(minutes));
+        Assert.True(InvoiceTimeText.TryParse(expected, out var parsed));
+        Assert.Equal(minutes, parsed);
+    }
+
+    [Theory]
+    [InlineData(0, "00:00")]
+    [InlineData(483, "08:03")]
+    [InlineData(5999, "99:59")]
+    [InlineData(6000, "99:59")]
+    [InlineData(99999, "99:59")]
+    public void FormatShort_pads_hours_to_two_digits_and_clamps(int minutes, string expected)
+    {
+        Assert.Equal(expected, InvoiceTimeText.FormatShort(minutes));
+        Assert.True(InvoiceTimeText.TryParse(expected, out _));
+    }
 }

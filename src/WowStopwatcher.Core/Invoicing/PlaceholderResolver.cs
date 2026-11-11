@@ -18,6 +18,11 @@ public static class PlaceholderResolver
         var byAlias = new Dictionary<string, PlaceholderDefinition>(StringComparer.Ordinal);
         foreach (var definition in definitions)
         {
+            if (definition.Kind == PlaceholderKind.Automatic)
+            {
+                continue;
+            }
+
             byAlias.TryAdd(definition.Alias, definition);
         }
 

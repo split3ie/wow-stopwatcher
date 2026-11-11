@@ -35,6 +35,18 @@ public class PlaceholderResolverTests
     }
 
     [Fact]
+    public void Automatic_IsSkipped()
+    {
+        var result = PlaceholderResolver.Resolve(
+            [new PlaceholderDefinition(0, "c", "hours", PlaceholderKind.Automatic, string.Empty, false, 0), Static("s", "text")],
+            Context,
+            new FakeEvaluator());
+
+        Assert.False(result.ContainsKey("hours"));
+        Assert.Equal("text", result["s"].Value);
+    }
+
+    [Fact]
     public void Static_IsUsedAsIs()
     {
         var result = PlaceholderResolver.Resolve([Static("s", "text")], Context, new FakeEvaluator());

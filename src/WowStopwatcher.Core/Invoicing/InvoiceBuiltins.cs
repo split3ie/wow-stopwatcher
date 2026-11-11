@@ -25,8 +25,14 @@ public static class InvoiceBuiltins
     /// <summary>Period as "yyyy-MM".</summary>
     public const string PeriodMonth = "period.month";
 
-    /// <summary>Period as "MMMM yyyy".</summary>
+    /// <summary>Period as "MMMM yyyy", always in English whatever the app language (for example November 2026).</summary>
     public const string PeriodName = "period.name";
+
+    /// <summary>Month name only, always in English whatever the app language (for example November).</summary>
+    public const string PeriodMonthName = "period.monthName";
+
+    /// <summary>Year only, 4 digits (for example 2026).</summary>
+    public const string PeriodYear = "period.year";
 
     /// <summary>First day of the period.</summary>
     public const string PeriodStart = "period.start";
@@ -34,7 +40,7 @@ public static class InvoiceBuiltins
     /// <summary>Last day of the period.</summary>
     public const string PeriodEnd = "period.end";
 
-    /// <summary>Invoice number; empty when not assigned yet.</summary>
+    /// <summary>Invoice number; the company's next number until the invoice is marked as sent.</summary>
     public const string InvoiceNumber = "invoice.number";
 
     /// <summary>Today's date.</summary>
@@ -64,7 +70,7 @@ public static class InvoiceBuiltins
     /// <summary>Every built-in name.</summary>
     public static readonly IReadOnlyList<string> All =
     [
-        Hours, Minutes, Rate, Amount, Currency, PeriodMonth, PeriodName, PeriodStart, PeriodEnd, InvoiceNumber, Today, CompanyName,
+        Hours, Minutes, Rate, Amount, Currency, PeriodMonth, PeriodName, PeriodMonthName, PeriodYear, PeriodStart, PeriodEnd, InvoiceNumber, Today, CompanyName,
         LineDate, LineStopwatch, LineTime, LineHours, LineAmount, LineNote,
     ];
 
@@ -75,6 +81,9 @@ public static class InvoiceBuiltins
 
     /// <summary>True when <paramref name="name"/> is a built-in name.</summary>
     public static bool IsBuiltin(string name) => Names.Contains(name);
+
+    /// <summary>The canonical spelling of the built-in that matches <paramref name="name"/> ignoring letter case, or null when there is none.</summary>
+    public static string? Canonical(string name) => All.FirstOrDefault(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>True when <paramref name="name"/> is a per-line marker (starts with "line.").</summary>
     public static bool IsLineMarker(string name) => name.StartsWith("line.", StringComparison.Ordinal);
@@ -99,7 +108,9 @@ public static class InvoiceBuiltins
             [Amount] = Number(InvoiceMath.Amount(totalMinutes, rate)),
             [Currency] = currency,
             [PeriodMonth] = period.Key,
-            [PeriodName] = period.FirstDay.ToString("MMMM yyyy", culture),
+            [PeriodName] = period.FirstDay.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
+            [PeriodMonthName] = period.FirstDay.ToString("MMMM", CultureInfo.InvariantCulture),
+            [PeriodYear] = period.FirstDay.Year.ToString("0000", CultureInfo.InvariantCulture),
             [PeriodStart] = period.FirstDay.ToString(shortDate, culture),
             [PeriodEnd] = period.LastDay.ToString(shortDate, culture),
             [InvoiceNumber] = invoiceNumber?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,

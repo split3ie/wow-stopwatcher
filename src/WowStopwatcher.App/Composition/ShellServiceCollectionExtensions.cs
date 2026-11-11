@@ -16,6 +16,7 @@ public static class ShellServiceCollectionExtensions
         services.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
         services.AddSingleton<IAppVersion, AppVersion>();
         services.AddSingleton<IFilePickerService, AvaloniaFilePickerService>();
+        services.AddSingleton<IClipboardService, AvaloniaClipboardService>();
         services.AddSingleton<IFolderLauncher, AvaloniaFolderLauncher>();
         services.AddSingleton<DatabaseRecovery>();
 

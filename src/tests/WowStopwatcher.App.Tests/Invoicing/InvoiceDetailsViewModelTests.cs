@@ -143,7 +143,7 @@ public sealed class InvoiceDetailsViewModelTests : IDisposable
         vm.OpenSplitCommand.Execute(null);
 
         Assert.True(vm.IsFormOpen);
-        Assert.Equal("0:30", vm.FormInput);
+        Assert.Equal("00:30", vm.FormInput);
         Assert.Equal("Split 1:00", vm.FormTitle);
         Assert.Equal("Second part 0:30", vm.FormRest);
         Assert.False(vm.FormInvalid);
@@ -177,7 +177,7 @@ public sealed class InvoiceDetailsViewModelTests : IDisposable
 
         vm.OpenAdjustCommand.Execute(null);
 
-        Assert.Equal("1:00", vm.FormInput);
+        Assert.Equal("01:00", vm.FormInput);
         Assert.Equal("Adjust 1:00", vm.FormTitle);
         Assert.Equal("Tracked for this day: 1:30", vm.FormRest);
 
@@ -232,19 +232,49 @@ public sealed class InvoiceDetailsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Merge_across_days_is_refused()
+    public void Merge_across_neighbouring_days_asks_for_a_day_and_moves_the_time_without_drift()
     {
         var vm = Create();
         vm.Days[0].Lines[0].IsSelected = true;
         vm.Days[1].Lines[0].IsSelected = true;
 
+        Assert.True(vm.CanMerge);
+        vm.MergeCommand.Execute(null);
+
+        Assert.True(vm.IsMergeDaysForm);
+        Assert.False(vm.IsTimeForm);
+        Assert.Equal(2, vm.MergeTargets.Count);
+        Assert.False(vm.FormInvalid);
+
+        vm.MergeTargetIndex = 0;
+        vm.ApplyFormCommand.Execute(null);
+
+        Assert.False(vm.IsFormOpen);
+        var nov2 = _service.GetDays(CompanyId, November).Single(d => d.Date == Nov2);
+        var nov3 = _service.GetDays(CompanyId, November).Single(d => d.Date == Nov3);
+        Assert.Equal(2, nov2.Lines.Count);
+        Assert.Equal(90, nov2.Lines[0].Minutes);
+        Assert.Empty(nov3.Lines);
+        Assert.True(nov3.Edited);
+        Assert.Equal(0, nov2.DriftMinutes);
+        Assert.Equal(0, nov3.DriftMinutes);
+    }
+
+    [Fact]
+    public void Merge_across_days_with_a_gap_is_refused()
+    {
+        _sessions.Items.Add(new Session(4, "a", Utc(2026, 11, 5, 9), Utc(2026, 11, 5, 9, 30)));
+        var vm = Create();
+        vm.Days[0].Lines[0].IsSelected = true;
+        vm.Days[2].Lines[0].IsSelected = true;
+
         Assert.False(vm.CanMerge);
-        Assert.Equal("Merge works within one day", vm.MergeHint);
+        Assert.Equal("Merge works within one day or neighbouring days", vm.MergeHint);
 
         vm.MergeCommand.Execute(null);
 
+        Assert.False(vm.IsFormOpen);
         Assert.False(IsEdited(Nov2));
-        Assert.False(IsEdited(Nov3));
         Assert.Equal(2, vm.Days[0].Lines.Count);
     }
 
@@ -255,7 +285,133 @@ public sealed class InvoiceDetailsViewModelTests : IDisposable
         vm.Days[0].Lines[0].IsSelected = true;
 
         Assert.False(vm.CanMerge);
-        Assert.Equal("Select two or more lines of one day to merge", vm.MergeHint);
+        Assert.Equal("Select two or more lines of one day or neighbouring days to merge", vm.MergeHint);
+    }
+
+    [Fact]
+    public void Add_time_adds_a_custom_line_to_a_day_without_tracked_time()
+    {
+        var vm = Create();
+
+        vm.OpenAddCommand.Execute(null);
+        Assert.True(vm.IsAddForm);
+        Assert.True(vm.FormInvalid);
+        vm.FormDayIndex = 4;
+        vm.FormInput = "1:30";
+        vm.FormNote = " Planning ";
+        Assert.False(vm.FormInvalid);
+        vm.ApplyFormCommand.Execute(null);
+
+        var nov5 = new DateOnly(2026, 11, 5);
+        var line = Assert.Single(StoredLines(nov5));
+        Assert.True(line.IsCustom);
+        Assert.Equal(90, line.Minutes);
+        Assert.Equal("Planning", line.Note);
+        Assert.True(IsEdited(nov5));
+        Assert.False(vm.IsFormOpen);
+        var row = vm.Days.Single(d => d.Date == nov5).Lines.Single();
+        Assert.True(row.IsCustom);
+        Assert.Equal("Custom", row.NameText);
+        Assert.True(row.IsBilled);
+        Assert.Equal("2h", vm.TrackedText);
+        Assert.Equal("1h 30m", vm.InvoicedText);
+    }
+
+    [Fact]
+    public void A_custom_line_does_not_cause_drift_and_is_added_at_the_end_of_a_tracked_day()
+    {
+        var vm = Create();
+        vm.OpenAddCommand.Execute(null);
+        vm.FormDayIndex = 1;
+        vm.FormInput = "0:20";
+        vm.ApplyFormCommand.Execute(null);
+
+        var lines = StoredLines(Nov2);
+        Assert.Equal(3, lines.Count);
+        Assert.True(lines[2].IsCustom);
+        Assert.Equal(0, _service.GetDays(CompanyId, November).Single(d => d.Date == Nov2).DriftMinutes);
+        Assert.False(vm.Days[0].HasDrift);
+    }
+
+    [Fact]
+    public void Add_time_needs_a_valid_time()
+    {
+        var vm = Create();
+        vm.OpenAddCommand.Execute(null);
+
+        vm.FormInput = "abc";
+        Assert.True(vm.FormInvalid);
+        vm.ApplyFormCommand.Execute(null);
+
+        Assert.True(vm.IsAddForm);
+        Assert.DoesNotContain(_service.GetDays(CompanyId, November), d => d.Edited);
+    }
+
+    [Fact]
+    public void A_custom_line_can_be_adjusted_noted_and_deleted_but_not_merged()
+    {
+        var vm = Create();
+        vm.OpenAddCommand.Execute(null);
+        vm.FormDayIndex = 1;
+        vm.FormInput = "0:20";
+        vm.ApplyFormCommand.Execute(null);
+
+        vm.Days[0].Lines[0].IsSelected = true;
+        Assert.False(vm.CanDelete);
+        vm.Days[0].Lines[2].IsSelected = true;
+        Assert.False(vm.CanDelete);
+        Assert.False(vm.CanMerge);
+        Assert.Equal("A custom line cannot be merged", vm.MergeHint);
+        vm.Days[0].Lines[0].IsSelected = false;
+
+        Assert.True(vm.CanChangeOne);
+        Assert.True(vm.CanDelete);
+        vm.OpenAdjustCommand.Execute(null);
+        vm.FormInput = "0:45";
+        vm.ApplyFormCommand.Execute(null);
+        Assert.Equal(45, StoredLines(Nov2)[2].Minutes);
+
+        vm.Days[0].Lines[2].Note = "Call";
+        vm.FlushNotes();
+        Assert.Equal("Call", StoredLines(Nov2)[2].Note);
+
+        vm.Days[0].Lines[2].IsSelected = true;
+        vm.DeleteCustomCommand.Execute(null);
+        Assert.Equal(2, StoredLines(Nov2).Count);
+        Assert.All(StoredLines(Nov2), l => Assert.False(l.IsCustom));
+    }
+
+    [Fact]
+    public void Deleting_the_last_line_of_a_custom_only_day_removes_the_day()
+    {
+        var vm = Create();
+        vm.OpenAddCommand.Execute(null);
+        vm.FormDayIndex = 6;
+        vm.FormInput = "1:00";
+        vm.ApplyFormCommand.Execute(null);
+        var nov7 = new DateOnly(2026, 11, 7);
+
+        vm.Days.Single(d => d.Date == nov7).Lines[0].IsSelected = true;
+        vm.DeleteCustomCommand.Execute(null);
+
+        Assert.DoesNotContain(_service.GetDays(CompanyId, November), d => d.Date == nov7);
+        Assert.DoesNotContain(vm.Days, d => d.Date == nov7);
+    }
+
+    [Fact]
+    public void Add_time_is_not_available_on_a_sent_invoice()
+    {
+        MarkSent();
+        var vm = Create();
+
+        vm.OpenAddCommand.Execute(null);
+
+        Assert.False(vm.IsFormOpen);
+        Assert.Equal(
+            EditDayResult.InvoiceSent,
+            _service.EditDay(CompanyId, November, Nov2, lines => InvoiceLineEditor.AddCustom(lines, Nov2, 30, "x")));
+        Assert.DoesNotContain(StoredLines(Nov2), l => l.IsCustom);
+        Assert.False(vm.CanDelete);
     }
 
     [Fact]
@@ -458,5 +614,121 @@ public sealed class InvoiceDetailsViewModelTests : IDisposable
             IsOpen = false;
             _onConfirm?.Invoke();
         }
+    }
+
+    [Fact]
+    public void Saving_reported_hours_sets_the_invoiced_total_and_shows_the_difference()
+    {
+        var vm = Create();
+        Assert.Equal(string.Empty, vm.ReportedInput);
+        Assert.False(vm.HasReported);
+
+        vm.ReportedInput = "2:30";
+        Assert.True(vm.CanSaveReported);
+        vm.SaveReportedCommand.Execute(null);
+
+        Assert.Equal(150, _service.GetSummary(CompanyId, November).ReportedMinutes);
+        Assert.Equal("2h 30m", vm.InvoicedText);
+        Assert.True(vm.HasReported);
+        Assert.True(vm.ShowReportedClear);
+        Assert.Equal("+30m vs tracked", vm.ReportedDifferenceText);
+    }
+
+    [Fact]
+    public void Reported_hours_below_tracked_show_a_minus_and_equal_hours_show_same()
+    {
+        var vm = Create();
+
+        vm.ReportedInput = "1:30";
+        vm.SaveReportedCommand.Execute(null);
+        Assert.Equal("−30m vs tracked", vm.ReportedDifferenceText);
+
+        vm.ReportedInput = "2";
+        vm.SaveReportedCommand.Execute(null);
+        Assert.Equal("Same as tracked", vm.ReportedDifferenceText);
+    }
+
+    [Fact]
+    public void Invalid_reported_hours_are_rejected()
+    {
+        var vm = Create();
+
+        foreach (var text in new[] { "abc", "0", "0:00", "1:75", "9999" })
+        {
+            vm.ReportedInput = text;
+            Assert.True(vm.ReportedInvalid, text);
+            Assert.False(vm.CanSaveReported, text);
+            vm.SaveReportedCommand.Execute(null);
+        }
+
+        Assert.Null(_service.GetSummary(CompanyId, November).ReportedMinutes);
+        Assert.False(vm.HasReported);
+    }
+
+    [Fact]
+    public void Clearing_reported_hours_returns_to_the_noted_lines()
+    {
+        var vm = Create();
+        vm.ReportedInput = "3";
+        vm.SaveReportedCommand.Execute(null);
+        Assert.Equal("3h", vm.InvoicedText);
+
+        vm.ClearReportedCommand.Execute(null);
+
+        Assert.Null(_service.GetSummary(CompanyId, November).ReportedMinutes);
+        Assert.Equal("0m", vm.InvoicedText);
+        Assert.False(vm.HasReported);
+        Assert.False(vm.ShowReportedClear);
+        Assert.Equal(string.Empty, vm.ReportedInput);
+    }
+
+    [Fact]
+    public void Reported_hours_start_with_the_invoiced_total_and_follow_it_until_typed_over()
+    {
+        var vm = Create();
+        Assert.Equal(string.Empty, vm.ReportedInput);
+
+        vm.Days[0].Lines[0].Note = "Work";
+        vm.FlushNotes();
+        Assert.Equal(InvoiceTimeText.FormatPadded(60), vm.ReportedInput);
+        Assert.False(vm.HasReported);
+
+        vm.Days[0].Lines[1].Note = "Design";
+        vm.FlushNotes();
+        Assert.Equal(InvoiceTimeText.FormatPadded(90), vm.ReportedInput);
+
+        // Saving the prefilled value is a normal save.
+        vm.SaveReportedCommand.Execute(null);
+        Assert.Equal(90, _service.GetSummary(CompanyId, November).ReportedMinutes);
+
+        // After Clear the box shows the total again.
+        vm.ClearReportedCommand.Execute(null);
+        Assert.Equal(InvoiceTimeText.FormatPadded(90), vm.ReportedInput);
+
+        // A value typed by the user is not overwritten by later edits.
+        vm.ReportedInput = "5";
+        vm.Days[1].Lines[0].Note = "More";
+        vm.FlushNotes();
+        Assert.Equal("5", vm.ReportedInput);
+    }
+
+    [Fact]
+    public void Reported_hours_are_read_only_when_the_invoice_is_sent()
+    {
+        _service.SetReportedMinutes(CompanyId, November, 150);
+        MarkSent();
+        var vm = Create();
+
+        Assert.True(vm.IsSent);
+        Assert.True(vm.HasReported);
+        Assert.Equal("2:30", vm.ReportedValueText);
+        Assert.False(vm.ShowReportedClear);
+        Assert.False(vm.CanSaveReported);
+
+        vm.ReportedInput = "5";
+        vm.SaveReportedCommand.Execute(null);
+        vm.ClearReportedCommand.Execute(null);
+
+        Assert.Equal(150, _service.GetSummary(CompanyId, November).ReportedMinutes);
     }
 }

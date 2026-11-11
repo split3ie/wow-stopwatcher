@@ -13,6 +13,7 @@ namespace WowStopwatcher.Core.Invoicing;
 /// <param name="GeneratedInputHash">See <see cref="InvoiceInputHash"/>; taken at the last generation.</param>
 /// <param name="SentUtc">When it was marked as sent.</param>
 /// <param name="SnapshotJson">Values frozen when it was marked as sent.</param>
+/// <param name="ReportedMinutes">Total minutes reported for the month; replaces the sum of the billed lines. Null: the sum of the billed lines is used.</param>
 public sealed record Invoice(
     long Id,
     string CompanyId,
@@ -23,4 +24,5 @@ public sealed record Invoice(
     DateTimeOffset? GeneratedUtc,
     string? GeneratedInputHash,
     DateTimeOffset? SentUtc,
-    string? SnapshotJson);
+    string? SnapshotJson,
+    int? ReportedMinutes = null);

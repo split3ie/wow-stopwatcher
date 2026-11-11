@@ -21,6 +21,26 @@ public class InvoiceBillingTests
     }
 
     [Fact]
+    public void Invoiced_minutes_are_the_reported_time_or_else_the_billed_lines()
+    {
+        var days = new[] { Day(Line(60, "work"), Line(30, "")) };
+
+        Assert.Equal(60, InvoiceBilling.InvoicedMinutes(days, null));
+        Assert.Equal(600, InvoiceBilling.InvoicedMinutes(days, 600));
+        Assert.Equal(90, InvoiceBilling.InvoicedMinutes([Day(Line(30, ""))], 90));
+        Assert.Equal(0, InvoiceBilling.InvoicedMinutes([Day(Line(30, ""))], null));
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(-5, false)]
+    [InlineData(1, true)]
+    [InlineData(59999, true)]
+    [InlineData(60000, false)]
+    public void Reported_minutes_are_valid_from_1_to_999_59(int minutes, bool valid) =>
+        Assert.Equal(valid, InvoiceBilling.IsValidReportedMinutes(minutes));
+
+    [Fact]
     public void Day_reports_billed_and_unallocated_minutes()
     {
         var day = Day(Line(60, "work"), Line(30, string.Empty));

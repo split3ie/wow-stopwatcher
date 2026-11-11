@@ -34,6 +34,7 @@ What it does:
   builds only that target; **Build** runs every checked target with its own line. Whitespace separates arguments; double quotes group an
   argument with spaces. Changing features, the version, the output folder or the checked targets regenerates all lines (typed edits are lost);
   "Reset" regenerates them too. An empty line for a checked target disables Build and Run.
+- Before publishing a target, closes a running `WowStopwatcher` started from that exact output file (close request, then kill after 5 s; open sessions resume on the next start) and renames the old file to `WowStopwatcher.old.exe` (`WowStopwatcher.old` on Linux/macOS), replacing an earlier one; if the rename fails, the target fails without publishing.
 - Shows the command line and the live process output in the log, a status per target, and a Cancel button that kills the running process tree.
 
 macOS limitation: the single-file binary for `osx-*` is produced on any host, but the `WowStopwatcher.app` bundle and its ad-hoc

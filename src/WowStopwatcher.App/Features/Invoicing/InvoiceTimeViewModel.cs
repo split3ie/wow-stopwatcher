@@ -136,7 +136,7 @@ public sealed partial class InvoiceTimeViewModel : ObservableObject
             return;
         }
 
-        OpenForm(NoEntry, _allocation.Unallocated > 0 ? InvoiceTimeText.Format(_allocation.Unallocated) : string.Empty, string.Empty);
+        OpenForm(NoEntry, InvoiceTimeText.FormatShort(Math.Max(_allocation.Unallocated, 0)), string.Empty);
     }
 
     internal void StartEdit(int index)
@@ -147,7 +147,7 @@ public sealed partial class InvoiceTimeViewModel : ObservableObject
         }
 
         var entry = _allocation.Entries[index];
-        OpenForm(index, InvoiceTimeText.Format(entry.Minutes), entry.Note);
+        OpenForm(index, InvoiceTimeText.FormatShort(entry.Minutes), entry.Note);
     }
 
     [RelayCommand]

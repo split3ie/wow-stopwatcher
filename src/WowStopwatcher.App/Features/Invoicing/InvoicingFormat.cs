@@ -11,6 +11,15 @@ internal static class InvoicingFormat
     /// <summary>"1h 30m" like the rest of the app.</summary>
     public static string Duration(int minutes) => TimeFormat.HoursMinutes(TimeSpan.FromMinutes(minutes));
 
+    /// <summary>The reported time against the tracked time: "+2h 15m vs tracked", "−0h 30m..." or "Same as tracked".</summary>
+    public static string ReportedDifference(int reportedMinutes, int trackedMinutes)
+    {
+        var diff = reportedMinutes - trackedMinutes;
+        return diff == 0
+            ? Loc.T("invoicing.reported.same")
+            : Loc.T(diff > 0 ? "invoicing.reported.more" : "invoicing.reported.less", ("time", Duration(Math.Abs(diff))));
+    }
+
     /// <summary>"1 234.50 USD" (digit grouping follows the app language).</summary>
     public static string Money(decimal amount, string currency) => amount.ToString("N2", Loc.Culture) + " " + currency;
 

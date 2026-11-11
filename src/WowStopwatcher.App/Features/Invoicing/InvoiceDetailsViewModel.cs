@@ -29,7 +29,9 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
     private readonly InvoicingSaveDebouncer _saver;
     private readonly Dictionary<(DateOnly Date, int Index), string> _pendingNotes = [];
     private readonly Dictionary<string, string> _colors;
-    private InvoiceSummary _summary = new(0, 0, 0m, 0m, string.Empty);
+    private InvoiceSummary _summary = new(0, 0, 0, 0, null, 0m, 0m, string.Empty);
+    private int _trackedMinutes;
+    private string _reportedDefault = string.Empty;
     private bool _loading;
     private bool _disposed;
 
@@ -58,9 +60,16 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
         var company = companies.Get(companyId) ?? throw new InvalidOperationException($"Company {companyId} does not exist.");
         Title = company.Name + " · " + InvoicingFormat.Month(period);
         CompanyBrush = new SolidColorBrush(InvoicingColors.Parse(company.Color));
+        FormDays = Enumerable.Range(0, period.LastDay.Day)
+            .Select(i => period.FirstDay.AddDays(i).ToString(Loc.T("invoicing.details.dayFormat"), Loc.Culture))
+            .ToList();
         _amountsHidden = settings.HideAmounts;
         settings.HideAmountsChanged += OnHideAmountsChanged;
         Reload(rebuild: true);
+        if (_summary.ReportedMinutes is { } reported)
+        {
+            ReportedInput = InvoiceTimeText.FormatPadded(reported);
+        }
     }
 
     public string Title { get; }
@@ -72,7 +81,7 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
     public bool IsEditable => !IsSent;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsEditable), nameof(SentText))]
+    [NotifyPropertyChangedFor(nameof(IsEditable), nameof(SentText), nameof(ShowReportedClear), nameof(CanSaveReported))]
     private bool _isSent;
 
     [ObservableProperty]
@@ -119,6 +128,63 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
     private string _selectionText = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReportedInvalid), nameof(CanSaveReported), nameof(ReportedHint))]
+    private string _reportedInput = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowReportedClear), nameof(ReportedValueText))]
+    private bool _hasReported;
+
+    [ObservableProperty]
+    private string _reportedDifferenceText = string.Empty;
+
+    /// <summary>The stored reported time as "h:mm", for the read-only view of a sent invoice.</summary>
+    public string ReportedValueText => _summary.ReportedMinutes is { } reported ? InvoiceTimeText.Format(reported) : string.Empty;
+
+    public bool ShowReportedClear => HasReported && IsEditable;
+
+    /// <summary>True when the typed text is not empty and not a valid reported time.</summary>
+    public bool ReportedInvalid => ReportedInput.Trim().Length > 0 && !TryParseReported(out _);
+
+    public bool CanSaveReported => IsEditable && ReportedInput.Trim().Length > 0 && !ReportedInvalid;
+
+    public string ReportedHint => ReportedInvalid
+        ? Loc.T("invoicing.details.reported.invalid")
+        : Loc.T("invoicing.details.reported.hint");
+
+    private bool TryParseReported(out int minutes) =>
+        InvoiceTimeText.TryParse(ReportedInput, out minutes) && InvoiceBilling.IsValidReportedMinutes(minutes);
+
+    [RelayCommand]
+    private void SaveReported()
+    {
+        if (!CanSaveReported || !TryParseReported(out var minutes))
+        {
+            return;
+        }
+
+        ApplyReported(minutes);
+    }
+
+    [RelayCommand]
+    private void ClearReported() => ApplyReported(null);
+
+    private void ApplyReported(int? minutes)
+    {
+        FlushNotes();
+        if (_service.SetReportedMinutes(_companyId, _period, minutes))
+        {
+            ErrorText = string.Empty;
+            Reload(rebuild: false);
+            ReportedInput = minutes is { } value ? InvoiceTimeText.FormatPadded(value) : _reportedDefault;
+            return;
+        }
+
+        ErrorText = Loc.T(IsSent ? "invoicing.details.error.sent" : "invoicing.details.error.failed");
+        Reload(rebuild: true);
+    }
+
+    [ObservableProperty]
     private bool _canChangeOne;
 
     [ObservableProperty]
@@ -128,12 +194,45 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
     private string _mergeHint = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsFormOpen), nameof(IsSplitForm))]
+    private bool _canDelete;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFormOpen), nameof(IsSplitForm), nameof(IsAddForm), nameof(IsMergeDaysForm), nameof(IsTimeForm))]
     private InvoiceDetailsFormKind _formKind;
 
     public bool IsFormOpen => FormKind != InvoiceDetailsFormKind.None;
 
     public bool IsSplitForm => FormKind == InvoiceDetailsFormKind.Split;
+
+    public bool IsAddForm => FormKind == InvoiceDetailsFormKind.Add;
+
+    public bool IsMergeDaysForm => FormKind == InvoiceDetailsFormKind.MergeDays;
+
+    /// <summary>True when the open form asks for a time (all forms but merging across days).</summary>
+    public bool IsTimeForm => IsFormOpen && !IsMergeDaysForm;
+
+    /// <summary>The days offered by the merge-across-days form, as labels.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> _mergeTargets = [];
+
+    /// <summary>Index into <see cref="MergeTargets"/> of the day the merged line goes to.</summary>
+    [ObservableProperty]
+    private int _mergeTargetIndex;
+
+    private List<DateOnly> _mergeDates = [];
+
+    partial void OnMergeTargetIndexChanged(int value) => RefreshForm();
+
+    /// <summary>The days of the month offered by the add form, as labels.</summary>
+    public IReadOnlyList<string> FormDays { get; }
+
+    /// <summary>Index into <see cref="FormDays"/> of the day the custom line is added to.</summary>
+    [ObservableProperty]
+    private int _formDayIndex;
+
+    /// <summary>The note of the custom line being added.</summary>
+    [ObservableProperty]
+    private string _formNote = string.Empty;
 
     [ObservableProperty]
     private string _formTitle = string.Empty;
@@ -154,6 +253,8 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
     private string _applyText = string.Empty;
 
     partial void OnFormInputChanged(string value) => RefreshForm();
+
+    partial void OnFormDayIndexChanged(int value) => RefreshForm();
 
     public void Dispose()
     {
@@ -198,12 +299,84 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
     private void OpenAdjust() => OpenForm(InvoiceDetailsFormKind.Adjust);
 
     [RelayCommand]
+    private void OpenAdd()
+    {
+        if (!IsEditable)
+        {
+            return;
+        }
+
+        var today = LocalDays.ToLocalDate(_time.GetUtcNow(), _time.LocalTimeZone);
+        FormKind = InvoiceDetailsFormKind.Add;
+        FormDayIndex = (_period.Contains(today) ? today : _period.FirstDay).Day - 1;
+        FormNote = string.Empty;
+        FormInput = InvoiceTimeText.FormatShort(0);
+        RefreshForm();
+    }
+
+    [RelayCommand]
     private void CancelForm() => FormKind = InvoiceDetailsFormKind.None;
+
+    [RelayCommand]
+    private void DeleteCustom()
+    {
+        var selected = SelectedLines();
+        if (!CanDelete || selected.Count == 0)
+        {
+            return;
+        }
+
+        _saver.Flush();
+        var result = EditDayResult.Saved;
+        foreach (var day in selected.GroupBy(l => l.Date))
+        {
+            var indices = day.Select(l => l.Index).OrderDescending().ToList();
+            try
+            {
+                var dayResult = _service.EditDay(
+                    _companyId,
+                    _period,
+                    day.Key,
+                    lines => indices.Aggregate(lines, InvoiceLineEditor.DeleteCustom));
+                if (dayResult != EditDayResult.Saved)
+                {
+                    result = dayResult;
+                }
+            }
+            catch (ArgumentException)
+            {
+                result = EditDayResult.Unchanged;
+            }
+        }
+
+        Report(result);
+        ClearSelection();
+        Reload(rebuild: true);
+    }
 
     [RelayCommand]
     private void ApplyForm()
     {
-        if (FormInvalid || SelectedLines().SingleOrDefault() is not { } line || !InvoiceTimeText.TryParse(FormInput, out var minutes))
+        if (FormKind == InvoiceDetailsFormKind.MergeDays)
+        {
+            ApplyMergeDays();
+            return;
+        }
+
+        if (FormInvalid || !InvoiceTimeText.TryParse(FormInput, out var minutes))
+        {
+            return;
+        }
+
+        if (FormKind == InvoiceDetailsFormKind.Add)
+        {
+            var date = _period.FirstDay.AddDays(FormDayIndex);
+            var note = FormNote;
+            Edit(date, lines => InvoiceLineEditor.AddCustom(lines, date, minutes, note));
+            return;
+        }
+
+        if (SelectedLines().SingleOrDefault() is not { } line)
         {
             return;
         }
@@ -227,8 +400,39 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
             return;
         }
 
+        if (selected.Any(l => l.Date != selected[0].Date))
+        {
+            _mergeDates = selected.Select(l => l.Date).Distinct().Order().ToList();
+            MergeTargets = _mergeDates
+                .Select(d => Days.First(day => day.Date == d).Label)
+                .ToList();
+            FormKind = InvoiceDetailsFormKind.MergeDays;
+            MergeTargetIndex = 0;
+            RefreshForm();
+            return;
+        }
+
         var indices = selected.Select(l => l.Index).ToList();
         Edit(selected[0].Date, lines => InvoiceLineEditor.Merge(lines, indices));
+    }
+
+    private void ApplyMergeDays()
+    {
+        var selected = SelectedLines();
+        if (FormInvalid || MergeTargetIndex < 0 || MergeTargetIndex >= _mergeDates.Count)
+        {
+            return;
+        }
+
+        _saver.Flush();
+        var result = _service.MergeDays(
+            _companyId,
+            _period,
+            selected.Select(l => (l.Date, l.Index)).ToList(),
+            _mergeDates[MergeTargetIndex]);
+        Report(result);
+        ClearSelection();
+        Reload(rebuild: true);
     }
 
     internal void ApplyDrift(InvoiceDetailsDayViewModel day)
@@ -272,7 +476,11 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
             return;
         }
 
-        FormKind = InvoiceDetailsFormKind.None;
+        if (FormKind != InvoiceDetailsFormKind.Add)
+        {
+            FormKind = InvoiceDetailsFormKind.None;
+        }
+
         RefreshToolbar();
     }
 
@@ -299,11 +507,15 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
             ? Loc.T("invoicing.details.selected", ("count", selected.Count))
             : Loc.T("invoicing.details.selectLines");
         CanChangeOne = IsEditable && selected.Count == 1;
-        var oneDay = selected.Count > 0 && selected.All(l => l.Date == selected[0].Date);
-        CanMerge = IsEditable && selected.Count >= 2 && oneDay;
-        MergeHint = selected.Count >= 2 && !oneDay
-            ? Loc.T("invoicing.details.mergeOneDay")
-            : Loc.T("invoicing.details.mergeSelect");
+        var neighbours = selected.Count > 0 && InvoiceLineEditor.AreNeighbouringDays(selected.Select(l => l.Date));
+        var anyCustom = selected.Any(l => l.IsCustom);
+        CanMerge = IsEditable && selected.Count >= 2 && neighbours && !anyCustom;
+        CanDelete = IsEditable && selected.Count > 0 && selected.All(l => l.IsCustom);
+        MergeHint = selected.Count >= 2 && anyCustom
+            ? Loc.T("invoicing.details.mergeCustom")
+            : selected.Count >= 2 && !neighbours
+                ? Loc.T("invoicing.details.mergeNeighbours")
+                : Loc.T("invoicing.details.mergeSelect");
         RefreshForm();
     }
 
@@ -315,12 +527,33 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
         }
 
         FormKind = kind;
-        FormInput = InvoiceTimeText.Format(kind == InvoiceDetailsFormKind.Split ? line.Minutes / 2 : line.Minutes);
+        FormInput = InvoiceTimeText.FormatShort(kind == InvoiceDetailsFormKind.Split ? line.Minutes / 2 : line.Minutes);
         RefreshForm();
     }
 
     private void RefreshForm()
     {
+        if (FormKind == InvoiceDetailsFormKind.Add)
+        {
+            FormInvalid = !InvoiceTimeText.TryParse(FormInput, out var added) || added <= 0
+                || FormDayIndex < 0 || FormDayIndex >= FormDays.Count;
+            FormTitle = Loc.T("invoicing.details.add.title");
+            FormLabel = Loc.T("invoicing.details.add.label");
+            ApplyText = Loc.T("invoicing.details.add.apply");
+            FormRest = FormInvalid ? Loc.T("invoicing.details.adjust.invalid") : string.Empty;
+            return;
+        }
+
+        if (FormKind == InvoiceDetailsFormKind.MergeDays)
+        {
+            FormInvalid = MergeTargetIndex < 0 || MergeTargetIndex >= _mergeDates.Count;
+            FormTitle = Loc.T("invoicing.details.mergeDays.title");
+            FormLabel = Loc.T("invoicing.details.mergeDays.label");
+            ApplyText = Loc.T("invoicing.details.mergeDays.apply");
+            FormRest = Loc.T("invoicing.details.mergeDays.hint");
+            return;
+        }
+
         if (FormKind == InvoiceDetailsFormKind.None || SelectedLines().SingleOrDefault() is not { } line)
         {
             FormInvalid = true;
@@ -433,21 +666,41 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
 
             _summary = _service.GetSummary(_companyId, _period);
             var days = _service.GetDays(_companyId, _period);
-            TrackedText = InvoicingFormat.Duration(days.Sum(d => d.TrackedMinutes));
-            InvoicedText = InvoicingFormat.Duration(_summary.BilledMinutes);
+            var ranges = _service.GetDayRanges(_companyId, _period).ToDictionary(r => r.Date);
+            _trackedMinutes = days.Sum(d => d.TrackedMinutes);
+            TrackedText = InvoicingFormat.Duration(_trackedMinutes);
+            InvoicedText = InvoicingFormat.Duration(_summary.InvoicedMinutes);
+            if (_summary.ReportedMinutes is null)
+            {
+                var invoicedDefault = InvoiceBilling.IsValidReportedMinutes(_summary.InvoicedMinutes)
+                    ? InvoiceTimeText.FormatPadded(_summary.InvoicedMinutes)
+                    : string.Empty;
+                if (ReportedInput.Length == 0 || ReportedInput == _reportedDefault)
+                {
+                    ReportedInput = invoicedDefault;
+                }
+
+                _reportedDefault = invoicedDefault;
+            }
+
+            HasReported = _summary.ReportedMinutes is not null;
+            ReportedDifferenceText = _summary.ReportedMinutes is { } reportedMinutes
+                ? InvoicingFormat.ReportedDifference(reportedMinutes, _trackedMinutes)
+                : string.Empty;
+            OnPropertyChanged(nameof(ReportedValueText));
             UnallocatedText = InvoicingFormat.Duration(_summary.UnallocatedMinutes);
             OnPropertyChanged(nameof(AmountText));
             OnPropertyChanged(nameof(AmountLabel));
 
             if (rebuild || !SameShape(days))
             {
-                Rebuild(days);
+                Rebuild(days, ranges);
             }
             else
             {
                 for (var i = 0; i < days.Count; i++)
                 {
-                    Days[i].Apply(days[i], RunningNames(days[i]), IsEditable);
+                    Days[i].Apply(days[i], ranges.GetValueOrDefault(days[i].Date), RunningNames(days[i]), IsEditable);
                     for (var j = 0; j < days[i].Lines.Count; j++)
                     {
                         Days[i].Lines[j].UpdateTime(days[i].Lines[j].Minutes);
@@ -469,7 +722,7 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
             && d.Lines.Count == Days[i].Lines.Count
             && d.Lines.Select((l, j) => Days[i].Lines[j].Matches(l)).All(match => match)).All(same => same);
 
-    private void Rebuild(IReadOnlyList<InvoiceDay> days)
+    private void Rebuild(IReadOnlyList<InvoiceDay> days, IReadOnlyDictionary<DateOnly, InvoiceDayRange> ranges)
     {
         Days.Clear();
         var today = LocalDays.ToLocalDate(_time.GetUtcNow(), _time.LocalTimeZone);
@@ -482,7 +735,7 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
                 dayViewModel.Lines.Add(new InvoiceDetailsLineViewModel(this, day.Lines[i], i, label, DotBrush(day.Lines[i]), IsEditable));
             }
 
-            dayViewModel.Apply(day, RunningNames(day), IsEditable);
+            dayViewModel.Apply(day, ranges.GetValueOrDefault(day.Date), RunningNames(day), IsEditable);
             Days.Add(dayViewModel);
         }
     }

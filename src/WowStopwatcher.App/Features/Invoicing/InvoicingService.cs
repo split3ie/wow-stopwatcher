@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using WowStopwatcher.Core;
 using WowStopwatcher.Core.Invoicing;
@@ -62,27 +63,33 @@ public sealed class InvoicingService
         var zone = _time.LocalTimeZone;
         var current = InvoicePeriod.From(Today());
         var invoices = _invoices.GetForCompany(companyId).ToDictionary(i => i.Period);
-        var periods = _sessions.GetLocalDays(zone).Select(InvoicePeriod.From).Concat(invoices.Keys).Distinct().ToList();
+        // A day's early hours can belong to the previous day's invoice day, so the month before each session day is listed too.
+        var periods = _sessions.GetLocalDays(zone)
+            .SelectMany(d => new[] { InvoicePeriod.From(d), InvoicePeriod.From(d.AddDays(-1)) })
+            .Concat(invoices.Keys)
+            .Distinct()
+            .ToList();
 
         var rows = new List<InvoiceMonthRow>();
         foreach (var period in periods)
         {
             invoices.TryGetValue(period, out var invoice);
             var days = DaysFor(company, period, invoice);
-            var minutes = InvoiceBilling.BilledMinutes(days);
+            var billed = InvoiceBilling.BilledMinutes(days);
             var unallocated = InvoiceBilling.UnallocatedMinutes(days);
-            if (minutes == 0 && unallocated == 0 && invoice is null)
+            if (billed == 0 && unallocated == 0 && invoice is null)
             {
                 continue;
             }
 
             var snapshot = invoice?.Status == InvoiceStatus.Sent ? ParseSnapshot(invoice.SnapshotJson) : null;
+            var minutes = snapshot?.Minutes ?? InvoiceBilling.InvoicedMinutes(days, invoice?.ReportedMinutes);
             var amount = snapshot is not null ? snapshot.Amount : InvoiceMath.Amount(minutes, company.Rate);
             var status = invoice is null || (invoice.Status == InvoiceStatus.Pending && invoice.FilePath is null)
                 ? InvoiceMonthStatus.Draft
                 : invoice.Status == InvoiceStatus.Sent ? InvoiceMonthStatus.Sent : InvoiceMonthStatus.Pending;
             var fileExists = invoice?.FilePath is { } path && File.Exists(path);
-            rows.Add(new InvoiceMonthRow(period, invoice, minutes, unallocated, amount, snapshot?.Currency ?? company.Currency, status, fileExists, period == current));
+            rows.Add(new InvoiceMonthRow(period, invoice, minutes, unallocated, days.Sum(d => d.TrackedMinutes), invoice?.ReportedMinutes, amount, snapshot?.Currency ?? company.Currency, status, fileExists, period == current));
         }
 
         return rows.OrderByDescending(r => r.Period.Year).ThenByDescending(r => r.Period.Month).ToList();
@@ -107,7 +114,7 @@ public sealed class InvoicingService
         return new InvoiceTimeDay(lines, tracked, invoice?.Status == InvoiceStatus.Sent);
     }
 
-    /// <summary>Billed and unallocated minutes and the amount of the invoice.</summary>
+    /// <summary>Billed, unallocated, tracked, reported and invoiced minutes and the amount of the invoice. Reported time, when set, replaces the billed minutes in the invoiced minutes and the amount.</summary>
     public InvoiceSummary GetSummary(string companyId, InvoicePeriod period)
     {
         var company = Require(companyId);
@@ -116,7 +123,49 @@ public sealed class InvoicingService
         var billed = InvoiceBilling.BilledMinutes(days);
         var frozen = invoice?.Status == InvoiceStatus.Sent ? ParseSnapshot(invoice.SnapshotJson) : null;
         var rate = frozen?.Rate ?? company.Rate;
-        return new InvoiceSummary(billed, InvoiceBilling.UnallocatedMinutes(days), InvoiceMath.Amount(billed, rate), rate, frozen?.Currency ?? company.Currency);
+        var invoiced = frozen?.Minutes ?? InvoiceBilling.InvoicedMinutes(days, invoice?.ReportedMinutes);
+        return new InvoiceSummary(
+            billed,
+            InvoiceBilling.UnallocatedMinutes(days),
+            days.Sum(d => d.TrackedMinutes),
+            invoiced,
+            invoice?.ReportedMinutes,
+            InvoiceMath.Amount(invoiced, rate),
+            rate,
+            frozen?.Currency ?? company.Currency);
+    }
+
+    /// <summary>
+    /// Sets the time reported for the month, which replaces the total of the billed lines in the invoice (the per-line table stays the billed lines),
+    /// or with null clears it. Returns false and changes nothing when the invoice is sent or the value is outside 1 to <see cref="InvoiceBilling.MaxReportedMinutes"/>.
+    /// Clearing on a month without an invoice row does nothing and returns true.
+    /// </summary>
+    public bool SetReportedMinutes(string companyId, InvoicePeriod period, int? minutes)
+    {
+        Require(companyId);
+        if (minutes is { } value && !InvoiceBilling.IsValidReportedMinutes(value))
+        {
+            return false;
+        }
+
+        var invoice = _invoices.Get(companyId, period);
+        if (invoice?.Status == InvoiceStatus.Sent)
+        {
+            return false;
+        }
+
+        if (minutes is null)
+        {
+            if (invoice is not null)
+            {
+                _invoices.SetReportedMinutes(invoice.Id, null);
+            }
+
+            return true;
+        }
+
+        _invoices.SetReportedMinutes((invoice ?? _invoices.GetOrCreate(companyId, period)).Id, minutes);
+        return true;
     }
 
     /// <summary>The invoice row of the month; null until the first edit, generation or mark as sent.</summary>
@@ -126,16 +175,26 @@ public sealed class InvoicingService
         return _invoices.Get(companyId, period);
     }
 
-    /// <summary>Names of the billed stopwatches that are running now and started on <paramref name="date"/>.</summary>
+    /// <summary>Names of the billed stopwatches that are running now and are inside the invoice day <paramref name="date"/>.</summary>
     public IReadOnlyList<string> GetRunningStopwatchNames(string companyId, DateOnly date)
     {
-        var assigned = _companies.GetAssignedStopwatchIds(Require(companyId).Id);
+        var company = Require(companyId);
+        var assigned = _companies.GetAssignedStopwatchIds(company.Id);
         var names = _stopwatches.GetAll(includeDeleted: true).ToDictionary(s => s.Id, s => s.Name);
+        var now = _time.GetUtcNow();
+        var range = RangeFor(company, date);
         return _sessions.GetOpen()
-            .Where(s => assigned.Contains(s.StopwatchId) && LocalDays.ToLocalDate(s.StartUtc, _time.LocalTimeZone) == date)
+            .Where(s => assigned.Contains(s.StopwatchId) && s.StartUtc < range.EndUtc && now >= range.StartUtc && now < range.EndUtc)
             .Select(s => names.TryGetValue(s.StopwatchId, out var name) ? name : s.StopwatchId)
             .Distinct()
             .ToList();
+    }
+
+    /// <summary>The ranges of every invoice day of the month.</summary>
+    public IReadOnlyList<InvoiceDayRange> GetDayRanges(string companyId, InvoicePeriod period)
+    {
+        var company = Require(companyId);
+        return InvoiceDayRanges.ForPeriod(period, company.DayStartMinutes, null, _time.LocalTimeZone);
     }
 
     /// <summary>
@@ -155,6 +214,11 @@ public sealed class InvoicingService
             return EditDayResult.InvoiceSent;
         }
 
+        if (!period.Contains(date))
+        {
+            return EditDayResult.Unchanged;
+        }
+
         var current = DaysFor(company, period, existing).FirstOrDefault(d => d.Date == date)?.Lines ?? [];
         var updated = edit(current);
         if (updated.Any(l => l.Minutes <= 0 || l.Date != date))
@@ -163,7 +227,59 @@ public sealed class InvoicingService
         }
 
         var invoice = existing ?? _invoices.GetOrCreate(companyId, period);
+        if (updated.Count == 0)
+        {
+            _invoices.DeleteDay(invoice.Id, date);
+            return EditDayResult.Saved;
+        }
+
         _invoices.ReplaceDay(invoice.Id, new StoredInvoiceDay(date, true, updated));
+        return EditDayResult.Saved;
+    }
+
+    /// <summary>
+    /// Merges lines of neighbouring days (<paramref name="lines"/>: day and line index of each) into one line on <paramref name="target"/>,
+    /// storing all involved days (as edited, even when a day is left without lines) in one transaction. The moved time is remembered
+    /// on the merged line, so it does not show as drift. <see cref="EditDayResult.InvoiceSent"/> when the invoice is sent;
+    /// <see cref="EditDayResult.Unchanged"/> when fewer than two lines, a date outside the period, a gap between the days,
+    /// a target that is not one of the days, a custom line or an invalid index.
+    /// </summary>
+    public EditDayResult MergeDays(
+        string companyId,
+        InvoicePeriod period,
+        IReadOnlyList<(DateOnly Date, int Index)> lines,
+        DateOnly target)
+    {
+        var company = Require(companyId);
+        var existing = _invoices.Get(companyId, period);
+        if (existing?.Status == InvoiceStatus.Sent)
+        {
+            return EditDayResult.InvoiceSent;
+        }
+
+        if (lines.Count < 2 || lines.Any(l => !period.Contains(l.Date)))
+        {
+            return EditDayResult.Unchanged;
+        }
+
+        var current = DaysFor(company, period, existing).ToDictionary(d => d.Date, d => d.Lines);
+        if (lines.Any(l => !current.ContainsKey(l.Date)))
+        {
+            return EditDayResult.Unchanged;
+        }
+
+        IReadOnlyList<(DateOnly Date, IReadOnlyList<InvoiceLine> Lines)> merged;
+        try
+        {
+            merged = InvoiceLineEditor.MergeAcrossDays(current, lines, target);
+        }
+        catch (ArgumentException)
+        {
+            return EditDayResult.Unchanged;
+        }
+
+        var invoice = existing ?? _invoices.GetOrCreate(companyId, period);
+        _invoices.ReplaceDays(invoice.Id, merged.Select(d => new StoredInvoiceDay(d.Date, true, d.Lines)).ToList());
         return EditDayResult.Saved;
     }
 
@@ -186,7 +302,7 @@ public sealed class InvoicingService
         return EditDayResult.Saved;
     }
 
-    /// <summary>Adds the difference between tracked and invoiced minutes of an edited day to its last line.</summary>
+    /// <summary>Adds the difference between tracked and invoiced minutes of an edited day to its last tracked (non-custom) line.</summary>
     public EditDayResult ApplyDrift(string companyId, InvoicePeriod period, DateOnly date)
     {
         var company = Require(companyId);
@@ -197,20 +313,21 @@ public sealed class InvoicingService
         }
 
         var day = DaysFor(company, period, invoice).FirstOrDefault(d => d.Date == date);
-        if (invoice is null || day is null || !day.Edited || day.DriftMinutes == 0 || day.Lines.Count == 0)
+        var target = day is null ? -1 : day.Lines.ToList().FindLastIndex(l => !l.IsCustom);
+        if (invoice is null || day is null || !day.Edited || day.DriftMinutes == 0 || target < 0)
         {
             return EditDayResult.Unchanged;
         }
 
         var lines = day.Lines.ToList();
-        var last = lines[^1];
+        var last = lines[target];
         var minutes = last.Minutes + day.DriftMinutes;
         if (minutes <= 0)
         {
             return EditDayResult.Unchanged;
         }
 
-        lines[^1] = last with { Minutes = minutes };
+        lines[target] = last with { Minutes = minutes };
         _invoices.ReplaceDay(invoice.Id, new StoredInvoiceDay(date, true, lines));
         return EditDayResult.Saved;
     }
@@ -220,7 +337,7 @@ public sealed class InvoicingService
     {
         var company = Require(companyId);
         var invoice = _invoices.Get(companyId, period);
-        return BuildInputs(company, period, invoice, DaysFor(company, period, invoice), invoice?.Number).Placeholders;
+        return BuildInputs(company, period, invoice, DaysFor(company, period, invoice), invoice?.Number ?? company.NextInvoiceNumber).Placeholders;
     }
 
     /// <summary>Resolves the placeholders for the current month with one synthetic line of <paramref name="sampleHours"/>.</summary>
@@ -233,15 +350,16 @@ public sealed class InvoicingService
         var company = Require(companyId);
         var path = TemplatePath(company);
         var defined = _companies.GetPlaceholders(companyId).Select(p => p.Alias).ToList();
-        if (path is null || !File.Exists(path))
-        {
-            return new TemplateWarnings(false, [], [], defined);
-        }
+        var hasTemplate = path is not null && File.Exists(path);
 
-        var markers = _scanner.Scan(path);
+        // Template markers first, then the file name pattern's markers.
+        var markers = (hasTemplate ? _scanner.Scan(path!) : [])
+            .Concat(TemplateMarkers.Find(company.FileNamePattern))
+            .Distinct()
+            .ToList();
         var unknown = markers.Where(m => !InvoiceBuiltins.IsBuiltin(m) && !defined.Contains(m)).ToList();
         var unused = defined.Where(a => !markers.Contains(a)).ToList();
-        return new TemplateWarnings(true, markers, unknown, unused);
+        return new TemplateWarnings(hasTemplate, markers, unknown, unused);
     }
 
     /// <summary>The suggested file name for the invoice (invoice number: the assigned one, else the next one).</summary>
@@ -308,7 +426,7 @@ public sealed class InvoicingService
 
     /// <summary>
     /// Makes the PDF and moves it to <paramref name="destinationPath"/> (the caller already confirmed replacing an existing file),
-    /// then records it with the input hash. Only allocated time (lines with a note) is billed; with none, nothing is generated. Blocked, with reasons, when a used placeholder has an error or the template or a converter is missing.
+    /// then records it with the input hash. Only allocated time (lines with a note) is billed; with none and no reported time, nothing is generated; reported time replaces the billed total. Blocked, with reasons, when a used placeholder has an error or the template or a converter is missing.
     /// </summary>
     public async Task<GenerateResult> GenerateAsync(string companyId, InvoicePeriod period, string destinationPath, CancellationToken cancellationToken)
     {
@@ -354,8 +472,8 @@ public sealed class InvoicingService
             }
 
             invoice ??= _invoices.GetOrCreate(companyId, period);
-            var number = _invoices.MarkGenerated(invoice.Id, destinationPath, _time.GetUtcNow(), Hash(inputs, company));
-            return new GenerateResult(GenerateOutcome.Generated, destinationPath, number);
+            _invoices.MarkGenerated(invoice.Id, destinationPath, _time.GetUtcNow(), Hash(inputs, company));
+            return new GenerateResult(GenerateOutcome.Generated, destinationPath, invoice.Number ?? company.NextInvoiceNumber);
         }
         catch (PdfConversionException ex)
         {
@@ -391,12 +509,18 @@ public sealed class InvoicingService
         }
 
         var invoice = existing ?? _invoices.GetOrCreate(companyId, period);
+
+        // Built-ins overridden by a placeholder are frozen with the other values; the rest are computed again from the frozen numbers.
+        var overridden = _companies.GetPlaceholders(companyId)
+            .Where(d => d.Kind != PlaceholderKind.Automatic && InvoiceBuiltins.IsBuiltin(d.Alias) && !InvoiceBuiltins.IsLineMarker(d.Alias))
+            .Select(d => d.Alias)
+            .ToHashSet(StringComparer.Ordinal);
         var snapshot = new InvoiceSnapshot(
             inputs.Rate,
             inputs.Currency,
             inputs.Minutes,
             InvoiceMath.Amount(inputs.Minutes, inputs.Rate),
-            inputs.Values.Where(p => !InvoiceBuiltins.IsBuiltin(p.Key)).ToDictionary(p => p.Key, p => p.Value),
+            inputs.Values.Where(p => !InvoiceBuiltins.IsBuiltin(p.Key) || overridden.Contains(p.Key)).ToDictionary(p => p.Key, p => p.Value),
             invoice.FilePath is null ? null : Path.GetFileName(invoice.FilePath),
             company.TemplateSha256);
         var toFreeze = days.Where(d => !d.Edited).Select(d => new StoredInvoiceDay(d.Date, false, d.Lines)).ToList();
@@ -443,16 +567,23 @@ public sealed class InvoicingService
     private IReadOnlyList<InvoiceDay> LiveDays(Company company, InvoicePeriod period)
     {
         var zone = _time.LocalTimeZone;
-        var (from, to) = period.RangeUtc(zone);
+        var ranges = InvoiceDayRanges.ForPeriod(period, company.DayStartMinutes, null, zone);
+        var (from, to) = InvoiceDayRanges.WindowUtc(ranges);
+
+        // Sessions are found by their start; one day earlier also finds a session that began before the first day and runs into it.
         var names = _stopwatches.GetAll(includeDeleted: true).ToDictionary(s => s.Id, s => s.Name);
         return InvoiceLineBuilder.Build(
-            _sessions.GetInRange(from, to),
+            _sessions.GetInRange(from.AddDays(-1), to),
             names,
             _companies.GetAssignedStopwatchIds(company.Id),
             period,
             zone,
-            _time.GetUtcNow());
+            _time.GetUtcNow(),
+            company.DayStartMinutes);
     }
+
+    private InvoiceDayRange RangeFor(Company company, DateOnly date) =>
+        InvoiceDayRanges.For(date, company.DayStartMinutes, null, _time.LocalTimeZone);
 
     private Inputs BuildSampleInputs(Company company, decimal sampleHours)
     {
@@ -468,13 +599,14 @@ public sealed class InvoicingService
     {
         var culture = Loc.Culture;
         var lines = InvoiceBilling.BilledLines(days);
-        var minutes = lines.Sum(l => l.Minutes);
+        var minutes = InvoiceBilling.InvoicedMinutes(days, invoice?.ReportedMinutes);
         var frozen = invoice?.Status == InvoiceStatus.Sent ? ParseSnapshot(invoice.SnapshotJson) : null;
         var rate = frozen?.Rate ?? company.Rate;
         var currency = frozen?.Currency ?? company.Currency;
         var amount = InvoiceMath.Amount(minutes, rate);
 
-        IReadOnlyDictionary<string, PlaceholderResult> placeholders;
+        var definitions = _companies.GetPlaceholders(company.Id);
+        Dictionary<string, PlaceholderResult> placeholders;
         if (frozen is not null)
         {
             placeholders = frozen.Values.ToDictionary(p => p.Key, p => new PlaceholderResult(p.Value, null));
@@ -490,19 +622,29 @@ public sealed class InvoicingService
                 period.Key,
                 period.FirstDay,
                 period.LastDay,
-                period.FirstDay.ToString("MMMM yyyy", culture),
+                period.FirstDay.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
                 invoice?.Number,
                 lines,
                 _ => null);
-            placeholders = PlaceholderResolver.Resolve(_companies.GetPlaceholders(company.Id), context, _evaluator);
+            placeholders = new Dictionary<string, PlaceholderResult>(
+                PlaceholderResolver.Resolve(definitions, context, _evaluator), StringComparer.Ordinal);
         }
 
         var values = InvoiceBuiltins.Create(minutes, rate, currency, company.Name, period, number, Today(), culture);
         foreach (var (alias, result) in placeholders)
         {
-            if (result.IsOk && !InvoiceBuiltins.IsBuiltin(alias))
+            if (result.IsOk && !InvoiceBuiltins.IsLineMarker(alias))
             {
                 values[alias] = result.Value ?? string.Empty;
+            }
+        }
+
+        // An automatic row shows the computed built-in value.
+        foreach (var definition in definitions)
+        {
+            if (definition.Kind == PlaceholderKind.Automatic && values.TryGetValue(definition.Alias, out var computed))
+            {
+                placeholders[definition.Alias] = new PlaceholderResult(computed, null);
             }
         }
 

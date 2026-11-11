@@ -6,7 +6,7 @@ namespace WowStopwatcher.Core.Invoicing;
 /// <param name="Id">Database id; 0 for a new one.</param>
 /// <param name="CompanyId">Owning company.</param>
 /// <param name="Alias">Name used in the template as <c>{{alias}}</c> (see <see cref="PlaceholderAlias"/>).</param>
-/// <param name="Kind">Static text or script.</param>
+/// <param name="Kind">Static text, script, or automatic (the built-in value of the alias).</param>
 /// <param name="Value">The text, or the script code.</param>
 /// <param name="Hidden">True when the result is shown as <see cref="MoneyMask.Mask"/> while amounts are hidden.</param>
 /// <param name="SortOrder">Position in lists; lower comes first.</param>

@@ -10,7 +10,7 @@
   <UserControl.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <ResourceInclude Source="avares://WowStopwatcher.App/Features/Invoicing/InvoicingIcons.axaml" />
+        <ResourceInclude Source="/Features/Invoicing/InvoicingIcons.axaml" />
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </UserControl.Resources>
@@ -68,13 +68,12 @@
                      Text="{Binding RateDisplay}"
                      IsReadOnly="{Binding IsRateReadOnly}"
                      AutomationProperties.Name="{loc:T invoicing.settings.rate}" />
-            <AutoCompleteBox Grid.Column="1"
-                             Classes="field"
-                             Width="96"
-                             MinimumPrefixLength="0"
-                             ItemsSource="{Binding Currencies}"
-                             Text="{Binding Currency, Mode=TwoWay}"
-                             AutomationProperties.Name="{loc:T invoicing.settings.currency}" />
+            <ComboBox Grid.Column="1"
+                      Classes="field"
+                      Width="96"
+                      ItemsSource="{Binding Currencies}"
+                      SelectedItem="{Binding Currency, Mode=TwoWay}"
+                      AutomationProperties.Name="{loc:T invoicing.settings.currency}" />
           </Grid>
           <TextBlock Classes="hint" Text="{loc:T invoicing.settings.rateHidden}" IsVisible="{Binding AmountsHidden}" />
           <TextBlock Classes="error" Text="{loc:T invoicing.settings.rateInvalid}" IsVisible="{Binding HasRateError}" />
@@ -133,6 +132,20 @@
             <TextBlock Grid.Column="1" VerticalAlignment="Center" Classes="muted" Text=".pdf" />
           </Grid>
           <TextBlock Classes="hint" Text="{Binding FileExample}" />
+        </StackPanel>
+
+        <StackPanel l:FlexWrapPanel.Basis="340" Spacing="6">
+          <TextBlock Classes="fieldLabel" Text="{loc:T invoicing.settings.nextNumber}" />
+          <TextBox Classes="field mono" Text="{Binding NextNumberText}" AutomationProperties.Name="{loc:T invoicing.settings.nextNumber}" />
+          <TextBlock Classes="hint" Text="{loc:T invoicing.settings.nextNumberHint}" />
+          <TextBlock Classes="error" Text="{loc:T invoicing.settings.nextNumberInvalid}" IsVisible="{Binding HasNextNumberError}" />
+        </StackPanel>
+
+        <StackPanel l:FlexWrapPanel.Basis="340" Spacing="6">
+          <TextBlock Classes="fieldLabel" Text="{loc:T invoicing.settings.dayStart}" />
+          <TextBox Classes="field mono" Width="120" HorizontalAlignment="Left" c:TimeMaskBehavior.Shape="00:00" c:TimeMaskBehavior.MaxHours="23" Text="{Binding DayStartInput}" AutomationProperties.Name="{loc:T invoicing.settings.dayStart}" />
+          <TextBlock Classes="hint" TextWrapping="Wrap" Text="{loc:T invoicing.settings.dayStartHint}" />
+          <TextBlock Classes="error" Text="{loc:T invoicing.settings.dayStartInvalid}" IsVisible="{Binding HasDayStartError}" />
         </StackPanel>
 
         <StackPanel l:FlexWrapPanel.Basis="340" Spacing="6">

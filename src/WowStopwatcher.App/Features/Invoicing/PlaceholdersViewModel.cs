@@ -13,10 +13,12 @@ namespace WowStopwatcher.App.Features.Invoicing;
 public sealed partial class PlaceholdersViewModel : ObservableObject
 {
     private static readonly TimeSpan SaveDelay = TimeSpan.FromMilliseconds(600);
+    private static readonly TimeSpan CopiedNoteDuration = TimeSpan.FromSeconds(2);
 
     private readonly InvoicingDependencies _d;
     private readonly string _companyId;
     private readonly Func<decimal> _sampleHours;
+    private int _copyVersion;
     private readonly InvoicingSaveDebouncer _saver;
     private bool _loading;
     private int _version;
@@ -57,6 +59,13 @@ public sealed partial class PlaceholdersViewModel : ObservableObject
     [ObservableProperty]
     private bool _isBusy;
 
+    /// <summary>A short note that a built-in name was copied; empty when there is nothing to show.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCopiedNote))]
+    private string _copiedNote = string.Empty;
+
+    public bool HasCopiedNote => CopiedNote.Length > 0;
+
     [ObservableProperty]
     private bool _hasErrors;
 
@@ -87,6 +96,34 @@ public sealed partial class PlaceholdersViewModel : ObservableObject
         _saver.Schedule();
     }
 
+    /// <summary>Copies the marker (<c>{{name}}</c>) of a built-in name to the clipboard and shows a note for a moment.</summary>
+    [RelayCommand]
+    private async Task CopyBuiltinAsync(string? name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return;
+        }
+
+        var marker = "{{" + name + "}}";
+        if (!await _d.Clipboard.SetTextAsync(marker))
+        {
+            return;
+        }
+
+        CopiedNote = Loc.T("invoicing.placeholders.copied", ("name", marker));
+        var version = ++_copyVersion;
+        _ = Task.Delay(CopiedNoteDuration, _d.Time).ContinueWith(
+            _ => _d.Dispatcher.Post(() =>
+            {
+                if (version == _copyVersion)
+                {
+                    CopiedNote = string.Empty;
+                }
+            }),
+            TaskScheduler.Default);
+    }
+
     [RelayCommand]
     private void Add()
     {
@@ -100,6 +137,38 @@ public sealed partial class PlaceholdersViewModel : ObservableObject
         Rows.Add(new PlaceholderRowViewModel(this, new PlaceholderDefinition(0, _companyId, "placeholder" + number, PlaceholderKind.Static, string.Empty, false, Rows.Count)));
         OnPropertyChanged(nameof(HasRows));
         _saver.Schedule();
+    }
+
+    /// <summary>
+    /// Adds a row for every marker that is not defined yet (ignoring case) and has a valid alias, then saves:
+    /// an automatic row for an invoice-level built-in (not a line marker), an empty static row for any other marker.
+    /// </summary>
+    internal bool AddMissing(IEnumerable<string> markers)
+    {
+        var used = Rows.Select(r => r.NormalizedAlias).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var added = false;
+        foreach (var marker in markers)
+        {
+            var isBuiltin = InvoiceBuiltins.IsBuiltin(marker);
+            if (PlaceholderAlias.Validate(marker) is not null
+                || (!isBuiltin && InvoiceBuiltins.Canonical(marker) is not null)
+                || !used.Add(marker))
+            {
+                continue;
+            }
+
+            var kind = isBuiltin ? PlaceholderKind.Automatic : PlaceholderKind.Static;
+            Rows.Add(new PlaceholderRowViewModel(this, new PlaceholderDefinition(0, _companyId, marker, kind, string.Empty, false, Rows.Count)));
+            added = true;
+        }
+
+        if (added)
+        {
+            OnPropertyChanged(nameof(HasRows));
+            SaveNow();
+        }
+
+        return added;
     }
 
     /// <summary>Saves the rows when every alias is valid and unique; otherwise shows the errors and saves nothing. Returns whether it saved.</summary>
@@ -131,7 +200,7 @@ public sealed partial class PlaceholdersViewModel : ObservableObject
             {
                 row.AliasError = InvoicingMessages.Alias(code);
             }
-            else if (!seen.Add(row.Alias.Trim()))
+            else if (!seen.Add(row.NormalizedAlias))
             {
                 row.AliasError = Loc.T("invoicing.alias.duplicate");
             }
@@ -164,6 +233,12 @@ public sealed partial class PlaceholdersViewModel : ObservableObject
                 return;
             }
 
+            // Every valid undefined marker gets a row. A successful save starts a newer run that replaces this one.
+            if (AddMissing(warnings.Markers) && version != _version)
+            {
+                return;
+            }
+
             foreach (var row in Rows)
             {
                 if (!results.TryGetValue(row.Alias.Trim(), out var result))
@@ -181,7 +256,8 @@ public sealed partial class PlaceholdersViewModel : ObservableObject
             }
 
             Warnings.Clear();
-            foreach (var marker in warnings.UnknownMarkers)
+            var defined = Rows.Select(r => r.Alias.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var marker in warnings.UnknownMarkers.Where(m => !defined.Contains(m)))
             {
                 Warnings.Add(Loc.T("invoicing.placeholders.unknown", ("name", marker)));
             }

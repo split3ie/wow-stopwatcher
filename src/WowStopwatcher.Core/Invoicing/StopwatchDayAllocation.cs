@@ -119,6 +119,13 @@ public sealed class StopwatchDayAllocation
             replacement.Add(new InvoiceLine(date, Unallocated, string.Empty, sources));
         }
 
+        // Time moved in from other days stays on the first replacement line.
+        var moves = InvoiceLineMoves.Combine(dayLines.Where(l => IsOwn(l, StopwatchId)).SelectMany(l => l.MovedIn));
+        if (moves.Count > 0 && replacement.Count > 0)
+        {
+            replacement[0] = replacement[0] with { MovedIn = moves };
+        }
+
         var result = new List<InvoiceLine>();
         var placed = false;
         foreach (var line in dayLines)

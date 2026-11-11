@@ -13,6 +13,10 @@ public static class InvoiceReconciler
     {
         var live = liveDays.ToDictionary(d => d.Date);
         var stored = storedDays.ToDictionary(d => d.Date);
+        var movedOut = storedDays
+            .SelectMany(d => d.Lines.SelectMany(l => l.MovedIn).Where(m => m.FromDate != d.Date))
+            .GroupBy(m => m.FromDate)
+            .ToDictionary(g => g.Key, g => g.Sum(m => m.Minutes));
 
         return live.Keys.Union(stored.Keys)
             .Order()
@@ -21,9 +25,10 @@ public static class InvoiceReconciler
                 live.TryGetValue(date, out var l);
                 var tracked = l?.TrackedMinutes ?? 0;
                 var running = l?.HasRunningSession ?? false;
+                var moved = movedOut.GetValueOrDefault(date);
                 return stored.TryGetValue(date, out var s)
-                    ? new InvoiceDay(date, s.Edited, s.Lines, tracked, running)
-                    : new InvoiceDay(date, false, l!.Lines, tracked, running);
+                    ? new InvoiceDay(date, s.Edited, s.Lines, tracked, running, moved)
+                    : new InvoiceDay(date, false, l!.Lines, tracked, running, moved);
             })
             .ToList();
     }

@@ -9,7 +9,7 @@
   <UserControl.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <ResourceInclude Source="avares://WowStopwatcher.App/Features/Invoicing/InvoicingIcons.axaml" />
+        <ResourceInclude Source="/Features/Invoicing/InvoicingIcons.axaml" />
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </UserControl.Resources>
@@ -20,9 +20,9 @@
       <TextBlock Classes="hint" Text="{loc:T invoicing.placeholders.description}" />
     </StackPanel>
 
-    <StackPanel Orientation="Horizontal" Spacing="6">
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
       <TextBlock Classes="hint" VerticalAlignment="Top" Text="{loc:T invoicing.placeholders.builtIn}" />
-      <ItemsControl ItemsSource="{Binding BuiltinNames}">
+      <ItemsControl Grid.Column="1" ItemsSource="{Binding BuiltinNames}">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
             <WrapPanel Orientation="Horizontal" />
@@ -30,11 +30,17 @@
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="x:String">
-            <Border Classes="builtin"><TextBlock Text="{Binding}" /></Border>
+            <Button Classes="builtin"
+                    Command="{Binding $parent[ItemsControl].((vm:PlaceholdersViewModel)DataContext).CopyBuiltinCommand}"
+                    CommandParameter="{Binding}"
+                    ToolTip.Tip="{loc:T invoicing.placeholders.copy}">
+              <TextBlock Text="{Binding}" />
+            </Button>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-    </StackPanel>
+    </Grid>
+    <TextBlock Classes="hint" Text="{Binding CopiedNote}" IsVisible="{Binding HasCopiedNote}" />
 
     <Border Classes="card" Padding="16">
       <StackPanel Spacing="10">
@@ -58,6 +64,7 @@
                 <StackPanel Spacing="2">
                   <TextBox Classes="field mono"
                            Text="{Binding Alias}"
+                           IsReadOnly="{Binding !IsAliasEditable}"
                            AutomationProperties.Name="{loc:T invoicing.placeholders.alias}" />
                   <TextBlock Classes="error" Text="{Binding AliasError}" IsVisible="{Binding HasAliasError}" />
                 </StackPanel>
@@ -68,6 +75,7 @@
                           AutomationProperties.Name="{loc:T invoicing.placeholders.source}">
                   <ComboBoxItem Content="{loc:T invoicing.placeholders.static}" />
                   <ComboBoxItem Content="{loc:T invoicing.placeholders.script}" />
+                  <ComboBoxItem Content="{loc:T invoicing.placeholders.automatic}" IsVisible="{Binding CanBeAutomatic}" />
                 </ComboBox>
                 <Panel Grid.Column="2">
                   <TextBox Classes="field"
@@ -78,6 +86,10 @@
                            Text="{Binding Value}"
                            IsVisible="{Binding IsScript}"
                            AutomationProperties.Name="{loc:T invoicing.placeholders.script}" />
+                  <TextBlock Classes="hint"
+                             VerticalAlignment="Center"
+                             Text="{loc:T invoicing.placeholders.automaticHint}"
+                             IsVisible="{Binding IsAutomatic}" />
                 </Panel>
                 <TextBlock Grid.Column="3"
                            VerticalAlignment="Top"

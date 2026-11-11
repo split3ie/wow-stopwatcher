@@ -39,6 +39,13 @@ public sealed partial class InvoiceRowViewModel : ObservableObject
 
     public string HoursText => InvoicingFormat.Duration(Data.InvoicedMinutes);
 
+    public bool HasReported => Data.ReportedMinutes is not null;
+
+    /// <summary>The reported time against the tracked time, empty without reported hours.</summary>
+    public string ReportedDifferenceText => Data.ReportedMinutes is { } reported
+        ? InvoicingFormat.ReportedDifference(reported, Data.TrackedMinutes)
+        : string.Empty;
+
     public bool HasUnallocated => Data.UnallocatedMinutes > 0;
 
     public string UnallocatedText => Loc.T("invoicing.list.unallocated", ("time", InvoicingFormat.Duration(Data.UnallocatedMinutes)));
@@ -57,11 +64,56 @@ public sealed partial class InvoiceRowViewModel : ObservableObject
 
     public string MarkText => IsSent ? Loc.T("invoicing.action.markPending") : Loc.T("invoicing.action.markSent");
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReportedInvalid), nameof(CanSaveReported), nameof(ReportedEditorHint))]
+    private string _reportedInput = string.Empty;
+
+    [ObservableProperty]
+    private bool _isEditingReported;
+
+    public string TrackedText => InvoicingFormat.Duration(Data.TrackedMinutes);
+
+    public string ReportedEditorLabel => Loc.T("invoicing.list.reported.tracked", ("time", TrackedText));
+
+    public bool ReportedInvalid => ReportedInput.Trim().Length > 0 && !TryParseReported(out _);
+
+    public bool CanSaveReported => ReportedInput.Trim().Length > 0 && !ReportedInvalid;
+
+    public string ReportedEditorHint => ReportedInvalid ? Loc.T("invoicing.details.reported.invalid") : Loc.T("invoicing.details.reported.hint");
+
+    private bool TryParseReported(out int minutes) =>
+        InvoiceTimeText.TryParse(ReportedInput, out minutes) && InvoiceBilling.IsValidReportedMinutes(minutes);
+
+    internal void BeginReportedEdit()
+    {
+        ReportedInput = InvoiceTimeText.FormatPadded(Data.ReportedMinutes ?? Data.InvoicedMinutes);
+        IsEditingReported = true;
+    }
+
+    internal void EndReportedEdit() => IsEditingReported = false;
+
+    [RelayCommand]
+    private void SaveReported()
+    {
+        if (CanSaveReported && TryParseReported(out var minutes))
+        {
+            _owner.SaveReported(this, minutes);
+        }
+    }
+
+    [RelayCommand]
+    private void ClearReported() => _owner.SaveReported(this, null);
+
+    [RelayCommand]
+    private void CancelReported() => EndReportedEdit();
+
     internal void RefreshMask() => OnPropertyChanged(nameof(AmountText));
 
     private bool CanOpenFile() => Data.FileExists;
 
     private bool CanGenerate() => !IsSent;
+
+    private bool CanSetReported() => !IsSent;
 
     private bool CanMark() => !IsDraft;
 
@@ -76,6 +128,9 @@ public sealed partial class InvoiceRowViewModel : ObservableObject
 
     [RelayCommand(CanExecute = nameof(CanMark))]
     private void ToggleSent() => _owner.ToggleSent(this);
+
+    [RelayCommand(CanExecute = nameof(CanSetReported))]
+    private void SetReported() => _owner.OpenReportedEditor(this);
 
     [RelayCommand]
     private void ShowDetails() => _owner.ShowDetails(this);

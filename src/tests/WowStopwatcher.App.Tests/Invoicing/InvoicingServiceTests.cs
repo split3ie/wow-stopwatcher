@@ -99,7 +99,7 @@ public sealed class InvoicingServiceTests : IDisposable
         Assert.Equal(30, allocated.UnallocatedMinutes);
         Assert.Equal(60m, allocated.Amount);
         var summary = _service.GetSummary(CompanyId, November);
-        Assert.Equal(new InvoiceSummary(60, 30, 60m, 60m, "EUR"), summary);
+        Assert.Equal(new InvoiceSummary(60, 30, 90, 60, null, 60m, 60m, "EUR"), summary);
     }
 
     [Fact]
@@ -132,6 +132,37 @@ public sealed class InvoicingServiceTests : IDisposable
         _service.EditDay(CompanyId, November, Nov2, lines => InvoiceLineEditor.Adjust(lines, 0, 10));
         Assert.Equal(EditDayResult.Saved, _service.ResetDay(CompanyId, November, Nov2));
         Assert.False(_service.GetDays(CompanyId, November)[0].Edited);
+    }
+
+    [Fact]
+    public void Merging_days_moves_the_time_to_the_target_without_drift_and_keeps_the_emptied_day_edited()
+    {
+        var result = _service.MergeDays(CompanyId, November, [(Nov2, 0), (Nov3, 0)], Nov3);
+
+        Assert.Equal(EditDayResult.Saved, result);
+        var days = _service.GetDays(CompanyId, November);
+        Assert.Empty(days[0].Lines);
+        Assert.True(days[0].Edited);
+        var merged = Assert.Single(days[1].Lines);
+        Assert.Equal(90, merged.Minutes);
+        Assert.Equal([new InvoiceLineMove(Nov2, 60)], merged.MovedIn);
+        Assert.All(days, d => Assert.Equal(0, d.DriftMinutes));
+        Assert.Equal(2, _invoices.GetStoredDays(_invoices.Get(CompanyId, November)!.Id).Count);
+    }
+
+    [Fact]
+    public void Merging_days_is_refused_when_sent_or_when_days_have_a_gap()
+    {
+        _sessions.Items.Add(new Session(5, "a", Utc(2026, 11, 5, 9), Utc(2026, 11, 5, 9, 30)));
+
+        Assert.Equal(EditDayResult.Unchanged, _service.MergeDays(CompanyId, November, [(Nov2, 0), (new DateOnly(2026, 11, 5), 0)], Nov2));
+        Assert.Equal(EditDayResult.Unchanged, _service.MergeDays(CompanyId, November, [(Nov2, 0), (Nov3, 0)], new DateOnly(2026, 11, 5)));
+        Assert.Equal(EditDayResult.Unchanged, _service.MergeDays(CompanyId, November, [(Nov2, 0)], Nov2));
+        Assert.Null(_invoices.Get(CompanyId, November));
+
+        Assert.Equal(MarkSentResult.Sent, _service.MarkSent(CompanyId, November, confirmChanged: false));
+
+        Assert.Equal(EditDayResult.InvoiceSent, _service.MergeDays(CompanyId, November, [(Nov2, 0), (Nov3, 0)], Nov2));
     }
 
     [Fact]
@@ -173,6 +204,34 @@ public sealed class InvoicingServiceTests : IDisposable
         Assert.Equal(InvoiceStatus.Pending, invoice.Status);
         Assert.Equal([Nov2], _invoices.GetStoredDays(invoice.Id).Select(d => d.Date).ToArray());
         Assert.False(_service.MarkPending(CompanyId, November));
+    }
+
+    [Fact]
+    public async Task Generating_shows_the_next_number_without_assigning_it()
+    {
+        UseTemplate("Invoice {{period.month}} {{hours}}");
+        Allocate(Nov2);
+        var destination = Path.Combine(_folder, "out", "gen.pdf");
+
+        var generated = await _service.GenerateAsync(CompanyId, November, destination, CancellationToken.None);
+
+        Assert.Equal(5, generated.InvoiceNumber);
+        Assert.Null(_invoices.Get(CompanyId, November)!.Number);
+        Assert.Equal(5, _companies.Get(CompanyId)!.NextInvoiceNumber);
+    }
+
+    [Fact]
+    public void Mark_sent_assigns_the_number_and_pending_then_sent_keeps_it()
+    {
+        Assert.Equal(MarkSentResult.Sent, _service.MarkSent(CompanyId, November, confirmChanged: false));
+        Assert.Equal(5, _invoices.Get(CompanyId, November)!.Number);
+        Assert.Equal(6, _companies.Get(CompanyId)!.NextInvoiceNumber);
+
+        Assert.True(_service.MarkPending(CompanyId, November));
+        Assert.Equal(MarkSentResult.Sent, _service.MarkSent(CompanyId, November, confirmChanged: false));
+
+        Assert.Equal(5, _invoices.Get(CompanyId, November)!.Number);
+        Assert.Equal(6, _companies.Get(CompanyId)!.NextInvoiceNumber);
     }
 
     [Fact]
@@ -244,6 +303,84 @@ public sealed class InvoicingServiceTests : IDisposable
     }
 
     [Fact]
+    public void Reported_time_replaces_the_billed_total_in_summary_and_month_row()
+    {
+        Allocate(Nov2);
+
+        Assert.True(_service.SetReportedMinutes(CompanyId, November, 150));
+
+        var summary = _service.GetSummary(CompanyId, November);
+        Assert.Equal(new InvoiceSummary(60, 30, 90, 150, 150, 150m, 60m, "EUR"), summary);
+        var row = _service.GetMonths(CompanyId)[0];
+        Assert.Equal(150, row.InvoicedMinutes);
+        Assert.Equal(150, row.ReportedMinutes);
+        Assert.Equal(90, row.TrackedMinutes);
+        Assert.Equal(150m, row.Amount);
+        Assert.Equal(60, _service.GetSummary(CompanyId, November).BilledMinutes);
+
+        Assert.True(_service.SetReportedMinutes(CompanyId, November, null));
+        Assert.Equal(new InvoiceSummary(60, 30, 90, 60, null, 60m, 60m, "EUR"), _service.GetSummary(CompanyId, November));
+    }
+
+    [Fact]
+    public void Reported_time_is_validated_and_clearing_without_a_row_does_nothing()
+    {
+        Assert.True(_service.SetReportedMinutes(CompanyId, November, null));
+        Assert.Null(_invoices.Get(CompanyId, November));
+
+        Assert.False(_service.SetReportedMinutes(CompanyId, November, 0));
+        Assert.False(_service.SetReportedMinutes(CompanyId, November, InvoiceBilling.MaxReportedMinutes + 1));
+        Assert.Null(_invoices.Get(CompanyId, November));
+
+        Assert.True(_service.SetReportedMinutes(CompanyId, November, InvoiceBilling.MaxReportedMinutes));
+        Assert.Equal(InvoiceBilling.MaxReportedMinutes, _invoices.Get(CompanyId, November)!.ReportedMinutes);
+    }
+
+    [Fact]
+    public async Task Reported_time_allows_generation_without_noted_lines_and_feeds_the_values()
+    {
+        UseTemplate("Invoice {{hours}}");
+        var destination = Path.Combine(_folder, "out", "inv.pdf");
+        var before = await _service.GenerateAsync(CompanyId, November, destination, CancellationToken.None);
+        Assert.Equal(GenerateOutcome.NothingAllocated, before.Outcome);
+
+        _service.SetReportedMinutes(CompanyId, November, 120);
+        var result = await _service.GenerateAsync(CompanyId, November, destination, CancellationToken.None);
+
+        Assert.Equal(GenerateOutcome.Generated, result.Outcome);
+        _companies.Update(_companies.Get(CompanyId)! with { FileNamePattern = "{{hours}}" });
+        Assert.Equal("2.00.pdf", _service.SuggestFileName(CompanyId, November));
+    }
+
+    [Fact]
+    public async Task Changing_the_reported_time_changes_the_input_hash()
+    {
+        UseTemplate("{{hours}}");
+        _service.SetReportedMinutes(CompanyId, November, 120);
+        await _service.GenerateAsync(CompanyId, November, Path.Combine(_folder, "o", "a.pdf"), CancellationToken.None);
+
+        _service.SetReportedMinutes(CompanyId, November, 180);
+
+        Assert.Equal(MarkSentResult.ChangedSinceGeneration, _service.MarkSent(CompanyId, November, confirmChanged: false));
+    }
+
+    [Fact]
+    public void Reported_time_is_refused_when_sent_and_kept_after_mark_pending()
+    {
+        _service.SetReportedMinutes(CompanyId, November, 120);
+        _service.MarkSent(CompanyId, November, confirmChanged: false);
+
+        Assert.False(_service.SetReportedMinutes(CompanyId, November, 30));
+        Assert.False(_service.SetReportedMinutes(CompanyId, November, null));
+        Assert.Equal(120, _service.GetSummary(CompanyId, November).InvoicedMinutes);
+        Assert.Equal(120, _service.GetMonths(CompanyId)[0].InvoicedMinutes);
+
+        Assert.True(_service.MarkPending(CompanyId, November));
+        Assert.Equal(120, _invoices.Get(CompanyId, November)!.ReportedMinutes);
+        Assert.True(_service.SetReportedMinutes(CompanyId, November, 30));
+    }
+
+    [Fact]
     public async Task Only_noted_lines_reach_the_file_values_and_hash()
     {
         UseTemplate("{{hours}}");
@@ -287,6 +424,70 @@ public sealed class InvoicingServiceTests : IDisposable
     }
 
     [Fact]
+    public void Template_warnings_include_file_name_markers_even_without_a_template()
+    {
+        _companies.Update(_companies.Get(CompanyId)! with { FileNamePattern = "{{period.month}}_{{used}}_{{mystery}}" });
+        _companies.Placeholders[CompanyId] =
+        [
+            new PlaceholderDefinition(1, CompanyId, "used", PlaceholderKind.Static, "x", false, 0),
+            new PlaceholderDefinition(2, CompanyId, "spare", PlaceholderKind.Static, "y", false, 1),
+        ];
+
+        var warnings = _service.GetTemplateWarnings(CompanyId);
+
+        Assert.False(warnings.HasTemplate);
+        Assert.Equal(["period.month", "used", "mystery"], warnings.Markers);
+        Assert.Equal(["mystery"], warnings.UnknownMarkers);
+        Assert.Equal(["spare"], warnings.UnusedPlaceholders);
+    }
+
+    [Fact]
+    public void A_built_in_alias_with_a_static_row_overrides_the_value_but_not_the_summary()
+    {
+        Allocate(Nov2);
+        _companies.Update(_companies.Get(CompanyId)! with { FileNamePattern = "{{company.name}}-{{hours}}-{{currency}}" });
+        _companies.Placeholders[CompanyId] =
+        [
+            new PlaceholderDefinition(1, CompanyId, "company.name", PlaceholderKind.Static, "Override", false, 0),
+            new PlaceholderDefinition(2, CompanyId, "currency", PlaceholderKind.Automatic, string.Empty, false, 1),
+        ];
+
+        Assert.Equal("Override-1.00-EUR.pdf", _service.SuggestFileName(CompanyId, November));
+        Assert.Equal(new InvoiceSummary(60, 30, 90, 60, null, 60m, 60m, "EUR"), _service.GetSummary(CompanyId, November));
+    }
+
+    [Fact]
+    public void An_automatic_row_shows_the_computed_built_in_value()
+    {
+        _companies.Placeholders[CompanyId] = [new PlaceholderDefinition(1, CompanyId, "currency", PlaceholderKind.Automatic, string.Empty, false, 0)];
+
+        var result = _service.ResolvePlaceholdersForSample(CompanyId, 1m)["currency"];
+
+        Assert.True(result.IsOk);
+        Assert.Equal("EUR", result.Value);
+    }
+
+    [Fact]
+    public void A_sent_invoice_freezes_an_overridden_built_in()
+    {
+        Allocate(Nov2);
+        _companies.Update(_companies.Get(CompanyId)! with { FileNamePattern = "{{company.name}}-{{currency}}" });
+        _companies.Placeholders[CompanyId] =
+        [
+            new PlaceholderDefinition(1, CompanyId, "company.name", PlaceholderKind.Static, "Frozen", false, 0),
+            new PlaceholderDefinition(2, CompanyId, "currency", PlaceholderKind.Automatic, string.Empty, false, 1),
+        ];
+
+        Assert.Equal(MarkSentResult.Sent, _service.MarkSent(CompanyId, November, confirmChanged: false));
+        var snapshot = _invoices.Get(CompanyId, November)!.SnapshotJson!;
+        Assert.Contains("Frozen", snapshot);
+
+        _companies.Placeholders[CompanyId] = [new PlaceholderDefinition(1, CompanyId, "company.name", PlaceholderKind.Static, "Changed", false, 0)];
+
+        Assert.Equal("Frozen-EUR.pdf", _service.SuggestFileName(CompanyId, November));
+    }
+
+    [Fact]
     public void Suggested_file_name_uses_the_pattern_and_the_next_number()
     {
         _companies.Update(_companies.Get(CompanyId)! with { FileNamePattern = "{{company.name}}-{{invoice.number}}-{{period.month}}" });
@@ -318,6 +519,49 @@ public sealed class InvoicingServiceTests : IDisposable
 
         Assert.False(settings.HideAmounts);
         Assert.Equal(1, raised);
+    }
+
+    private void UseNightShift()
+    {
+        _companies.Update(_companies.Get(CompanyId)! with { DayStartMinutes = 20 * 60 });
+
+        // Shift 20:00 on Nov 9 to 04:00 on Nov 10, stored split at midnight.
+        _sessions.Items.Add(new Session(10, "a", Utc(2026, 11, 9, 20), Utc(2026, 11, 10, 0)));
+        _sessions.Items.Add(new Session(11, "a", Utc(2026, 11, 10, 0), Utc(2026, 11, 10, 4)));
+    }
+
+    [Fact]
+    public void Day_start_joins_a_shift_split_at_midnight_into_one_day()
+    {
+        UseNightShift();
+
+        var day = _service.GetDays(CompanyId, November).Single(d => d.Date == new DateOnly(2026, 11, 9));
+
+        Assert.Equal(480, day.TrackedMinutes);
+        Assert.DoesNotContain(_service.GetDays(CompanyId, November), d => d.Date == new DateOnly(2026, 11, 10));
+        Assert.Equal(480, _service.GetStopwatchDay(CompanyId, November, new DateOnly(2026, 11, 9), "a").TrackedMinutes);
+    }
+
+    [Fact]
+    public void Time_before_the_first_start_goes_to_the_previous_month_and_the_month_is_listed()
+    {
+        _companies.Update(_companies.Get(CompanyId)! with { DayStartMinutes = 20 * 60 });
+        _sessions.Items.Add(new Session(10, "a", Utc(2026, 11, 1, 1), Utc(2026, 11, 1, 2)));
+
+        var october = _service.GetDays(CompanyId, new InvoicePeriod(2026, 10)).Single(d => d.Date == new DateOnly(2026, 10, 31));
+
+        Assert.Equal(60, october.TrackedMinutes);
+    }
+
+    [Fact]
+    public void Running_stopwatch_names_use_the_invoice_day_range()
+    {
+        UseNightShift();
+        _sessions.Items.Clear();
+        _sessions.Items.Add(new Session(20, "a", Utc(2026, 11, 15, 8), null));  // now is Nov 15 12:00
+
+        Assert.Equal(["English"], _service.GetRunningStopwatchNames(CompanyId, new DateOnly(2026, 11, 14)));
+        Assert.Empty(_service.GetRunningStopwatchNames(CompanyId, new DateOnly(2026, 11, 15)));
     }
 
     private sealed class StubConverter(bool available) : IPdfConverter

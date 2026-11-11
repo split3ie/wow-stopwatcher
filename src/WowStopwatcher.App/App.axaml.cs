@@ -61,6 +61,8 @@ public partial class App : Application
             desktop.ShutdownMode = options.CloseHidesWindow ? ShutdownMode.OnExplicitShutdown : ShutdownMode.OnMainWindowClose;
 
             var mainWindow = provider.GetRequiredService<IMainWindowService>();
+            // File pickers and the folder launcher find their window through desktop.MainWindow.
+            desktop.MainWindow = mainWindow.Owner;
             var services = provider.GetServices<IAppService>().ToList();
             foreach (var service in services)
             {

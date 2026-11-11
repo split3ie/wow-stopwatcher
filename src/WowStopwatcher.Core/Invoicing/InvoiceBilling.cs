@@ -16,6 +16,15 @@ public static class InvoiceBilling
     /// <summary>Total minutes of the billed lines.</summary>
     public static int BilledMinutes(IEnumerable<InvoiceDay> days) => BilledLines(days).Sum(l => l.Minutes);
 
+    /// <summary>Largest reported time: 999:59, the same as <see cref="InvoiceTimeText"/> accepts.</summary>
+    public const int MaxReportedMinutes = 999 * 60 + 59;
+
+    /// <summary>True when <paramref name="minutes"/> is a valid reported time (1 to <see cref="MaxReportedMinutes"/>).</summary>
+    public static bool IsValidReportedMinutes(int minutes) => minutes is >= 1 and <= MaxReportedMinutes;
+
+    /// <summary>The minutes the invoice bills: the reported time when set, otherwise the total of the billed lines.</summary>
+    public static int InvoicedMinutes(IEnumerable<InvoiceDay> days, int? reportedMinutes) => reportedMinutes ?? BilledMinutes(days);
+
     /// <summary>Total minutes of the lines without a note.</summary>
     public static int UnallocatedMinutes(IEnumerable<InvoiceDay> days) =>
         days.SelectMany(d => d.Lines).Where(l => !IsBilled(l)).Sum(l => l.Minutes);

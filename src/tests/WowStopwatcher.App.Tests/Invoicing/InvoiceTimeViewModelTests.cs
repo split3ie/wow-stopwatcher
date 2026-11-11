@@ -82,7 +82,7 @@ public sealed class InvoiceTimeViewModelTests : IDisposable
         vm.StartAllocateCommand.Execute(null);
 
         Assert.True(vm.IsFormOpen);
-        Assert.Equal("1:00", vm.TimeInput);
+        Assert.Equal("01:00", vm.TimeInput);
         Assert.Equal("Unallocated: 1:00", vm.Hint);
         Assert.False(vm.CanSave);
 
@@ -157,7 +157,7 @@ public sealed class InvoiceTimeViewModelTests : IDisposable
 
         vm.Rows[0].EditCommand.Execute(null);
 
-        Assert.Equal("0:45", vm.TimeInput);
+        Assert.Equal("00:45", vm.TimeInput);
         Assert.Equal("first", vm.NoteInput);
         Assert.Equal("Unallocated: 1:00", vm.Hint);
 

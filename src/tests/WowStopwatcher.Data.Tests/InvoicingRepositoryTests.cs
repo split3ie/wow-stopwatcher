@@ -58,7 +58,7 @@ public class InvoicingRepositoryTests
 
             var database = new SqliteDatabase(path);
 
-            Assert.Equal(8, database.GetSchemaVersion());
+            Assert.Equal(12, database.GetSchemaVersion());
             Assert.NotNull(database.BackupPath);
             Assert.Equal("English", Assert.Single(new SqliteStopwatchRepository(database).GetAll()).Name);
             Assert.NotNull(new SqliteSessionRepository(database).GetLatest());
@@ -259,6 +259,42 @@ public class InvoicingRepositoryTests
     }
 
     [Fact]
+    public void ReplaceDays_RoundTripsMovesAndKeepsAnEmptyEditedDay()
+    {
+        var (db, companies, invoices) = Setup();
+        using (db)
+        {
+            companies.Insert(NewCompany("a"));
+            var invoice = invoices.GetOrCreate("a", new InvoicePeriod(2026, 11));
+            var moved = Line(2, 720, "work", ("s1", "One")) with
+            {
+                MovedIn = [new InvoiceLineMove(new DateOnly(2026, 11, 3), 240), new InvoiceLineMove(new DateOnly(2026, 11, 4), 60)],
+            };
+
+            invoices.ReplaceDays(invoice.Id, [Day(2, true, moved, Line(2, 30, "")), Day(3, true)]);
+
+            var days = invoices.GetStoredDays(invoice.Id);
+            Assert.Equal(2, days.Count);
+            Assert.Equal(
+                [new InvoiceLineMove(new DateOnly(2026, 11, 3), 240), new InvoiceLineMove(new DateOnly(2026, 11, 4), 60)],
+                days[0].Lines[0].MovedIn);
+            Assert.Empty(days[0].Lines[1].MovedIn);
+            Assert.True(days[1].Edited);
+            Assert.Empty(days[1].Lines);
+
+            // Replacing the day replaces its moves; deleting it removes them.
+            invoices.ReplaceDay(invoice.Id, Day(2, true, Line(2, 10, "new", ("s1", "One"))));
+            Assert.Empty(invoices.GetStoredDays(invoice.Id)[0].Lines[0].MovedIn);
+            invoices.ReplaceDay(invoice.Id, Day(2, true, moved));
+            invoices.DeleteDay(invoice.Id, new DateOnly(2026, 11, 2));
+            using var connection = db.Database.OpenConnection();
+            using var count = connection.CreateCommand();
+            count.CommandText = "SELECT COUNT(*) FROM invoice_line_moves";
+            Assert.Equal(0L, Convert.ToInt64(count.ExecuteScalar()));
+        }
+    }
+
+    [Fact]
     public void ReplaceDay_WithNoLines_StoresAnEmptyDay()
     {
         var (db, companies, invoices) = Setup();
@@ -294,7 +330,29 @@ public class InvoicingRepositoryTests
     }
 
     [Fact]
-    public void MarkGenerated_AssignsNumbersOncePerInvoice()
+    public void MarkGenerated_StoresTheFileWithoutAssigningANumber()
+    {
+        var (db, companies, invoices) = Setup();
+        using (db)
+        {
+            companies.Insert(NewCompany("a") with { NextInvoiceNumber = 7 });
+            var nov = invoices.GetOrCreate("a", new InvoicePeriod(2026, 11));
+            var when = new DateTimeOffset(2026, 12, 1, 10, 0, 0, TimeSpan.Zero);
+
+            invoices.MarkGenerated(nov.Id, "C:\a.pdf", when, "h1");
+            invoices.MarkGenerated(nov.Id, "C:\b.pdf", when.AddHours(1), "h2");
+
+            Assert.Equal(7, companies.Get("a")!.NextInvoiceNumber);
+            var stored = invoices.Get("a", new InvoicePeriod(2026, 11))!;
+            Assert.Null(stored.Number);
+            Assert.Equal("C:\b.pdf", stored.FilePath);
+            Assert.Equal("h2", stored.GeneratedInputHash);
+            Assert.Equal(when.AddHours(1), stored.GeneratedUtc);
+        }
+    }
+
+    [Fact]
+    public void MarkSent_AssignsTheNumberOnceAndKeepsItAfterPending()
     {
         var (db, companies, invoices) = Setup();
         using (db)
@@ -302,22 +360,20 @@ public class InvoicingRepositoryTests
             companies.Insert(NewCompany("a") with { NextInvoiceNumber = 7 });
             var nov = invoices.GetOrCreate("a", new InvoicePeriod(2026, 11));
             var dec = invoices.GetOrCreate("a", new InvoicePeriod(2026, 12));
-            var when = new DateTimeOffset(2026, 12, 1, 10, 0, 0, TimeSpan.Zero);
+            var when = new DateTimeOffset(2026, 12, 2, 8, 0, 0, TimeSpan.Zero);
 
-            Assert.Equal(7, invoices.MarkGenerated(nov.Id, "C:\\a.pdf", when, "h1"));
+            invoices.MarkSent(nov.Id, when, "{}", []);
+            Assert.Equal(7, invoices.Get("a", new InvoicePeriod(2026, 11))!.Number);
             Assert.Equal(8, companies.Get("a")!.NextInvoiceNumber);
 
-            Assert.Equal(7, invoices.MarkGenerated(nov.Id, "C:\\b.pdf", when.AddHours(1), "h2"));
+            invoices.MarkPending(nov.Id);
+            invoices.MarkSent(nov.Id, when.AddHours(1), "{}", []);
+            Assert.Equal(7, invoices.Get("a", new InvoicePeriod(2026, 11))!.Number);
             Assert.Equal(8, companies.Get("a")!.NextInvoiceNumber);
 
-            Assert.Equal(8, invoices.MarkGenerated(dec.Id, "C:\\c.pdf", when, "h3"));
+            invoices.MarkSent(dec.Id, when, "{}", []);
+            Assert.Equal(8, invoices.Get("a", new InvoicePeriod(2026, 12))!.Number);
             Assert.Equal(9, companies.Get("a")!.NextInvoiceNumber);
-
-            var stored = invoices.Get("a", new InvoicePeriod(2026, 11))!;
-            Assert.Equal(7, stored.Number);
-            Assert.Equal("C:\\b.pdf", stored.FilePath);
-            Assert.Equal("h2", stored.GeneratedInputHash);
-            Assert.Equal(when.AddHours(1), stored.GeneratedUtc);
         }
     }
 
@@ -373,6 +429,101 @@ public class InvoicingRepositoryTests
             Assert.True(day.Edited);
             Assert.Equal(1, day.Date.Day);
             Assert.Equal("mine", Assert.Single(day.Lines).Note);
+        }
+    }
+
+    [Fact]
+    public void ReportedMinutes_RoundTripAndSurviveMarkPending()
+    {
+        var (db, companies, invoices) = Setup();
+        using (db)
+        {
+            companies.Insert(NewCompany("a"));
+            var period = new InvoicePeriod(2026, 11);
+            var invoice = invoices.GetOrCreate("a", period);
+            Assert.Null(invoice.ReportedMinutes);
+
+            invoices.SetReportedMinutes(invoice.Id, 600);
+            Assert.Equal(600, invoices.Get("a", period)!.ReportedMinutes);
+            Assert.Equal(600, Assert.Single(invoices.GetForCompany("a")).ReportedMinutes);
+
+            invoices.MarkSent(invoice.Id, DateTimeOffset.UtcNow, "{}", []);
+            invoices.MarkPending(invoice.Id);
+            Assert.Equal(600, invoices.Get("a", period)!.ReportedMinutes);
+
+            invoices.SetReportedMinutes(invoice.Id, null);
+            Assert.Null(invoices.Get("a", period)!.ReportedMinutes);
+        }
+    }
+
+    [Fact]
+    public void ReportedMinutes_RejectZeroAndUnknownInvoice()
+    {
+        var (db, companies, invoices) = Setup();
+        using (db)
+        {
+            companies.Insert(NewCompany("a"));
+            var invoice = invoices.GetOrCreate("a", new InvoicePeriod(2026, 11));
+
+            Assert.ThrowsAny<Exception>(() => invoices.SetReportedMinutes(invoice.Id, 0));
+            Assert.Throws<InvalidOperationException>(() => invoices.SetReportedMinutes(invoice.Id + 100, 5));
+        }
+    }
+
+    [Fact]
+    public void Company_DayStartMinutes_RoundTrips()
+    {
+        var (db, companies, _) = Setup();
+        using (db)
+        {
+            companies.Insert(NewCompany("a"));
+            Assert.Equal(0, companies.Get("a")!.DayStartMinutes);
+
+            companies.Update(companies.Get("a")! with { DayStartMinutes = 1200 });
+
+            Assert.Equal(1200, companies.Get("a")!.DayStartMinutes);
+            Assert.Equal(1200, companies.GetAll(includeDeleted: false).Single().DayStartMinutes);
+        }
+    }
+
+    [Fact]
+    public void Migration_V9ToV10_KeepsCompanies()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "wowstopwatcher-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "v9.db");
+        try
+        {
+            using (var connection = new SqliteConnection($"Data Source={path};Pooling=False"))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE companies (
+                        id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, color TEXT NOT NULL, sort_order INTEGER NOT NULL,
+                        rate TEXT NOT NULL DEFAULT '0', currency TEXT NOT NULL DEFAULT 'USD', template_file TEXT NULL, template_name TEXT NULL,
+                        template_sha256 TEXT NULL, file_name_pattern TEXT NOT NULL, ask_destination INTEGER NOT NULL DEFAULT 1, output_folder TEXT NULL,
+                        next_invoice_number INTEGER NOT NULL DEFAULT 1, created_utc INTEGER NOT NULL, deleted_utc INTEGER NULL);
+                    CREATE TABLE invoices (id INTEGER PRIMARY KEY);
+                    INSERT INTO companies (id, name, color, sort_order, rate, currency, file_name_pattern, created_utc)
+                        VALUES ('c', 'ACME', '#2F6FEB', 0, '12.5', 'EUR', 'x', 1000);
+                    PRAGMA user_version = 9;
+                    """;
+                command.ExecuteNonQuery();
+            }
+
+            var database = new SqliteDatabase(path);
+
+            Assert.Equal(12, database.GetSchemaVersion());
+            var company = new SqliteCompanyRepository(database).Get("c")!;
+            Assert.Equal("ACME", company.Name);
+            Assert.Equal(12.5m, company.Rate);
+            Assert.Equal(0, company.DayStartMinutes);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            Directory.Delete(folder, recursive: true);
         }
     }
 }

@@ -51,9 +51,23 @@ public sealed partial class InvoiceDetailsDayViewModel : ObservableObject
     [ObservableProperty]
     private bool _canReset;
 
+    /// <summary>"20:00 → 20:00"; empty for a plain calendar day.</summary>
+    [ObservableProperty]
+    private string _rangeText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasRange;
+
     /// <summary>Takes the values of the day.</summary>
-    internal void Apply(InvoiceDay day, IReadOnlyList<string> running, bool isEditable)
+    internal void Apply(InvoiceDay day, InvoiceDayRange? range, IReadOnlyList<string> running, bool isEditable)
     {
+        HasRange = range is { IsCalendarDay: false };
+        RangeText = range is null || range.IsCalendarDay
+            ? string.Empty
+            : Loc.T(
+                "invoicing.details.dayRange",
+                ("from", DayStartText.Format(range.StartMinutes)),
+                ("to", DayStartText.Format(range.EndMinutes)));
         TrackedMinutes = day.TrackedMinutes;
         SumText = InvoicingFormat.Duration(day.InvoicedMinutes);
         IsEdited = day.Edited;

@@ -11,4 +11,10 @@ public enum InvoiceDetailsFormKind
 
     /// <summary>Set a new time for the selected line.</summary>
     Adjust,
+
+    /// <summary>Add a custom time line to a day of the month.</summary>
+    Add,
+
+    /// <summary>Merge selected lines of neighbouring days into one line on a chosen day.</summary>
+    MergeDays,
 }

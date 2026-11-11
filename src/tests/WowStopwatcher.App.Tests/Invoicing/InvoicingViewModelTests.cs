@@ -21,6 +21,7 @@ public sealed class InvoicingViewModelTests : IDisposable
     private readonly FakeSettingsRepository _settingsStore = new();
     private readonly FakeDialog _dialog = new();
     private readonly FakePicker _picker = new();
+    private readonly FakeClipboard _clipboard = new();
     private readonly FakeLauncher _launcher = new();
     private readonly InvoiceTemplateStore _store;
     private readonly InvoicingService _service;
@@ -71,7 +72,7 @@ public sealed class InvoicingViewModelTests : IDisposable
     private static DateTimeOffset Utc(int y, int m, int d, int h, int min = 0) => new(y, m, d, h, min, 0, TimeSpan.Zero);
 
     private static Company Company(string id, string name, string color, int order) =>
-        new(id, name, color, order, 60m, "EUR", null, null, null, "Invoice {{period.month}}", true, null, 5);
+        new(id, name, color, order, 60m, "EUR", null, null, null, "Invoice", true, null, 5);
 
     private InvoicingViewModel CreateViewModel() => new(
         _companies,
@@ -82,6 +83,7 @@ public sealed class InvoicingViewModelTests : IDisposable
         new DocxTemplateScanner(),
         _selector,
         _picker,
+        _clipboard,
         _launcher,
         _dialog,
         new ImmediateDispatcher(),
@@ -95,6 +97,142 @@ public sealed class InvoicingViewModelTests : IDisposable
         Create(source, [Para(TextRun("Invoice {{period.month}}"))]);
         var stored = _store.Import(companyId, source);
         _companies.Update(_companies.Get(companyId)! with { TemplateFile = stored.FileName, TemplateName = stored.OriginalName, TemplateSha256 = stored.Sha256 });
+    }
+
+    [Fact]
+    public async Task Copying_a_built_in_name_puts_its_marker_on_the_clipboard()
+    {
+        var vm = CreateViewModel();
+        await WaitUntilAsync(() => !vm.Placeholders!.IsBusy);
+
+        await vm.Placeholders!.CopyBuiltinCommand.ExecuteAsync("period.month");
+
+        Assert.Equal(["{{period.month}}"], _clipboard.Texts);
+    }
+
+    [Fact]
+    public async Task Picking_a_template_adds_only_new_valid_markers_as_empty_static_rows()
+    {
+        _companies.Placeholders["c1"] = [new PlaceholderDefinition(0, "c1", "Client", PlaceholderKind.Static, "x", false, 0)];
+        var source = Path.Combine(_folder, "picked.docx");
+        Create(source, [Para(TextRun("{{period.month}} {{client}} {{poNumber}} {{bad alias}} {{poNumber}} {{ref}}"))]);
+        _picker.OpenPath = source;
+        var vm = CreateViewModel();
+
+        await vm.CompanySettings!.PickTemplateCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => !vm.Placeholders!.IsBusy);
+
+        var saved = _companies.GetPlaceholders("c1");
+        Assert.Equal(["Client", "period.month", "poNumber", "ref"], saved.Select(p => p.Alias));
+        Assert.Equal(PlaceholderKind.Automatic, saved[1].Kind);
+        Assert.All(saved.Skip(2), p => Assert.Equal(PlaceholderKind.Static, p.Kind));
+        Assert.All(saved.Skip(1), p => Assert.Equal(string.Empty, p.Value));
+        Assert.Equal(4, vm.Placeholders!.Rows.Count);
+    }
+
+    [Fact]
+    public async Task File_name_markers_get_rows_even_without_a_template()
+    {
+        _companies.Update(_companies.Get("c1")! with { FileNamePattern = "Invoice_{{period.month}}_{{poNumber}}_{{line.date}}" });
+
+        var vm = CreateViewModel();
+        await WaitUntilAsync(() => !vm.Placeholders!.IsBusy);
+
+        var saved = _companies.GetPlaceholders("c1");
+        Assert.Equal(["period.month", "poNumber"], saved.Select(p => p.Alias));
+        Assert.Equal(PlaceholderKind.Automatic, saved[0].Kind);
+        Assert.Equal(PlaceholderKind.Static, saved[1].Kind);
+        Assert.Equal(["period.month", "poNumber"], vm.Placeholders!.Rows.Select(r => r.Alias));
+    }
+
+    [Fact]
+    public async Task Changing_the_file_name_pattern_adds_rows_for_its_new_markers()
+    {
+        var vm = CreateViewModel();
+        await WaitUntilAsync(() => !vm.Placeholders!.IsBusy);
+        Assert.Empty(vm.Placeholders!.Rows);
+
+        vm.CompanySettings!.FileNamePattern = "{{ref}}";
+        vm.CompanySettings.SaveNow();
+        await WaitUntilAsync(() => vm.Placeholders.Rows.Count == 1 && !vm.Placeholders.IsBusy);
+
+        Assert.Equal(["ref"], _companies.GetPlaceholders("c1").Select(p => p.Alias));
+    }
+
+    [Fact]
+    public async Task A_deleted_row_whose_marker_is_still_in_the_template_comes_back()
+    {
+        var source = Path.Combine(_folder, "picked.docx");
+        Create(source, [Para(TextRun("{{poNumber}}"))]);
+        _picker.OpenPath = source;
+        var vm = CreateViewModel();
+        await vm.CompanySettings!.PickTemplateCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => !vm.Placeholders!.IsBusy);
+
+        vm.Placeholders!.Rows[0].DeleteCommand.Execute(null);
+        vm.Placeholders.SaveNow();
+        await WaitUntilAsync(() => !vm.Placeholders.IsBusy);
+
+        Assert.Equal(["poNumber"], _companies.GetPlaceholders("c1").Select(p => p.Alias));
+        Assert.Equal(["poNumber"], vm.Placeholders.Rows.Select(r => r.Alias));
+        Assert.False(vm.Placeholders.HasWarnings);
+    }
+
+    [Fact]
+    public async Task Loading_a_company_adds_rows_for_undefined_markers_of_an_earlier_template()
+    {
+        var source = Path.Combine(_folder, "earlier.docx");
+        Create(source, [Para(TextRun("{{period.month}} {{poNumber}} {{bad alias}} {{Client}}"))]);
+        var stored = _store.Import("c1", source);
+        _companies.Update(_companies.Get("c1")! with { TemplateFile = stored.FileName, TemplateName = stored.OriginalName, TemplateSha256 = stored.Sha256 });
+        _companies.Placeholders["c1"] = [new PlaceholderDefinition(0, "c1", "client", PlaceholderKind.Static, "x", false, 0)];
+
+        var vm = CreateViewModel();
+        await WaitUntilAsync(() => !vm.Placeholders!.IsBusy);
+
+        Assert.Equal(["client", "period.month", "poNumber"], _companies.GetPlaceholders("c1").Select(p => p.Alias));
+        Assert.Equal(["client", "period.month", "poNumber"], vm.Placeholders!.Rows.Select(r => r.Alias));
+        Assert.Equal(string.Empty, vm.Placeholders.Rows[2].Value);
+    }
+
+    [Fact]
+    public async Task Built_in_markers_get_automatic_rows_with_the_computed_value_and_line_markers_and_unused_built_ins_get_none()
+    {
+        var source = Path.Combine(_folder, "builtins.docx");
+        Create(source, [Para(TextRun("{{hours}} {{line.date}} {{line.note}}"))]);
+        var stored = _store.Import("c1", source);
+        _companies.Update(_companies.Get("c1")! with { TemplateFile = stored.FileName, TemplateName = stored.OriginalName, TemplateSha256 = stored.Sha256 });
+
+        var vm = CreateViewModel();
+        await WaitUntilAsync(() => !vm.Placeholders!.IsBusy);
+
+        var row = Assert.Single(vm.Placeholders!.Rows);
+        Assert.Equal("hours", row.Alias);
+        Assert.True(row.IsAutomatic);
+        Assert.False(row.IsAliasEditable);
+        Assert.True(row.CanBeAutomatic);
+        Assert.False(row.ResultIsError);
+        Assert.NotEqual(string.Empty, row.ResultText);
+        Assert.False(vm.Placeholders.HasWarnings);
+        Assert.Equal(PlaceholderKind.Automatic, Assert.Single(_companies.GetPlaceholders("c1")).Kind);
+    }
+
+    [Fact]
+    public async Task Built_in_alias_is_normalized_and_duplicates_are_rejected_ignoring_case()
+    {
+        var vm = CreateViewModel();
+        var placeholders = vm.Placeholders!;
+        placeholders.AddCommand.Execute(null);
+        placeholders.AddCommand.Execute(null);
+        placeholders.Rows[0].Alias = "Hours";
+        placeholders.Rows[1].Alias = "hours";
+
+        Assert.False(placeholders.SaveNow());
+
+        placeholders.Rows[1].Alias = "client";
+        Assert.True(placeholders.SaveNow());
+        await WaitUntilAsync(() => !placeholders.IsBusy);
+        Assert.Equal(["hours", "client"], _companies.GetPlaceholders("c1").Select(p => p.Alias));
     }
 
     [Fact]
@@ -207,6 +345,56 @@ public sealed class InvoicingViewModelTests : IDisposable
     }
 
     [Fact]
+    public void The_day_start_is_validated_and_saved()
+    {
+        var vm = CreateViewModel();
+        var settings = vm.CompanySettings!;
+        Assert.Equal("00:00", settings.DayStartInput);
+
+        settings.DayStartInput = "24:30";
+        settings.SaveNow();
+        Assert.True(settings.HasDayStartError);
+        Assert.Equal(0, _companies.Get("c1")!.DayStartMinutes);
+
+        settings.DayStartInput = "20:00";
+        settings.SaveNow();
+        Assert.False(settings.HasDayStartError);
+        Assert.Equal(20 * 60, _companies.Get("c1")!.DayStartMinutes);
+    }
+
+    [Fact]
+    public void The_next_invoice_number_is_validated_and_saved()
+    {
+        var vm = CreateViewModel();
+        var settings = vm.CompanySettings!;
+        Assert.Equal("5", settings.NextNumberText);
+
+        settings.NextNumberText = "0";
+        settings.SaveNow();
+        Assert.True(settings.HasNextNumberError);
+        Assert.Equal(5, _companies.Get("c1")!.NextInvoiceNumber);
+
+        settings.NextNumberText = "12";
+        settings.SaveNow();
+        Assert.False(settings.HasNextNumberError);
+        Assert.Equal(12, _companies.Get("c1")!.NextInvoiceNumber);
+    }
+
+    [Fact]
+    public void Saving_other_fields_does_not_overwrite_a_counter_advanced_by_sending()
+    {
+        var vm = CreateViewModel();
+        var settings = vm.CompanySettings!;
+        var company = _companies.Get("c1")!;
+        _companies.Update(company with { NextInvoiceNumber = 9 });
+
+        settings.Name = "ACME Corp";
+        settings.SaveNow();
+
+        Assert.Equal(9, _companies.Get("c1")!.NextInvoiceNumber);
+    }
+
+    [Fact]
     public void Edits_are_saved_by_flush()
     {
         var vm = CreateViewModel();
@@ -231,7 +419,7 @@ public sealed class InvoicingViewModelTests : IDisposable
         var placeholders = vm.Placeholders!;
 
         placeholders.AddCommand.Execute(null);
-        placeholders.Rows[0].Alias = "hours"; // built in
+        placeholders.Rows[0].Alias = "line.date"; // reserved
 
         Assert.False(placeholders.SaveNow());
         Assert.True(placeholders.Rows[0].HasAliasError);
@@ -449,6 +637,17 @@ public sealed class InvoicingViewModelTests : IDisposable
         }
     }
 
+    private sealed class FakeClipboard : IClipboardService
+    {
+        public List<string> Texts { get; } = [];
+
+        public Task<bool> SetTextAsync(string text)
+        {
+            Texts.Add(text);
+            return Task.FromResult(true);
+        }
+    }
+
     private sealed class FakePicker : IFilePickerService
     {
         public string? SavePath { get; set; }
@@ -457,7 +656,9 @@ public sealed class InvoicingViewModelTests : IDisposable
 
         public Task<string?> PickFolderAsync(string title) => Task.FromResult<string?>(null);
 
-        public Task<string?> PickOpenFileAsync(string title, string filterName, IReadOnlyList<string> extensions) => Task.FromResult<string?>(null);
+        public string? OpenPath { get; set; }
+
+        public Task<string?> PickOpenFileAsync(string title, string filterName, IReadOnlyList<string> extensions) => Task.FromResult(OpenPath);
 
         public Task<string?> PickSaveFileAsync(string title, string suggestedName, string extension)
         {
@@ -484,5 +685,57 @@ public sealed class InvoicingViewModelTests : IDisposable
             File.WriteAllText(outputPdfPath, "%PDF-stub");
             return Task.CompletedTask;
         }
+    }
+
+    [Fact]
+    public void Reported_hours_are_set_from_the_row_editor_and_show_the_difference()
+    {
+        AllocateAll();
+        var vm = CreateViewModel();
+        var row = vm.Invoices!.Rows[0];
+
+        row.SetReportedCommand.Execute(null);
+        Assert.True(row.IsEditingReported);
+        Assert.Equal("001:30", row.ReportedInput);
+
+        row.ReportedInput = "2";
+        row.SaveReportedCommand.Execute(null);
+
+        var saved = vm.Invoices.Rows[0];
+        Assert.False(saved.IsEditingReported);
+        Assert.Equal(120, _service.GetSummary("c1", November).ReportedMinutes);
+        Assert.Equal("2h", saved.HoursText);
+        Assert.True(saved.HasReported);
+        Assert.Equal("+30m vs tracked", saved.ReportedDifferenceText);
+
+        saved.SetReportedCommand.Execute(null);
+        Assert.Equal("002:00", saved.ReportedInput);
+        saved.ClearReportedCommand.Execute(null);
+
+        Assert.Null(_service.GetSummary("c1", November).ReportedMinutes);
+        Assert.False(vm.Invoices.Rows[0].HasReported);
+    }
+
+    [Fact]
+    public void The_row_editor_rejects_invalid_text_cancels_and_is_disabled_when_sent()
+    {
+        AllocateAll();
+        var vm = CreateViewModel();
+        var row = vm.Invoices!.Rows[0];
+
+        row.SetReportedCommand.Execute(null);
+        row.ReportedInput = "x";
+        Assert.True(row.ReportedInvalid);
+        Assert.False(row.CanSaveReported);
+        row.SaveReportedCommand.Execute(null);
+        Assert.Null(_service.GetSummary("c1", November).ReportedMinutes);
+
+        row.CancelReportedCommand.Execute(null);
+        Assert.False(row.IsEditingReported);
+
+        _invoices.GetOrCreate("c1", November);
+        Assert.Equal(MarkSentResult.Sent, _service.MarkSent("c1", November, confirmChanged: false));
+        vm.Invoices.Refresh();
+        Assert.False(vm.Invoices.Rows[0].SetReportedCommand.CanExecute(null));
     }
 }

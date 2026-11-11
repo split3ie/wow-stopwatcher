@@ -25,8 +25,10 @@ public sealed partial class InvoiceDetailsLineViewModel : ObservableObject
         Index = index;
         DotBrush = dotBrush;
         IsEditable = isEditable;
-        NameText = line.IsMerged ? Loc.T("invoicing.details.merged") : line.Sources[0].StopwatchName;
-        PartsText = string.Join(" + ", line.Sources.Select(s => s.StopwatchName));
+        IsCustom = line.IsCustom;
+        NameText = line.IsCustom ? Loc.T("invoicing.details.custom") : line.IsMerged ? Loc.T("invoicing.details.merged") : line.Sources[0].StopwatchName;
+        PartsText = SourceKey(line);
+        LabelName = line.IsCustom ? NameText : PartsText;
         IsMerged = line.IsMerged;
         Minutes = line.Minutes;
         _timeText = InvoiceTimeText.Format(line.Minutes);
@@ -52,11 +54,17 @@ public sealed partial class InvoiceDetailsLineViewModel : ObservableObject
 
     public bool IsMerged { get; }
 
+    /// <summary>True for a custom line (time added by hand, no stopwatch).</summary>
+    public bool IsCustom { get; }
+
+    /// <summary>The name used in accessibility labels.</summary>
+    private string LabelName { get; }
+
     public int Minutes { get; private set; }
 
-    public string SelectLabel => Loc.T("invoicing.details.selectLine", ("name", PartsText), ("time", TimeText), ("day", _dayLabel));
+    public string SelectLabel => Loc.T("invoicing.details.selectLine", ("name", LabelName), ("time", TimeText), ("day", _dayLabel));
 
-    public string NoteLabel => Loc.T("invoicing.details.noteLabel", ("name", PartsText), ("day", _dayLabel));
+    public string NoteLabel => Loc.T("invoicing.details.noteLabel", ("name", LabelName), ("day", _dayLabel));
 
     [ObservableProperty]
     private string _timeText;
@@ -79,7 +87,9 @@ public sealed partial class InvoiceDetailsLineViewModel : ObservableObject
     partial void OnIsSelectedChanged(bool value) => _owner.SelectionChanged();
 
     /// <summary>True when the stored line has the same stopwatches, so the row can be updated in place.</summary>
-    internal bool Matches(InvoiceLine line) => PartsText == string.Join(" + ", line.Sources.Select(s => s.StopwatchName));
+    internal bool Matches(InvoiceLine line) => IsCustom == line.IsCustom && PartsText == SourceKey(line);
+
+    private static string SourceKey(InvoiceLine line) => string.Join(" + ", line.Sources.Select(s => s.StopwatchName));
 
     internal void UpdateTime(int minutes)
     {

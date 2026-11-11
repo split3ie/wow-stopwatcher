@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:WowStopwatcher.App.Controls"
         xmlns:loc="using:WowStopwatcher.App.Localization"
         xmlns:local="using:WowStopwatcher.App.Features.Invoicing"
         x:Class="WowStopwatcher.App.Features.Invoicing.InvoiceTimeDialog"
@@ -197,6 +198,7 @@
                 <TextBox x:Name="TimeBox"
                          FontFamily="{DynamicResource MonoFont}"
                          TextAlignment="Right"
+                         c:TimeMaskBehavior.Shape="00:00"
                          PlaceholderText="{loc:T invoiceTime.form.timePlaceholder}"
                          Text="{Binding TimeInput}"
                          AutomationProperties.Name="{loc:T invoiceTime.form.time}" />

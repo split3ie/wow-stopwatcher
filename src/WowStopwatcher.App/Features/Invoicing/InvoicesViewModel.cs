@@ -11,9 +11,11 @@ public sealed partial class InvoicesViewModel : ObservableObject
     private readonly InvoicingDependencies _d;
     private readonly string _companyId;
     private readonly Action<InvoicePeriod> _showDetails;
+    private readonly Action? _numberChanged;
 
-    internal InvoicesViewModel(InvoicingDependencies dependencies, string companyId, bool amountsHidden, Action<InvoicePeriod> showDetails)
+    internal InvoicesViewModel(InvoicingDependencies dependencies, string companyId, bool amountsHidden, Action<InvoicePeriod> showDetails, Action? numberChanged = null)
     {
+        _numberChanged = numberChanged;
         _d = dependencies;
         _companyId = companyId;
         _amountsHidden = amountsHidden;
@@ -89,6 +91,32 @@ public sealed partial class InvoicesViewModel : ObservableObject
         {
             Report(Loc.T("invoicing.list.openFailed"), true);
         }
+    }
+
+    /// <summary>Opens the reported-hours editor of one row; any other open editor closes.</summary>
+    internal void OpenReportedEditor(InvoiceRowViewModel row)
+    {
+        foreach (var other in Rows.Where(r => r != row))
+        {
+            other.EndReportedEdit();
+        }
+
+        row.BeginReportedEdit();
+    }
+
+    /// <summary>Saves (or with null clears) the reported time of a month and reads the list again.</summary>
+    internal void SaveReported(InvoiceRowViewModel row, int? minutes)
+    {
+        if (_d.Service.SetReportedMinutes(_companyId, row.Period, minutes))
+        {
+            Report(string.Empty, false);
+        }
+        else
+        {
+            Report(Loc.T(row.IsSent ? "invoicing.details.error.sent" : "invoicing.details.error.failed"), true);
+        }
+
+        Refresh();
     }
 
     internal void ShowDetails(InvoiceRowViewModel row) => _showDetails(row.Period);
@@ -230,6 +258,7 @@ public sealed partial class InvoicesViewModel : ObservableObject
                 return;
             case MarkSentResult.Sent:
                 Report(Loc.T("invoicing.mark.sentDone"), false);
+                _numberChanged?.Invoke();
                 break;
         }
 

@@ -98,6 +98,15 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string? _statusText;
 
+    /// <summary>Result of the last build for coloring the status: "", "error" or "success".</summary>
+    [NotifyPropertyChangedFor(nameof(StatusIsError), nameof(StatusIsSuccess))]
+    [ObservableProperty]
+    private string _statusKind = "";
+
+    public bool StatusIsError => StatusKind == "error";
+
+    public bool StatusIsSuccess => StatusKind == "success";
+
     public bool HasStatus => !string.IsNullOrEmpty(StatusText);
 
     [ObservableProperty]
@@ -277,6 +286,8 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         Log = "";
+        StatusKind = "";
+        var cancelled = false;
         try
         {
             foreach (var (target, index) in selected.Select((t, i) => (t, i)))
@@ -287,12 +298,14 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
+            cancelled = true;
             AppendLog("Cancelled.");
         }
         finally
         {
             _cancellation = null;
-            StatusText = null;
+            StatusText = BuildSummary.Create(selected, cancelled, DateTime.Now);
+            StatusKind = cancelled || selected.Any(t => t.Status == "failed") ? "error" : "success";
             IsBuilding = false;
         }
     }
@@ -301,12 +314,13 @@ public sealed partial class MainViewModel : ObservableObject
         TargetOptionViewModel target, CancellationToken token)
     {
         var repoRoot = _repoRoot!;
-        var targetDir = TargetDir(target.Rid);
         var command = CommandLineSplitter.Split(target.Command);
+        var targetDir = PublishCommand.FindOutputDir(command, repoRoot) ?? TargetDir(target.Rid);
         target.Status = "building...";
         AppendLog("");
         AppendLog("=== " + target.Rid + " ===");
         AppendLog(PublishCommand.Format(command));
+        AppendLog("Output folder: " + targetDir);
 
         string? firstError = null;
         void OnOutput(string line)
@@ -317,6 +331,12 @@ public sealed partial class MainViewModel : ObservableObject
 
         try
         {
+            if (!await OutputPreparer.PrepareAsync(targetDir, target.Rid, AppendLog, token))
+            {
+                target.Status = "failed";
+                return;
+            }
+
             var exit = await ProcessRunner.RunAsync(command[0], command.Skip(1), repoRoot, OnOutput, token);
             if (exit != 0)
             {

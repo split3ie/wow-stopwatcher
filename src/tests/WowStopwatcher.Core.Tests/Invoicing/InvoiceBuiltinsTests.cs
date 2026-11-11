@@ -35,9 +35,27 @@ public class InvoiceBuiltinsTests
 
         Assert.Equal("1.50", v[InvoiceBuiltins.Hours]);
         Assert.Equal("15.00", v[InvoiceBuiltins.Amount]);
-        Assert.Equal("Februar 2026", v[InvoiceBuiltins.PeriodName]);
+        Assert.Equal("February 2026", v[InvoiceBuiltins.PeriodName]);
         Assert.Equal("01.02.2026", v[InvoiceBuiltins.PeriodStart]);
         Assert.Equal(string.Empty, v[InvoiceBuiltins.InvoiceNumber]);
+    }
+
+    [Fact]
+    public void Create_PeriodYear_IsFourInvariantDigits()
+    {
+        var values = InvoiceBuiltins.Create(0, 0m, "USD", "", new InvoicePeriod(2026, 11), null, new DateOnly(2026, 12, 1), new CultureInfo("uk-UA"));
+
+        Assert.Equal("2026", values[InvoiceBuiltins.PeriodYear]);
+    }
+
+    [Fact]
+    public void Create_PeriodMonthName_IsAlwaysEnglish()
+    {
+        var period = new InvoicePeriod(2026, 11);
+        var today = new DateOnly(2026, 12, 1);
+
+        Assert.Equal("November", InvoiceBuiltins.Create(0, 0m, "USD", "", period, null, today, Us)[InvoiceBuiltins.PeriodMonthName]);
+        Assert.Equal("November",InvoiceBuiltins.Create(0, 0m, "USD", "", period, null, today, new CultureInfo("uk-UA"))[InvoiceBuiltins.PeriodMonthName]);
     }
 
     [Fact]
@@ -66,6 +84,14 @@ public class InvoiceBuiltinsTests
         Assert.Equal("50.00", v[InvoiceBuiltins.LineAmount]);
         Assert.Equal("note", v[InvoiceBuiltins.LineNote]);
         Assert.Equal(InvoiceBuiltins.All.Where(InvoiceBuiltins.IsLineMarker).Order(), v.Keys.Order());
+    }
+
+    [Fact]
+    public void CreateLine_CustomLine_HasEmptyStopwatch()
+    {
+        var line = new InvoiceLine(new DateOnly(2026, 2, 9), 30, "n", []);
+
+        Assert.Equal(string.Empty, InvoiceBuiltins.CreateLine(line, 40m, Us)[InvoiceBuiltins.LineStopwatch]);
     }
 
     [Fact]

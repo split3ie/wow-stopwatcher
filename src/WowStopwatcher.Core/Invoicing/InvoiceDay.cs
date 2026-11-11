@@ -8,12 +8,14 @@ namespace WowStopwatcher.Core.Invoicing;
 /// <param name="Lines">The lines in order.</param>
 /// <param name="TrackedMinutes">Minutes tracked that day by the billed stopwatches (sum of the live lines).</param>
 /// <param name="HasRunningSession">True when a billed stopwatch is running and started that day.</param>
+/// <param name="MovedOutMinutes">Minutes of this day that other days' lines hold (moved by merging across days); 0 when none.</param>
 public sealed record InvoiceDay(
     DateOnly Date,
     bool Edited,
     IReadOnlyList<InvoiceLine> Lines,
     int TrackedMinutes,
-    bool HasRunningSession)
+    bool HasRunningSession,
+    int MovedOutMinutes = 0)
 {
     /// <summary>Sum of the line minutes.</summary>
     public int InvoicedMinutes => Lines.Sum(l => l.Minutes);
@@ -24,6 +26,12 @@ public sealed record InvoiceDay(
     /// <summary>Minutes of the lines without a note; shown but not billed.</summary>
     public int UnallocatedMinutes => Lines.Where(l => !InvoiceBilling.IsBilled(l)).Sum(l => l.Minutes);
 
-    /// <summary>Tracked minus invoiced minutes for an edited day; 0 for a live day.</summary>
-    public int DriftMinutes => Edited ? TrackedMinutes - InvoicedMinutes : 0;
+    /// <summary>
+    /// Tracked minus the day's own minutes for an edited day or a day with time moved out; 0 for a live day. The own minutes are the
+    /// non-custom line minutes without the time moved in from other days and with the time moved out to other days.
+    /// Custom lines are not tracked time, so they never cause drift.
+    /// </summary>
+    public int DriftMinutes => Edited || MovedOutMinutes > 0 ? TrackedMinutes - OwnMinutes : 0;
+
+    private int OwnMinutes => Lines.Where(l => !l.IsCustom).Sum(l => l.Minutes - InvoiceLineMoves.Total(l)) + MovedOutMinutes;
 }

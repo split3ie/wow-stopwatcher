@@ -7,7 +7,7 @@ namespace WowStopwatcher.Data;
 /// <summary>SQLite implementation of <see cref="IInvoiceRepository"/>. Times are unix milliseconds (UTC); dates are yyyy-MM-dd.</summary>
 public sealed class SqliteInvoiceRepository(SqliteDatabase database) : IInvoiceRepository
 {
-    private const string Columns = "id, company_id, year, month, status, number, file_path, generated_utc, generated_input_hash, sent_utc, snapshot_json";
+    private const string Columns = "id, company_id, year, month, status, number, file_path, generated_utc, generated_input_hash, sent_utc, snapshot_json, reported_minutes";
 
     private const string DateFormat = "yyyy-MM-dd";
 
@@ -95,6 +95,27 @@ public sealed class SqliteInvoiceRepository(SqliteDatabase database) : IInvoiceR
             }
         }
 
+        var moves = new Dictionary<long, List<InvoiceLineMove>>();
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT m.line_id, m.from_date, m.minutes FROM invoice_line_moves m
+                JOIN invoice_lines l ON l.id = m.line_id WHERE l.invoice_id = $i ORDER BY m.line_id, m.sort_order
+                """;
+            command.Parameters.AddWithValue("$i", invoiceId);
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var lineId = reader.GetInt64(0);
+                if (!moves.TryGetValue(lineId, out var list))
+                {
+                    moves[lineId] = list = [];
+                }
+
+                list.Add(new InvoiceLineMove(ParseDate(reader.GetString(1)), reader.GetInt32(2)));
+            }
+        }
+
         var lines = new Dictionary<string, List<InvoiceLine>>();
         using (var command = connection.CreateCommand())
         {
@@ -110,7 +131,8 @@ public sealed class SqliteInvoiceRepository(SqliteDatabase database) : IInvoiceR
                 }
 
                 IReadOnlyList<InvoiceLineSource> lineSources = sources.TryGetValue(reader.GetInt64(0), out var s) ? s : [];
-                list.Add(new InvoiceLine(ParseDate(date), reader.GetInt32(2), reader.GetString(3), lineSources));
+                IReadOnlyList<InvoiceLineMove> lineMoves = moves.TryGetValue(reader.GetInt64(0), out var m) ? m : [];
+                list.Add(new InvoiceLine(ParseDate(date), reader.GetInt32(2), reader.GetString(3), lineSources) { MovedIn = lineMoves });
             }
         }
 
@@ -127,6 +149,18 @@ public sealed class SqliteInvoiceRepository(SqliteDatabase database) : IInvoiceR
         transaction.Commit();
     }
 
+    public void ReplaceDays(long invoiceId, IReadOnlyList<StoredInvoiceDay> days)
+    {
+        using var connection = database.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+        foreach (var day in days)
+        {
+            WriteDay(connection, transaction, invoiceId, day);
+        }
+
+        transaction.Commit();
+    }
+
     public void DeleteDay(long invoiceId, DateOnly date)
     {
         using var connection = database.OpenConnection();
@@ -135,7 +169,22 @@ public sealed class SqliteInvoiceRepository(SqliteDatabase database) : IInvoiceR
         transaction.Commit();
     }
 
-    public int MarkGenerated(long invoiceId, string filePath, DateTimeOffset generatedUtc, string inputHash)
+    public void MarkGenerated(long invoiceId, string filePath, DateTimeOffset generatedUtc, string inputHash)
+    {
+        using var connection = database.OpenConnection();
+        using var update = connection.CreateCommand();
+        update.CommandText = "UPDATE invoices SET file_path = $path, generated_utc = $g, generated_input_hash = $h WHERE id = $i";
+        update.Parameters.AddWithValue("$path", filePath);
+        update.Parameters.AddWithValue("$g", generatedUtc.ToUnixTimeMilliseconds());
+        update.Parameters.AddWithValue("$h", inputHash);
+        update.Parameters.AddWithValue("$i", invoiceId);
+        if (update.ExecuteNonQuery() == 0)
+        {
+            throw new InvalidOperationException($"Invoice {invoiceId} does not exist.");
+        }
+    }
+
+    public void MarkSent(long invoiceId, DateTimeOffset sentUtc, string snapshotJson, IReadOnlyList<StoredInvoiceDay> daysToFreeze)
     {
         using var connection = database.OpenConnection();
         using var transaction = connection.BeginTransaction();
@@ -178,28 +227,8 @@ public sealed class SqliteInvoiceRepository(SqliteDatabase database) : IInvoiceR
         using (var update = connection.CreateCommand())
         {
             update.Transaction = transaction;
-            update.CommandText = "UPDATE invoices SET number = $n, file_path = $path, generated_utc = $g, generated_input_hash = $h WHERE id = $i";
+            update.CommandText = "UPDATE invoices SET number = $n, status = 'sent', sent_utc = $s, snapshot_json = $j WHERE id = $i";
             update.Parameters.AddWithValue("$n", number.Value);
-            update.Parameters.AddWithValue("$path", filePath);
-            update.Parameters.AddWithValue("$g", generatedUtc.ToUnixTimeMilliseconds());
-            update.Parameters.AddWithValue("$h", inputHash);
-            update.Parameters.AddWithValue("$i", invoiceId);
-            update.ExecuteNonQuery();
-        }
-
-        transaction.Commit();
-        return number.Value;
-    }
-
-    public void MarkSent(long invoiceId, DateTimeOffset sentUtc, string snapshotJson, IReadOnlyList<StoredInvoiceDay> daysToFreeze)
-    {
-        using var connection = database.OpenConnection();
-        using var transaction = connection.BeginTransaction();
-
-        using (var update = connection.CreateCommand())
-        {
-            update.Transaction = transaction;
-            update.CommandText = "UPDATE invoices SET status = 'sent', sent_utc = $s, snapshot_json = $j WHERE id = $i";
             update.Parameters.AddWithValue("$s", sentUtc.ToUnixTimeMilliseconds());
             update.Parameters.AddWithValue("$j", snapshotJson);
             update.Parameters.AddWithValue("$i", invoiceId);
@@ -258,6 +287,19 @@ public sealed class SqliteInvoiceRepository(SqliteDatabase database) : IInvoiceR
         transaction.Commit();
     }
 
+    public void SetReportedMinutes(long invoiceId, int? minutes)
+    {
+        using var connection = database.OpenConnection();
+        using var update = connection.CreateCommand();
+        update.CommandText = "UPDATE invoices SET reported_minutes = $m WHERE id = $i";
+        update.Parameters.AddWithValue("$m", minutes is null ? DBNull.Value : minutes.Value);
+        update.Parameters.AddWithValue("$i", invoiceId);
+        if (update.ExecuteNonQuery() == 0)
+        {
+            throw new InvalidOperationException($"Invoice {invoiceId} does not exist.");
+        }
+    }
+
     private static void WriteDay(SqliteConnection connection, SqliteTransaction transaction, long invoiceId, StoredInvoiceDay day)
     {
         var date = day.Date.ToString(DateFormat, CultureInfo.InvariantCulture);
@@ -303,6 +345,18 @@ public sealed class SqliteInvoiceRepository(SqliteDatabase database) : IInvoiceR
                 insertSource.Parameters.AddWithValue("$o", s);
                 insertSource.ExecuteNonQuery();
             }
+
+            for (var m = 0; m < line.MovedIn.Count; m++)
+            {
+                using var insertMove = connection.CreateCommand();
+                insertMove.Transaction = transaction;
+                insertMove.CommandText = "INSERT INTO invoice_line_moves (line_id, from_date, minutes, sort_order) VALUES ($l, $f, $m, $o)";
+                insertMove.Parameters.AddWithValue("$l", lineId);
+                insertMove.Parameters.AddWithValue("$f", line.MovedIn[m].FromDate.ToString(DateFormat, CultureInfo.InvariantCulture));
+                insertMove.Parameters.AddWithValue("$m", line.MovedIn[m].Minutes);
+                insertMove.Parameters.AddWithValue("$o", m);
+                insertMove.ExecuteNonQuery();
+            }
         }
     }
 
@@ -342,7 +396,8 @@ public sealed class SqliteInvoiceRepository(SqliteDatabase database) : IInvoiceR
         r.IsDBNull(7) ? null : DateTimeOffset.FromUnixTimeMilliseconds(r.GetInt64(7)),
         r.IsDBNull(8) ? null : r.GetString(8),
         r.IsDBNull(9) ? null : DateTimeOffset.FromUnixTimeMilliseconds(r.GetInt64(9)),
-        r.IsDBNull(10) ? null : r.GetString(10));
+        r.IsDBNull(10) ? null : r.GetString(10),
+        r.IsDBNull(11) ? null : r.GetInt32(11));
 
     private static DateOnly ParseDate(string text) => DateOnly.ParseExact(text, DateFormat, CultureInfo.InvariantCulture);
 }

@@ -119,13 +119,13 @@ public class InvoiceLineBuilderTests
     }
 
     [Fact]
-    public void SessionCrossingMidnight_BelongsToTheStartDay()
+    public void SessionCrossingMidnight_IsClippedIntoBothDays()
     {
         // Starts 21:30 UTC = 23:30 local and runs 60 minutes into the next local day.
-        var day = Assert.Single(Build(S("a", At(3, 21, 30), TimeSpan.FromMinutes(60))));
+        var days = Build(S("a", At(3, 21, 30), TimeSpan.FromMinutes(60)));
 
-        Assert.Equal(new DateOnly(2026, 11, 3), day.Date);
-        Assert.Equal(60, day.TrackedMinutes);
+        Assert.Equal([new DateOnly(2026, 11, 3), new DateOnly(2026, 11, 4)], days.Select(d => d.Date));
+        Assert.Equal([30, 30], days.Select(d => d.TrackedMinutes));
     }
 
     [Fact]

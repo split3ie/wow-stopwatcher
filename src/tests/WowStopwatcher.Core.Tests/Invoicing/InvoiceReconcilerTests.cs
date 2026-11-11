@@ -66,4 +66,37 @@ public class InvoiceReconcilerTests
 
         Assert.Equal([D1, D2, D3], result.Select(d => d.Date));
     }
+
+    [Fact]
+    public void IsCustom_IsTrueOnlyWithoutSources()
+    {
+        Assert.True(new InvoiceLine(D1, 10, "", []).IsCustom);
+        Assert.False(L(D1, 10).IsCustom);
+    }
+
+    [Fact]
+    public void StoredCustomLineWithoutLiveDay_IsKeptAndHasNoDrift()
+    {
+        var stored = new StoredInvoiceDay(D2, true, [new InvoiceLine(D2, 40, "n", [])]);
+
+        var day = Assert.Single(InvoiceReconciler.Compose([], [stored]));
+
+        Assert.True(day.Edited);
+        Assert.Equal(40, day.InvoicedMinutes);
+        Assert.Equal(40, day.BilledMinutes);
+        Assert.Equal(0, day.TrackedMinutes);
+        Assert.Equal(0, day.DriftMinutes);
+    }
+
+    [Fact]
+    public void Drift_ExcludesCustomMinutes()
+    {
+        var stored = new StoredInvoiceDay(D1, true, [L(D1, 20), new InvoiceLine(D1, 60, "", [])]);
+
+        var day = Assert.Single(InvoiceReconciler.Compose([Live(D1, 30)], [stored]));
+
+        Assert.Equal(80, day.InvoicedMinutes);
+        Assert.Equal(80, day.UnallocatedMinutes);
+        Assert.Equal(10, day.DriftMinutes);
+    }
 }

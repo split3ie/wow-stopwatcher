@@ -17,8 +17,9 @@ public static class InvoiceLineEditor
         }
 
         var result = lines.ToList();
+        // Moved-in time stays on the first part only, so it is never counted twice.
         result[index] = line with { Minutes = firstMinutes };
-        result.Insert(index + 1, line with { Minutes = line.Minutes - firstMinutes });
+        result.Insert(index + 1, line with { Minutes = line.Minutes - firstMinutes, MovedIn = [] });
         return result;
     }
 
@@ -40,6 +41,11 @@ public static class InvoiceLineEditor
         }
 
         var selected = ordered.Select(i => Get(lines, i)).ToList();
+        if (selected.Any(l => l.IsCustom))
+        {
+            throw new ArgumentException("A custom line cannot be merged.", nameof(indices));
+        }
+
         var sources = new List<InvoiceLineSource>();
         foreach (var source in selected.SelectMany(l => l.Sources))
         {
@@ -50,7 +56,7 @@ public static class InvoiceLineEditor
         }
 
         var note = string.Join("; ", selected.Select(l => l.Note.Trim()).Where(n => n.Length > 0).Distinct());
-        var merged = selected[0] with { Minutes = selected.Sum(l => l.Minutes), Note = note, Sources = sources };
+        var merged = selected[0] with { Minutes = selected.Sum(l => l.Minutes), Note = note, Sources = sources, MovedIn = InvoiceLineMoves.Combine(selected.SelectMany(l => l.MovedIn)) };
 
         var result = new List<InvoiceLine>();
         for (var i = 0; i < lines.Count; i++)
@@ -65,6 +71,129 @@ public static class InvoiceLineEditor
             }
         }
 
+        return result;
+    }
+
+    /// <summary>True when the distinct dates form one run of consecutive days (a single day counts).</summary>
+    public static bool AreNeighbouringDays(IEnumerable<DateOnly> dates)
+    {
+        var ordered = dates.Distinct().Order().ToList();
+        return ordered.Count > 0 && ordered.Zip(ordered.Skip(1)).All(p => p.Second == p.First.AddDays(1));
+    }
+
+    /// <summary>
+    /// Merges the selected lines of neighbouring days (<paramref name="selection"/> is the date and line index of each, at least two lines,
+    /// no custom line, dates without a gap) into one line on <paramref name="target"/>. <paramref name="days"/> has the current lines of
+    /// every selected date. Returns the new lines of each selected date, in date order; a day left without lines stays in the result.
+    /// The merged line sits at the place of the first selected line of the target day; the time that came from other days
+    /// is remembered in <see cref="InvoiceLine.MovedIn"/>.
+    /// </summary>
+    public static IReadOnlyList<(DateOnly Date, IReadOnlyList<InvoiceLine> Lines)> MergeAcrossDays(
+        IReadOnlyDictionary<DateOnly, IReadOnlyList<InvoiceLine>> days,
+        IReadOnlyList<(DateOnly Date, int Index)> selection,
+        DateOnly target)
+    {
+        if (selection.Count < 2 || selection.Distinct().Count() != selection.Count)
+        {
+            throw new ArgumentException("Merging needs at least two distinct lines.", nameof(selection));
+        }
+
+        var dates = selection.Select(s => s.Date).Distinct().Order().ToList();
+        if (!AreNeighbouringDays(dates))
+        {
+            throw new ArgumentException("The days to merge must be neighbours without a gap.", nameof(selection));
+        }
+
+        if (!dates.Contains(target))
+        {
+            throw new ArgumentException("The target day must be one of the selected days.", nameof(target));
+        }
+
+        var selected = new List<(DateOnly Date, int Index, InvoiceLine Line)>();
+        foreach (var (date, index) in selection.OrderBy(s => s.Date).ThenBy(s => s.Index))
+        {
+            if (!days.TryGetValue(date, out var lines))
+            {
+                throw new ArgumentException($"There are no lines for {date}.", nameof(days));
+            }
+
+            selected.Add((date, index, Get(lines, index)));
+        }
+
+        if (selected.Any(s => s.Line.IsCustom))
+        {
+            throw new ArgumentException("A custom line cannot be merged.", nameof(selection));
+        }
+
+        var sources = new List<InvoiceLineSource>();
+        foreach (var source in selected.SelectMany(s => s.Line.Sources))
+        {
+            if (sources.All(x => x.StopwatchId != source.StopwatchId))
+            {
+                sources.Add(source);
+            }
+        }
+
+        var moves = selected.SelectMany(s => s.Line.MovedIn).ToList();
+        foreach (var (date, _, line) in selected.Where(s => s.Date != target))
+        {
+            moves.Add(new InvoiceLineMove(date, line.Minutes - InvoiceLineMoves.Total(line)));
+        }
+
+        var note = string.Join("; ", selected.Select(s => s.Line.Note.Trim()).Where(n => n.Length > 0).Distinct());
+        var merged = selected.First(s => s.Date == target).Line with
+        {
+            Minutes = selected.Sum(s => s.Line.Minutes),
+            Note = note,
+            Sources = sources,
+            MovedIn = InvoiceLineMoves.Combine(moves, target),
+        };
+
+        var result = new List<(DateOnly Date, IReadOnlyList<InvoiceLine> Lines)>();
+        foreach (var date in dates)
+        {
+            var removed = selected.Where(s => s.Date == date).Select(s => s.Index).ToHashSet();
+            var current = days[date];
+            var next = new List<InvoiceLine>();
+            for (var i = 0; i < current.Count; i++)
+            {
+                if (date == target && i == removed.Min())
+                {
+                    next.Add(merged);
+                }
+                else if (!removed.Contains(i))
+                {
+                    next.Add(current[i]);
+                }
+            }
+
+            result.Add((date, next));
+        }
+
+        return result;
+    }
+
+    /// <summary>Appends a custom line (no stopwatches) to the day; <paramref name="minutes"/> must be positive.</summary>
+    public static IReadOnlyList<InvoiceLine> AddCustom(IReadOnlyList<InvoiceLine> lines, DateOnly date, int minutes, string? note)
+    {
+        if (minutes <= 0)
+        {
+            throw new ArgumentException($"Minutes must be more than 0, but was {minutes}.", nameof(minutes));
+        }
+
+        return [.. lines, new InvoiceLine(date, minutes, (note ?? string.Empty).Trim(), [])];
+    }
+
+    /// <summary>Removes the custom line at <paramref name="index"/>; any other line is rejected.</summary>
+    public static IReadOnlyList<InvoiceLine> DeleteCustom(IReadOnlyList<InvoiceLine> lines, int index)
+    {
+        if (!Get(lines, index).IsCustom)
+        {
+            throw new ArgumentException("Only a custom line can be deleted.", nameof(index));
+        }
+
+        var result = lines.ToList();
+        result.RemoveAt(index);
         return result;
     }
 

@@ -13,6 +13,7 @@ internal sealed record InvoicingDependencies(
     DocxTemplateScanner Scanner,
     PdfConverterSelector Converter,
     IFilePickerService Picker,
+    IClipboardService Clipboard,
     IInvoiceFileLauncher Files,
     IDialogService Dialog,
     IUiDispatcher Dispatcher,

@@ -11,6 +11,14 @@ public static class InvoiceTimeText
     public static string Format(int minutes) =>
         string.Create(CultureInfo.InvariantCulture, $"{minutes / 60}:{minutes % 60:00}");
 
+    /// <summary>Formats minutes as "hhh:mm" (hours padded to 3 digits), for example 483 as "008:03", as shown in the fixed-shape time boxes.</summary>
+    public static string FormatPadded(int minutes) =>
+        string.Create(CultureInfo.InvariantCulture, $"{minutes / 60:000}:{minutes % 60:00}");
+
+    /// <summary>Formats minutes as "hh:mm" for the two-digit-hours time boxes; anything over 99:59 is clamped to 99:59.</summary>
+    public static string FormatShort(int minutes) =>
+        string.Create(CultureInfo.InvariantCulture, $"{Math.Min(minutes, 99 * 60 + 59) / 60:00}:{Math.Min(minutes, 99 * 60 + 59) % 60:00}");
+
     /// <summary>
     /// Parses "8", "8:00" or "0:45" (hours up to 3 digits, minutes 1 or 2 digits and at most 59) into minutes.
     /// Returns false for anything else, including an empty text.

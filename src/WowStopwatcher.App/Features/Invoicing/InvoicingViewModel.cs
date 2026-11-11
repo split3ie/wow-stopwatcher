@@ -29,6 +29,7 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
         DocxTemplateScanner scanner,
         PdfConverterSelector converter,
         IFilePickerService picker,
+        IClipboardService clipboard,
         IInvoiceFileLauncher files,
         IDialogService dialog,
         IUiDispatcher dispatcher,
@@ -36,7 +37,7 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
         IInvoiceDetailsViewModelFactory detailsFactory,
         InvoicingNavigationRequest request)
     {
-        _d = new InvoicingDependencies(companies, stopwatches, service, templates, scanner, converter, picker, files, dialog, dispatcher, time);
+        _d = new InvoicingDependencies(companies, stopwatches, service, templates, scanner, converter, picker, clipboard, files, dialog, dispatcher, time);
         _settings = settings;
         _detailsFactory = detailsFactory;
         _request = request;
@@ -148,7 +149,7 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
         var preview = new PreviewViewModel(_d, companyId, AmountsHidden, () => _ = Placeholders?.RunAsync(), () => _settings.HideAmounts = false);
         Preview = preview;
         Placeholders = new PlaceholdersViewModel(_d, companyId, () => preview.SampleHours, AmountsHidden);
-        Invoices = new InvoicesViewModel(_d, companyId, AmountsHidden, ShowDetails);
+        Invoices = new InvoicesViewModel(_d, companyId, AmountsHidden, ShowDetails, () => CompanySettings?.RefreshNextNumber());
         CompanySettings = new CompanySettingsViewModel(_d, company, AmountsHidden, OnCompanySaved, OnCompanyDeleted);
     }
 

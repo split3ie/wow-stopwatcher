@@ -7,7 +7,7 @@ namespace WowStopwatcher.Data;
 /// <summary>SQLite implementation of <see cref="ICompanyRepository"/>. Times are unix milliseconds (UTC); the rate is invariant-culture text.</summary>
 public sealed class SqliteCompanyRepository(SqliteDatabase database, TimeProvider? time = null) : ICompanyRepository
 {
-    private const string Columns = "id, name, color, sort_order, rate, currency, template_file, template_name, template_sha256, file_name_pattern, ask_destination, output_folder, next_invoice_number, deleted_utc";
+    private const string Columns = "id, name, color, sort_order, rate, currency, template_file, template_name, template_sha256, file_name_pattern, ask_destination, output_folder, next_invoice_number, deleted_utc, day_start_minutes";
 
     private readonly TimeProvider _time = time ?? TimeProvider.System;
 
@@ -45,8 +45,8 @@ public sealed class SqliteCompanyRepository(SqliteDatabase database, TimeProvide
         using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO companies (id, name, color, sort_order, rate, currency, template_file, template_name, template_sha256,
-                file_name_pattern, ask_destination, output_folder, next_invoice_number, created_utc, deleted_utc)
-            VALUES ($id, $name, $color, $order, $rate, $currency, $tfile, $tname, $tsha, $pattern, $ask, $folder, $next, $created, $deleted)
+                file_name_pattern, ask_destination, output_folder, next_invoice_number, created_utc, deleted_utc, day_start_minutes)
+            VALUES ($id, $name, $color, $order, $rate, $currency, $tfile, $tname, $tsha, $pattern, $ask, $folder, $next, $created, $deleted, $daystart)
             """;
         Bind(command, company);
         command.Parameters.AddWithValue("$created", now);
@@ -61,7 +61,7 @@ public sealed class SqliteCompanyRepository(SqliteDatabase database, TimeProvide
         command.CommandText = """
             UPDATE companies SET name = $name, color = $color, sort_order = $order, rate = $rate, currency = $currency,
                 template_file = $tfile, template_name = $tname, template_sha256 = $tsha, file_name_pattern = $pattern,
-                ask_destination = $ask, output_folder = $folder, next_invoice_number = $next
+                ask_destination = $ask, output_folder = $folder, next_invoice_number = $next, day_start_minutes = $daystart
             WHERE id = $id
             """;
         Bind(command, company);
@@ -169,7 +169,7 @@ public sealed class SqliteCompanyRepository(SqliteDatabase database, TimeProvide
                 reader.GetInt64(0),
                 reader.GetString(1),
                 reader.GetString(2),
-                reader.GetString(3) == "script" ? PlaceholderKind.Script : PlaceholderKind.Static,
+                KindFromDb(reader.GetString(3)),
                 reader.GetString(4),
                 reader.GetInt64(5) != 0,
                 reader.GetInt32(6)));
@@ -198,7 +198,7 @@ public sealed class SqliteCompanyRepository(SqliteDatabase database, TimeProvide
             insert.CommandText = "INSERT INTO invoice_placeholders (company_id, alias, kind, value, hidden, sort_order) VALUES ($c, $alias, $kind, $value, $hidden, $order)";
             insert.Parameters.AddWithValue("$c", companyId);
             insert.Parameters.AddWithValue("$alias", p.Alias);
-            insert.Parameters.AddWithValue("$kind", p.Kind == PlaceholderKind.Script ? "script" : "static");
+            insert.Parameters.AddWithValue("$kind", KindToDb(p.Kind));
             insert.Parameters.AddWithValue("$value", p.Value);
             insert.Parameters.AddWithValue("$hidden", p.Hidden ? 1 : 0);
             insert.Parameters.AddWithValue("$order", p.SortOrder);
@@ -207,6 +207,20 @@ public sealed class SqliteCompanyRepository(SqliteDatabase database, TimeProvide
 
         transaction.Commit();
     }
+
+    private static PlaceholderKind KindFromDb(string kind) => kind switch
+    {
+        "script" => PlaceholderKind.Script,
+        "automatic" => PlaceholderKind.Automatic,
+        _ => PlaceholderKind.Static,
+    };
+
+    private static string KindToDb(PlaceholderKind kind) => kind switch
+    {
+        PlaceholderKind.Script => "script",
+        PlaceholderKind.Automatic => "automatic",
+        _ => "static",
+    };
 
     private static void Bind(SqliteCommand command, Company c)
     {
@@ -223,6 +237,7 @@ public sealed class SqliteCompanyRepository(SqliteDatabase database, TimeProvide
         command.Parameters.AddWithValue("$ask", c.AskDestination ? 1 : 0);
         command.Parameters.AddWithValue("$folder", (object?)c.OutputFolder ?? DBNull.Value);
         command.Parameters.AddWithValue("$next", c.NextInvoiceNumber);
+        command.Parameters.AddWithValue("$daystart", c.DayStartMinutes);
     }
 
     private static Company Read(SqliteDataReader r) => new(
@@ -239,5 +254,6 @@ public sealed class SqliteCompanyRepository(SqliteDatabase database, TimeProvide
         r.GetInt64(10) != 0,
         r.IsDBNull(11) ? null : r.GetString(11),
         r.GetInt32(12),
-        !r.IsDBNull(13));
+        !r.IsDBNull(13),
+        r.GetInt32(14));
 }

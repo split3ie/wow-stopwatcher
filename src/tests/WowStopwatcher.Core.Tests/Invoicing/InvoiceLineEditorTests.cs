@@ -144,4 +144,52 @@ public class InvoiceLineEditorTests
     {
         Assert.Throws<ArgumentException>(() => InvoiceLineEditor.SetNote(Sample(), -1, "n"));
     }
+
+    [Fact]
+    public void AddCustom_AppendsLineWithoutSources()
+    {
+        var result = InvoiceLineEditor.AddCustom(Sample(), Day, 25, " note ");
+
+        var added = result[^1];
+        Assert.Equal(4, result.Count);
+        Assert.True(added.IsCustom);
+        Assert.False(added.IsMerged);
+        Assert.Equal(25, added.Minutes);
+        Assert.Equal("note", added.Note);
+        Assert.Equal(Day, added.Date);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void AddCustom_NonPositive_Throws(int minutes) =>
+        Assert.Throws<ArgumentException>(() => InvoiceLineEditor.AddCustom(Sample(), Day, minutes, ""));
+
+    [Fact]
+    public void DeleteCustom_RemovesOnlyCustomLines()
+    {
+        var lines = InvoiceLineEditor.AddCustom(Sample(), Day, 25, "");
+
+        Assert.Throws<ArgumentException>(() => InvoiceLineEditor.DeleteCustom(lines, 0));
+        Assert.Equal(Sample().Count, InvoiceLineEditor.DeleteCustom(lines, 3).Count);
+    }
+
+    [Fact]
+    public void Merge_WithCustomLine_Throws()
+    {
+        var lines = InvoiceLineEditor.AddCustom(Sample(), Day, 25, "");
+
+        Assert.Throws<ArgumentException>(() => InvoiceLineEditor.Merge(lines, [0, 3]));
+    }
+
+    [Fact]
+    public void Split_CustomLine_KeepsItCustom()
+    {
+        var lines = InvoiceLineEditor.AddCustom([], Day, 40, "n");
+
+        var result = InvoiceLineEditor.Split(lines, 0, 15);
+
+        Assert.Equal([15, 25], result.Select(l => l.Minutes));
+        Assert.All(result, l => Assert.True(l.IsCustom));
+    }
 }

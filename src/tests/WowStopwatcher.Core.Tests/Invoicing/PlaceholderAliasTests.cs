@@ -35,15 +35,22 @@ public class PlaceholderAliasTests
     }
 
     [Theory]
+    [InlineData("line.custom")]
+    [InlineData("LINE.date")]
+    [InlineData("line.date")]
+    public void Reserved(string alias)
+    {
+        Assert.Equal(PlaceholderAlias.Reserved, PlaceholderAlias.Validate(alias));
+    }
+
+    [Theory]
     [InlineData("hours")]
     [InlineData("amount")]
     [InlineData("period.name")]
     [InlineData("company.name")]
     [InlineData("Hours")]
-    [InlineData("line.custom")]
-    [InlineData("line.date")]
-    public void Reserved(string alias)
+    public void BuiltInNames_AreAllowed(string alias)
     {
-        Assert.Equal(PlaceholderAlias.Reserved, PlaceholderAlias.Validate(alias));
+        Assert.Null(PlaceholderAlias.Validate(alias));
     }
 }
