@@ -12,7 +12,7 @@ public sealed class TrayModule : IFeatureModule
 {
     public void Register(IServiceCollection services)
     {
-        services.AddSingleton(new ShellOptions { CloseHidesWindow = true });
+        services.ConfigureShell(o => o.CloseHidesWindow = true);
 
         if (OperatingSystem.IsWindows())
         {

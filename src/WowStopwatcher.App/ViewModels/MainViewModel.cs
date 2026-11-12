@@ -19,6 +19,7 @@ public sealed partial class MainViewModel : ObservableObject
         INavigationService navigation,
         IEnumerable<PageDescriptor> pages,
         ConfirmDialogViewModel dialog,
+        PromptDialogViewModel prompt,
         IStopwatchState state,
         IUiDispatcher dispatcher,
         IEnumerable<IWindowVisibilityAware> visibilityAware)
@@ -28,6 +29,7 @@ public sealed partial class MainViewModel : ObservableObject
         _dispatcher = dispatcher;
         _visibilityAware = [.. visibilityAware];
         Dialog = dialog;
+        Prompt = prompt;
 
         var ordered = pages.OrderBy(p => p.Order).ToList();
         NavItems = [.. ordered.Select(CreateNavItem)];
@@ -41,6 +43,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>The confirmation dialog shown over the whole window.</summary>
     public ConfirmDialogViewModel Dialog { get; }
+
+    /// <summary>The dialog with fields (passwords, codes) shown over the whole window.</summary>
+    public PromptDialogViewModel Prompt { get; }
 
     /// <summary>The header navigation buttons, ordered by page order.</summary>
     public IReadOnlyList<NavItemViewModel> NavItems { get; }

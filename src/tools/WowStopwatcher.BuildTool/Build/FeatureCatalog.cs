@@ -14,6 +14,8 @@ public static class FeatureCatalog
 
     private static readonly FeatureGroup SystemGroup = new("System", "System");
 
+    private static readonly FeatureGroup Security = new("Security", "Security");
+
     /// <summary>All known features, in display order (grouped by <see cref="FeatureDefinition.Group"/>).</summary>
     public static IReadOnlyList<FeatureDefinition> All { get; } =
     [
@@ -33,6 +35,10 @@ public static class FeatureCatalog
             ["FeatureGoals"]),
         new("FeatureAutostart", "Autostart", "Start the app when the user signs in.", SystemGroup, ["FeatureSettings"]),
         new("FeatureUpdateCheck", "Update check", "Check GitHub for a newer version.", SystemGroup, ["FeatureSettings"]),
+
+        new("FeatureEncryption", "Encryption", "Encrypted database: key in the OS secret store, recovery code, password-protected backups", Security),
+        new("FeatureInvoicesPin", "Invoices PIN", "PIN lock for the Invoices page and for data export, import and folder change", Security,
+            ["FeatureInvoicing", "FeatureEncryption"]),
     ];
 
     /// <summary>The groups in display order.</summary>

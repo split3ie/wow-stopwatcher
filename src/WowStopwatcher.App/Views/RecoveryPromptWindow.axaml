@@ -1,0 +1,102 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:WowStopwatcher.App.Localization"
+        xmlns:vm="using:WowStopwatcher.App.ViewModels"
+        x:Class="WowStopwatcher.App.Views.RecoveryPromptWindow"
+        x:DataType="vm:RecoveryPromptViewModel"
+        Icon="/Assets/app.ico"
+        Title="WowStopwatcher"
+        Width="560"
+        SizeToContent="Height"
+        CanResize="False"
+        CanMaximize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource CardBrush}"
+        Foreground="{DynamicResource TextBrush}"
+        FontFamily="{DynamicResource UiFont}"
+        FontSize="14">
+
+  <Window.Styles>
+    <Style Selector="TextBox.code">
+      <Setter Property="Height" Value="44" />
+      <Setter Property="MinHeight" Value="44" />
+      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="LetterSpacing" Value="0.3" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+      <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.code.invalid">
+      <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
+    </Style>
+    <Style Selector="Button.unlock">
+      <Setter Property="Height" Value="40" />
+      <Setter Property="Padding" Value="18,0" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+    </Style>
+    <Style Selector="Button.unlock:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource GripBrush}" />
+    </Style>
+  </Window.Styles>
+
+  <StackPanel Margin="24" Spacing="16">
+    <StackPanel Spacing="8">
+      <TextBlock Text="{loc:T recovery.title}"
+                 FontSize="20"
+                 FontWeight="Bold"
+                 LetterSpacing="-0.4"
+                 TextWrapping="Wrap" />
+      <TextBlock Text="{loc:T recovery.body}"
+                 LineHeight="21"
+                 Foreground="{DynamicResource SecondaryBrush}"
+                 TextWrapping="Wrap" />
+    </StackPanel>
+    <StackPanel Spacing="3">
+      <TextBlock Text="{loc:T recovery.folder}"
+                 FontSize="12"
+                 FontWeight="SemiBold"
+                 Foreground="{DynamicResource SecondaryBrush}" />
+      <SelectableTextBlock Text="{Binding DatabasePath}"
+                           FontFamily="{DynamicResource MonoFont}"
+                           FontSize="12"
+                           Foreground="{DynamicResource MutedBrush}"
+                           TextWrapping="Wrap" />
+    </StackPanel>
+    <StackPanel Spacing="6">
+      <TextBlock Text="{loc:T recovery.code}"
+                 FontSize="12"
+                 FontWeight="SemiBold"
+                 Foreground="{DynamicResource SecondaryBrush}" />
+      <TextBox x:Name="CodeBox"
+               Classes="code"
+               Classes.invalid="{Binding HasError}"
+               Text="{Binding Code}"
+               AutomationProperties.Name="{loc:T recovery.code}" />
+      <TextBlock Text="{Binding Error}"
+                 IsVisible="{Binding HasError}"
+                 FontSize="12"
+                 Foreground="{DynamicResource DangerBrush}"
+                 TextWrapping="Wrap" />
+    </StackPanel>
+    <Grid ColumnDefinitions="*,Auto">
+      <Button Classes="secondary"
+              HorizontalAlignment="Left"
+              Command="{Binding ChooseFolderCommand}"
+              Content="{loc:T recovery.chooseFolder}" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+        <Button Classes="secondary"
+                Command="{Binding QuitCommand}"
+                Content="{loc:T recovery.quit}" />
+        <Button Classes="primary unlock"
+                IsDefault="True"
+                Command="{Binding UnlockCommand}"
+                Content="{loc:T recovery.unlock}" />
+      </StackPanel>
+    </Grid>
+  </StackPanel>
+</Window>

@@ -1,0 +1,5 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Icon geometries on a 24x24 grid, drawn by the Icon control. -->
+  <StreamGeometry x:Key="InvoicesPinIconLock">M7,11 H17 A2,2 0 0 1 19,13 V18 A2,2 0 0 1 17,20 H7 A2,2 0 0 1 5,18 V13 A2,2 0 0 1 7,11 Z M8,11 V8 A4,4 0 0 1 16,8 V11</StreamGeometry>
+</ResourceDictionary>
