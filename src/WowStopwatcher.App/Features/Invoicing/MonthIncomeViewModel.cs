@@ -114,7 +114,7 @@ public sealed partial class MonthIncomeViewModel : ObservableObject
         ExchangeRates? rates = null;
         try
         {
-            rates = await _rates.GetRatesAsync(cancellationToken);
+            rates = await Task.Run(() => _rates.GetRatesAsync(cancellationToken), cancellationToken);
         }
         catch (OperationCanceledException)
         {
