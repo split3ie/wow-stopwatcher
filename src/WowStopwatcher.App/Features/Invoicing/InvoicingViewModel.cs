@@ -17,6 +17,7 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
 {
     private readonly InvoicingDependencies _d;
     private readonly IInvoicingSettings _settings;
+    private readonly IPageLock _pageLock;
     private readonly IInvoiceDetailsViewModelFactory _detailsFactory;
     private readonly InvoicingNavigationRequest _request;
 
@@ -37,7 +38,33 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
         IInvoiceDetailsViewModelFactory detailsFactory,
         InvoicingNavigationRequest request,
         IExchangeRateService rates)
+        : this(companies, stopwatches, service, settings, templates, scanner, converter, picker, clipboard, files, dialog, dispatcher, time,
+            detailsFactory, request, rates, NullPageLock.Instance)
     {
+    }
+
+    public InvoicingViewModel(
+        ICompanyRepository companies,
+        IStopwatchRepository stopwatches,
+        InvoicingService service,
+        IInvoicingSettings settings,
+        InvoiceTemplateStore templates,
+        DocxTemplateScanner scanner,
+        PdfConverterSelector converter,
+        IFilePickerService picker,
+        IClipboardService clipboard,
+        IInvoiceFileLauncher files,
+        IDialogService dialog,
+        IUiDispatcher dispatcher,
+        TimeProvider time,
+        IInvoiceDetailsViewModelFactory detailsFactory,
+        InvoicingNavigationRequest request,
+        IExchangeRateService rates,
+        IPageLock pageLock)
+    {
+        _pageLock = pageLock;
+        pageLock.Changed += OnLockChanged;
+
         _d = new InvoicingDependencies(companies, stopwatches, service, templates, scanner, converter, picker, clipboard, files, dialog, dispatcher, time);
         _settings = settings;
         _detailsFactory = detailsFactory;
@@ -53,6 +80,14 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
 
     /// <summary>The "This month" income card.</summary>
     public MonthIncomeViewModel MonthIncome { get; }
+
+    /// <summary>The content shown instead of the page while it is locked; null when the page cannot be locked.</summary>
+    public object? LockContent => _pageLock.GetLockContent(PageKeys.Invoicing);
+
+    /// <summary>True while a page lock replaces the page.</summary>
+    public bool IsLocked => _pageLock.IsLocked(PageKeys.Invoicing);
+
+    public bool IsUnlocked => !IsLocked;
 
     public bool HasCompanies => Tabs.Count > 0;
 
@@ -105,12 +140,23 @@ public sealed partial class InvoicingViewModel : ObservableObject, INavigationAw
         }
     }
 
+    /// <summary>Restarts the lock idle timer; called for user input while the page is shown.</summary>
+    public void RecordActivity() => _pageLock.RecordActivity(PageKeys.Invoicing);
+
     public void OnNavigatedFrom()
     {
+        _pageLock.Changed -= OnLockChanged;
+
         (CurrentDetails as IDisposable)?.Dispose();
         _settings.HideAmountsChanged -= OnHideAmountsChanged;
         MonthIncome.Cancel();
         FlushAndStop();
+    }
+
+    private void OnLockChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(IsLocked));
+        OnPropertyChanged(nameof(IsUnlocked));
     }
 
     /// <summary>Opens the details view of the selected company's invoice for <paramref name="period"/>.</summary>

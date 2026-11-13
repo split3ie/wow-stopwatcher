@@ -18,10 +18,17 @@ public static class ShellServiceCollectionExtensions
         services.AddSingleton<IFilePickerService, AvaloniaFilePickerService>();
         services.AddSingleton<IClipboardService, AvaloniaClipboardService>();
         services.AddSingleton<IFolderLauncher, AvaloniaFolderLauncher>();
+        services.AddSingleton<IDatabaseKeyStore>(_ => DatabaseKeyStoreFactory.Create());
         services.AddSingleton<DatabaseRecovery>();
+        services.AddSingleton<IStartupPrompts, AvaloniaStartupPrompts>();
+        services.AddSingleton<StartupLanguageApplier>();
+        services.AddSingleton<IStartupLanguage>(sp => sp.GetRequiredService<StartupLanguageApplier>());
+
+        // Without a feature that supports a PIN the "Protect your data" window has no PIN step.
+        services.AddSingleton<IStartupPinSetup, NullStartupPinSetup>();
 
         // Without a feature that keeps the app alive (the tray), closing the main window quits the app.
-        services.AddSingleton(new ShellOptions { CloseHidesWindow = false });
+        services.AddSingleton(new ShellOptions());
 
         // Shortcuts are not available unless the Hotkeys feature replaces this.
         services.AddSingleton<IShortcutService, NullShortcutService>();
@@ -31,6 +38,15 @@ public static class ShellServiceCollectionExtensions
 
         services.AddSingleton<ConfirmDialogViewModel>();
         services.AddSingleton<IDialogService>(sp => sp.GetRequiredService<ConfirmDialogViewModel>());
+
+        services.AddSingleton<PromptDialogViewModel>();
+        services.AddSingleton<IPromptDialogService>(sp => sp.GetRequiredService<PromptDialogViewModel>());
+
+        // Sensitive actions (export, import, folder change) ask nothing unless a feature replaces this.
+        services.AddSingleton<ISensitiveActionGuard, NullSensitiveActionGuard>();
+
+        // No page is locked unless a feature replaces this.
+        services.AddSingleton<IPageLock>(NullPageLock.Instance);
 
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<MainViewModel>();

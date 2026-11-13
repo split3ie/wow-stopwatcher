@@ -8,17 +8,19 @@
     Two kinds of flags:
       Folder flags (pages and system features): a flag that is off also removes Features/<Folder>/ from Compile,
         AvaloniaXaml and AvaloniaResource. Flag -> define -> folder, for example FeatureTray -> FEATURE_TRAY -> Tray.
-      Capability flags (stopwatches: Independent, Goals, Permanent): define only, no folder. They switch off a stopwatch
-        property for the whole app (see StopwatchCapabilities).
+      Capability flags (stopwatches: Independent, Goals, Permanent; security: Encryption): define only, no folder. They switch off a
+        stopwatch property for the whole app (see StopwatchCapabilities), or database encryption (see SecurityCapabilities).
 
     Groups:
       Pages:      FeatureToday, FeatureStatistics, FeatureSettings, FeatureInvoicing (at least one must stay on).
       Stopwatches: FeatureIndependent, FeatureGoals, FeaturePermanent.
       System:     FeatureTray, FeatureHotkeys, FeatureGoalNotifications, FeatureAutostart, FeatureUpdateCheck.
+      Security:   FeatureEncryption (capability), FeatureInvoicesPin (folder InvoicesPin).
 
     Dependencies (forced below, before the defines):
       FeatureGoals=false          forces FeatureGoalNotifications=false.
       FeatureSettings=false       forces FeatureAutostart=false and FeatureUpdateCheck=false.
+      FeatureInvoicing=false or FeatureEncryption=false   forces FeatureInvoicesPin=false (the forgot-PIN flow uses the recovery code).
   -->
   <PropertyGroup>
     <!-- Pages -->
@@ -36,6 +38,9 @@
     <FeatureGoalNotifications Condition="'$(FeatureGoalNotifications)' == ''">true</FeatureGoalNotifications>
     <FeatureAutostart Condition="'$(FeatureAutostart)' == ''">true</FeatureAutostart>
     <FeatureUpdateCheck Condition="'$(FeatureUpdateCheck)' == ''">true</FeatureUpdateCheck>
+    <!-- Security -->
+    <FeatureEncryption Condition="'$(FeatureEncryption)' == ''">true</FeatureEncryption>
+    <FeatureInvoicesPin Condition="'$(FeatureInvoicesPin)' == ''">true</FeatureInvoicesPin>
   </PropertyGroup>
 
   <!-- Dependencies. A conflicting value passed on the command line is reported by the targets below. -->
@@ -45,6 +50,9 @@
   <PropertyGroup Condition="'$(FeatureSettings)' != 'true'">
     <FeatureAutostart>false</FeatureAutostart>
     <FeatureUpdateCheck>false</FeatureUpdateCheck>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(FeatureInvoicing)' != 'true' Or '$(FeatureEncryption)' != 'true'">
+    <FeatureInvoicesPin>false</FeatureInvoicesPin>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -63,6 +71,9 @@
     <DefineConstants Condition="'$(FeatureGoalNotifications)' == 'true'">$(DefineConstants);FEATURE_GOAL_NOTIFICATIONS</DefineConstants>
     <DefineConstants Condition="'$(FeatureAutostart)' == 'true'">$(DefineConstants);FEATURE_AUTOSTART</DefineConstants>
     <DefineConstants Condition="'$(FeatureUpdateCheck)' == 'true'">$(DefineConstants);FEATURE_UPDATE_CHECK</DefineConstants>
+    <!-- Security -->
+    <DefineConstants Condition="'$(FeatureEncryption)' == 'true'">$(DefineConstants);FEATURE_ENCRYPTION</DefineConstants>
+    <DefineConstants Condition="'$(FeatureInvoicesPin)' == 'true'">$(DefineConstants);FEATURE_INVOICES_PIN</DefineConstants>
   </PropertyGroup>
 
   <!-- Pages: folder removal -->
@@ -114,6 +125,13 @@
     <AvaloniaResource Remove="Features/UpdateCheck/**" />
   </ItemGroup>
 
+  <!-- Security: folder removal (Encryption is a capability flag and has no folder) -->
+  <ItemGroup Condition="'$(FeatureInvoicesPin)' != 'true'">
+    <Compile Remove="Features/InvoicesPin/**" />
+    <AvaloniaXaml Remove="Features/InvoicesPin/**" />
+    <AvaloniaResource Remove="Features/InvoicesPin/**" />
+  </ItemGroup>
+
   <Target Name="EnsureAtLeastOnePage" BeforeTargets="BeforeBuild;BeforeCompile;CoreCompile"
           Condition="'$(FeatureToday)' != 'true' And '$(FeatureStatistics)' != 'true' And '$(FeatureSettings)' != 'true' And '$(FeatureInvoicing)' != 'true'">
     <Error Text="At least one page must be enabled: FeatureToday, FeatureStatistics, FeatureSettings or FeatureInvoicing." />
@@ -124,5 +142,7 @@
            Text="FeatureGoalNotifications requires FeatureGoals." />
     <Error Condition="'$(FeatureSettings)' != 'true' And ('$(FeatureAutostart)' == 'true' Or '$(FeatureUpdateCheck)' == 'true')"
            Text="FeatureAutostart and FeatureUpdateCheck require FeatureSettings." />
+    <Error Condition="'$(FeatureInvoicesPin)' == 'true' And ('$(FeatureInvoicing)' != 'true' Or '$(FeatureEncryption)' != 'true')"
+           Text="FeatureInvoicesPin requires FeatureInvoicing and FeatureEncryption." />
   </Target>
 </Project>

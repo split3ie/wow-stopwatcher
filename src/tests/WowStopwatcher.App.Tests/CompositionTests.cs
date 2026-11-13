@@ -89,6 +89,9 @@ public class CompositionTests
 #if FEATURE_INVOICING
         expected.Add("InvoicingModule");
 #endif
+#if FEATURE_INVOICES_PIN
+        expected.Add("InvoicesPinModule");
+#endif
         Assert.Equal(expected.Order().ToList(), actual);
     }
 
@@ -108,6 +111,47 @@ public class CompositionTests
             var folder = Path.GetDirectoryName(provider.GetRequiredService<SqliteDatabase>().Path)!;
             Directory.Delete(folder, recursive: true);
         }
+    }
+
+    [Fact]
+    public void Security_capabilities_follow_the_encryption_flag()
+    {
+        using var provider = TestComposition.CreateServices().BuildServiceProvider();
+#if FEATURE_ENCRYPTION
+        const bool expected = true;
+#else
+        const bool expected = false;
+#endif
+        Assert.Same(FeatureModules.Security, provider.GetRequiredService<SecurityCapabilities>());
+        Assert.Equal(expected, FeatureModules.Security.Encryption);
+    }
+
+    [Fact]
+    public void Startup_services_resolve_without_building_the_database()
+    {
+        // App.Start resolves these before the database is unlocked and the key is known; none may need SqliteDatabase,
+        // directly or through a repository, settings or a feature service.
+        var services = new ServiceCollection();
+        AppComposition.ConfigureServices(services, new Avalonia.Controls.ApplicationLifetimes.ClassicDesktopStyleApplicationLifetime());
+        var built = 0;
+        services.AddSingleton<SqliteDatabase>(_ =>
+        {
+            built++;
+            throw new InvalidOperationException("The database was built before it was unlocked.");
+        });
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+
+        provider.GetRequiredService<DatabaseUnlock>();
+        provider.GetRequiredService<DatabaseStartup>();
+        provider.GetRequiredService<DatabaseLocation>();
+        provider.GetRequiredService<DatabaseKeyHolder>();
+        provider.GetRequiredService<IDatabaseKeyStore>();
+        provider.GetRequiredService<IStartupPrompts>();
+        provider.GetRequiredService<StartupLanguageApplier>();
+        provider.GetRequiredService<DatabaseRecovery>();
+        provider.GetRequiredService<ShellOptions>();
+
+        Assert.Equal(0, built);
     }
 
     private static HashSet<Type> MappedViewModels(IServiceCollection services) =>

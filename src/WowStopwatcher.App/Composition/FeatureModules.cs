@@ -7,6 +7,9 @@ using WowStopwatcher.App.Features.Today;
 #if FEATURE_INVOICING
 using WowStopwatcher.App.Features.Invoicing;
 #endif
+#if FEATURE_INVOICES_PIN
+using WowStopwatcher.App.Features.InvoicesPin;
+#endif
 #if FEATURE_AUTOSTART
 using WowStopwatcher.App.Features.Autostart;
 #endif
@@ -57,6 +60,14 @@ public static class FeatureModules
         Permanent: false);
 #endif
 
+    /// <summary>The security capabilities of this build (the Encryption flag).</summary>
+    public static SecurityCapabilities Security { get; } = new(
+#if FEATURE_ENCRYPTION
+        Encryption: true);
+#else
+        Encryption: false);
+#endif
+
     private static List<IFeatureModule> Create()
     {
         var modules = new List<IFeatureModule>();
@@ -70,6 +81,9 @@ public static class FeatureModules
 #endif
 #if FEATURE_INVOICING
         modules.Add(new InvoicingModule());
+#endif
+#if FEATURE_INVOICES_PIN
+        modules.Add(new InvoicesPinModule());
 #endif
 #if FEATURE_HOTKEYS
         modules.Add(new HotkeysModule());
