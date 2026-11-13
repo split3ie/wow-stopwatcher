@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
+             xmlns:vm="using:WowStopwatcher.App.Features.InvoicesPin"
+             x:Class="WowStopwatcher.App.Features.InvoicesPin.InvoicesPinSettingsView"
+             x:DataType="vm:InvoicesPinSettingsViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="Button.pinAction">
+      <Setter Property="Height" Value="40" />
+      <Setter Property="Padding" Value="14,0" />
+      <Setter Property="FontSize" Value="13" />
+    </Style>
+  </UserControl.Styles>
+
+  <StackPanel Spacing="10" Margin="0,4,0,0">
+    <TextBlock FontSize="18"
+               FontWeight="Bold"
+               LetterSpacing="-0.18"
+               Text="{loc:T invoicing.pin.settings.title}" />
+
+    <Border Classes="card" Padding="20,16">
+      <StackPanel Spacing="14">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="3" Margin="0,0,16,0" VerticalAlignment="Center">
+            <TextBlock Text="{loc:T invoicing.pin.settings.toggle}" FontWeight="SemiBold" />
+            <TextBlock Classes="muted"
+                       FontSize="13"
+                       TextWrapping="Wrap"
+                       Text="{loc:T invoicing.pin.settings.description}" />
+          </StackPanel>
+          <ToggleButton Grid.Column="1"
+                        Classes="switch"
+                        IsChecked="{Binding IsEnabled}"
+                        AutomationProperties.Name="{loc:T invoicing.pin.settings.toggle}" />
+        </Grid>
+
+        <Border BorderBrush="{DynamicResource LineSoftBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="0,14,0,0">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Classes="muted"
+                       Margin="0,0,16,0"
+                       VerticalAlignment="Center"
+                       FontSize="13"
+                       TextWrapping="Wrap"
+                       Text="{loc:T invoicing.pin.settings.forgotNote}" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Button Classes="secondary pinAction"
+                      Command="{Binding ChangeCommand}"
+                      IsEnabled="{Binding IsEnabled}"
+                      Content="{loc:T invoicing.pin.settings.change}" />
+              <Button Classes="secondary pinAction"
+                      Command="{Binding ForgotCommand}"
+                      IsEnabled="{Binding IsEnabled}"
+                      Content="{loc:T invoicing.pin.settings.forgot}" />
+            </StackPanel>
+          </Grid>
+        </Border>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

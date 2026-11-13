@@ -18,8 +18,24 @@ public static class StorageServiceCollectionExtensions
         services.AddSingleton<DatabaseLocation>();
         services.AddSingleton(sp => new DatabaseTransfer(sp.GetRequiredService<TimeProvider>()));
         services.AddSingleton<DatabaseStartup>();
-        // The startup code runs DatabaseStartup before this is first resolved, so a pending move or import is applied first.
-        services.AddSingleton(sp => new SqliteDatabase(sp.GetRequiredService<DatabaseLocation>().ResolveDatabasePath()));
+        services.AddSingleton<DatabaseUnlock>();
+        services.AddSingleton<DatabaseKeyHolder>();
+        services.AddSingleton<IDatabaseKeyProvider>(sp => sp.GetRequiredService<DatabaseKeyHolder>());
+        // The startup code runs DatabaseUnlock before this is first resolved, so a pending move or import is applied first
+        // and the key of the database is known (DatabaseKeyHolder). Without encryption the database is opened plain, without a key.
+        services.AddSingleton(sp =>
+        {
+            var path = sp.GetRequiredService<DatabaseLocation>().ResolveDatabasePath();
+            if (!sp.GetRequiredService<SecurityCapabilities>().Encryption)
+            {
+                return new SqliteDatabase(path);
+            }
+
+            return new SqliteDatabase(
+                path,
+                sp.GetRequiredService<IDatabaseKeyProvider>().Key
+                    ?? throw new InvalidOperationException("The database is opened before it was unlocked."));
+        });
         services.AddSingleton(sp => new SqliteStopwatchRepository(
             sp.GetRequiredService<SqliteDatabase>(), sp.GetRequiredService<TimeProvider>(), () => Loc.Current.Code));
         services.AddSingleton<IStopwatchRepository>(sp => new CapabilityFilteredStopwatchRepository(

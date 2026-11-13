@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.11.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>
@@ -19,8 +20,11 @@
     <Compile Remove="Invoicing/**" />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureInvoicing)' == 'true'">
-    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.11.0" />
     <Compile Include="..\WowStopwatcher.Core.Tests\FakeRepositories.cs" Link="Invoicing\FakeRepositories.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(FeatureInvoicesPin)' != 'true'">
+    <Compile Remove="InvoicesPin/**" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(FeatureSettings)' != 'true'">

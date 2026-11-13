@@ -12,6 +12,16 @@ Known gaps that are deliberately left for later. Remove an item when it is done.
   `wowstopwatcher.db.replaced-<timestamp>` next to the database (besides the verified copy in `backups/`). Offer a cleanup
   in Settings › Data, or move these files into `backups/`.
 
+## Data protection
+
+- **macOS Keychain and Linux `secret-tool` key stores never ran on a real system.** `MacDatabaseKeyStore` and `LinuxDatabaseKeyStore`
+  were written without a Mac or a Linux machine with a Secret Service (only the `secret-tool` arguments are unit tested).
+  Run save, read and the recovery code fallback once on each.
+- **The swap-failure rollback of Replace and Import has no test.** If swapping the database file fails midway, the previous
+  database must come back; this path is not covered.
+- **Recovery code attempts are not rate-limited.** The recovery code window and the Invoices PIN "forgot" flow accept unlimited
+  tries (only the PIN itself locks for 30 s after 5 wrong tries).
+
 ## Invoicing
 
 - **Word PDF conversion is untested.** `WordPdfConverter` (late-bound COM) was written without a machine that has Word.

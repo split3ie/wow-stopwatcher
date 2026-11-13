@@ -7,10 +7,15 @@ namespace WowStopwatcher.Data;
 /// <param name="StopwatchCount">Stopwatches that are not deleted.</param>
 /// <param name="SessionDayCount">Distinct local days with at least one session.</param>
 /// <param name="LastSessionStartUtc">Start of the latest session, or null when there is none.</param>
+/// <param name="KeyProblem">
+/// <see cref="TransferErrorCode.KeyRequired"/> or <see cref="TransferErrorCode.KeyRejected"/> when the database is encrypted and could not be
+/// read because no key (or a wrong key) was given; <see cref="IntegrityOk"/> is then false although the file may be fine. Null otherwise.
+/// </param>
 public sealed record DatabaseInspection(
     int SchemaVersion,
     bool IsNewerThanApp,
     bool IntegrityOk,
     int StopwatchCount,
     int SessionDayCount,
-    DateTimeOffset? LastSessionStartUtc);
+    DateTimeOffset? LastSessionStartUtc,
+    TransferErrorCode? KeyProblem = null);

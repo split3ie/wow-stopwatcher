@@ -31,5 +31,6 @@ public sealed class InvoicingModule : IFeatureModule
         services.AddSingleton(new PageDescriptor(PageKeys.Invoicing, "invoicing.title", null, -10, typeof(InvoicingViewModel)));
         services.AddSingleton(new ViewMapping(typeof(InvoicingViewModel), () => new InvoicingView()));
         services.AddSingleton<IStatisticsStopwatchAction, InvoiceTimeStatisticsAction>();
+        services.AddSingleton<IAppService>(sp => new TempFolderCleanupService(Path.GetTempPath(), sp.GetRequiredService<TimeProvider>()));
     }
 }

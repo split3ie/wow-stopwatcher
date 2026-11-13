@@ -17,6 +17,7 @@ public static class AppComposition
     public static void ConfigureServices(IServiceCollection services, IClassicDesktopStyleApplicationLifetime desktop)
     {
         services.AddSingleton(FeatureModules.Capabilities);
+        services.AddSingleton(FeatureModules.Security);
         services.AddCore();
         services.AddStorage();
         services.AddShell(desktop);

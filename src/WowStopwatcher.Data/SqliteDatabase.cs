@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using WowStopwatcher.Core.Security;
 
 namespace WowStopwatcher.Data;
 
@@ -7,18 +8,32 @@ namespace WowStopwatcher.Data;
 /// a <see cref="DatabaseOpenException"/> is thrown and the file is left untouched. An existing database of an older schema
 /// is backed up and verified (<c>backups/&lt;name&gt;-v&lt;old&gt;.db</c>) before it is migrated; if that fails nothing is migrated.
 /// Otherwise creates the folder and file, enables WAL, and migrates the schema using <c>PRAGMA user_version</c>. Every <see cref="OpenConnection"/> call returns a new, non-pooled connection
-/// with foreign keys enabled; the caller disposes it.
+/// with foreign keys enabled; the caller disposes it. With a <see cref="DatabaseKey"/> the file is encrypted (see <see cref="DatabaseConnections"/>);
+/// without one it must be a plain database, and the format of an existing file is checked first (<see cref="DatabaseProblem.KeyRequired"/>,
+/// <see cref="DatabaseProblem.NotEncrypted"/>, <see cref="DatabaseProblem.KeyRejected"/>).
 /// </summary>
 public sealed class SqliteDatabase
 {
     /// <summary>Current schema version.</summary>
     public const int LatestSchemaVersion = 14;
 
-    private readonly string _connectionString;
+    private readonly DatabaseKey? _key;
 
-    /// <summary>Opens (creating if needed) the database at <paramref name="path"/> and migrates it.</summary>
+    /// <summary>Opens (creating if needed) the plain database at <paramref name="path"/> and migrates it.</summary>
     public SqliteDatabase(string path)
+        : this(path, null, true)
     {
+    }
+
+    /// <summary>Opens (creating if needed) the encrypted database at <paramref name="path"/> with <paramref name="key"/> and migrates it.</summary>
+    public SqliteDatabase(string path, DatabaseKey key)
+        : this(path, key, true)
+    {
+    }
+
+    private SqliteDatabase(string path, DatabaseKey? key, bool _)
+    {
+        _key = key;
         Path = System.IO.Path.GetFullPath(path);
         var folder = System.IO.Path.GetDirectoryName(Path);
         if (!string.IsNullOrEmpty(folder))
@@ -26,13 +41,7 @@ public sealed class SqliteDatabase
             Directory.CreateDirectory(folder);
         }
 
-        _connectionString = new SqliteConnectionStringBuilder
-        {
-            DataSource = Path,
-            Mode = SqliteOpenMode.ReadWriteCreate,
-            ForeignKeys = true,
-            Pooling = false,
-        }.ToString();
+        CheckFormat();
 
         if (File.Exists(Path))
         {
@@ -49,6 +58,9 @@ public sealed class SqliteDatabase
     /// <summary>Full path of the database file.</summary>
     public string Path { get; }
 
+    /// <summary>True when the database is opened with a key.</summary>
+    public bool IsEncrypted => _key is not null;
+
     /// <summary>Full path of the backup made before migrating, or null when none was needed.</summary>
     public string? BackupPath { get; }
 
@@ -64,9 +76,32 @@ public sealed class SqliteDatabase
     /// <summary>Opens a new connection. Dispose it after use.</summary>
     public SqliteConnection OpenConnection()
     {
-        var connection = new SqliteConnection(_connectionString);
-        connection.Open();
-        return connection;
+        return DatabaseConnections.Open(Path, SqliteOpenMode.ReadWriteCreate, _key, foreignKeys: true);
+    }
+
+    /// <summary>Compares the file header with what this instance was asked to open, before SQLite touches the file.</summary>
+    private void CheckFormat()
+    {
+        DatabaseFileFormat format;
+        try
+        {
+            format = DatabaseFormatDetector.Detect(Path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new DatabaseOpenException(DatabaseProblem.Unavailable, Path, "The database file could not be opened.", ex);
+        }
+
+        // A plain open of a non-SQLite file stays "Damaged"; only a file with a key file next to it is taken for an encrypted database.
+        if (_key is null && format == DatabaseFileFormat.Encrypted && File.Exists(DatabaseKeyFile.PathFor(Path)))
+        {
+            throw new DatabaseOpenException(DatabaseProblem.KeyRequired, Path, "The database file is encrypted and no key was given.");
+        }
+
+        if (_key is not null && format == DatabaseFileFormat.Plain)
+        {
+            throw new DatabaseOpenException(DatabaseProblem.NotEncrypted, Path, "The database file is not encrypted.");
+        }
     }
 
     /// <summary>The schema version stored in the file.</summary>
@@ -81,14 +116,7 @@ public sealed class SqliteDatabase
     {
         try
         {
-            var connectionString = new SqliteConnectionStringBuilder
-            {
-                DataSource = Path,
-                Mode = SqliteOpenMode.ReadOnly,
-                Pooling = false,
-            }.ToString();
-            using var connection = new SqliteConnection(connectionString);
-            connection.Open();
+            using var connection = DatabaseConnections.Open(Path, SqliteOpenMode.ReadOnly, _key);
 
             var version = ReadVersion(connection);
             if (version > LatestSchemaVersion)
@@ -120,10 +148,14 @@ public sealed class SqliteDatabase
         }
     }
 
-    /// <summary>Copies the database to <c>backups/&lt;name&gt;-v&lt;version&gt;.db</c> and verifies the copy. Never overwrites a file.</summary>
+    /// <summary>
+    /// Copies the database to <c>backups/&lt;name&gt;-v&lt;version&gt;.db</c> and verifies the copy. Never overwrites a file.
+    /// An encrypted database is copied with the same key and its key file goes next to the copy (<see cref="DatabaseKeyFile.PathFor"/>).
+    /// </summary>
     private string Backup(int version)
     {
         string? created = null;
+        string? createdKeyFile = null;
         try
         {
             var folder = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Path)!, "backups");
@@ -137,17 +169,14 @@ public sealed class SqliteDatabase
             }
 
             created = target;
-            using (var source = new SqliteConnection(ConnectionString(Path, SqliteOpenMode.ReadOnly)))
-            using (var destination = new SqliteConnection(ConnectionString(target, SqliteOpenMode.ReadWriteCreate)))
+            using (var source = DatabaseConnections.Open(Path, SqliteOpenMode.ReadOnly, _key))
+            using (var destination = DatabaseConnections.Open(target, SqliteOpenMode.ReadWriteCreate, _key))
             {
-                source.Open();
-                destination.Open();
                 source.BackupDatabase(destination);
             }
 
-            using (var check = new SqliteConnection(ConnectionString(target, SqliteOpenMode.ReadOnly)))
+            using (var check = DatabaseConnections.Open(target, SqliteOpenMode.ReadOnly, _key))
             {
-                check.Open();
                 var backupVersion = ReadVersion(check);
                 if (backupVersion != version)
                 {
@@ -163,6 +192,13 @@ public sealed class SqliteDatabase
                 }
             }
 
+            var sourceKeyFile = DatabaseKeyFile.PathFor(Path);
+            if (_key is not null && File.Exists(sourceKeyFile))
+            {
+                createdKeyFile = DatabaseKeyFile.PathFor(target);
+                File.Copy(sourceKeyFile, createdKeyFile, overwrite: false);
+            }
+
             return target;
         }
         catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException or InvalidDataException)
@@ -172,6 +208,10 @@ public sealed class SqliteDatabase
                 try
                 {
                     File.Delete(created);
+                    if (createdKeyFile is not null)
+                    {
+                        File.Delete(createdKeyFile);
+                    }
                 }
                 catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException)
                 {
@@ -183,21 +223,18 @@ public sealed class SqliteDatabase
         }
     }
 
-    private static string ConnectionString(string file, SqliteOpenMode mode) => new SqliteConnectionStringBuilder
-    {
-        DataSource = file,
-        Mode = mode,
-        Pooling = false,
-    }.ToString();
-
     private DatabaseOpenException NewerVersion(int version) => new(
         DatabaseProblem.NewerVersion,
         Path,
         $"Database schema version {version} is newer than this app supports ({LatestSchemaVersion}).");
 
-    private DatabaseOpenException Classify(SqliteException ex) => ex.SqliteErrorCode is 11 or 26
-        ? new DatabaseOpenException(DatabaseProblem.Damaged, Path, "The database file is damaged.", ex)
-        : new DatabaseOpenException(DatabaseProblem.Unavailable, Path, "The database file could not be opened.", ex);
+    private DatabaseOpenException Classify(SqliteException ex) => (ex.SqliteErrorCode, _key) switch
+    {
+        // An encrypted file that does not decode: the key is wrong (a damaged encrypted file looks the same).
+        (26, not null) => new DatabaseOpenException(DatabaseProblem.KeyRejected, Path, "The database key was rejected.", ex),
+        (11 or 26, _) => new DatabaseOpenException(DatabaseProblem.Damaged, Path, "The database file is damaged.", ex),
+        _ => new DatabaseOpenException(DatabaseProblem.Unavailable, Path, "The database file could not be opened.", ex),
+    };
 
     private void Migrate()
     {

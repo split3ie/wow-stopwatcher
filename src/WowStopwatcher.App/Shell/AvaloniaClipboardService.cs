@@ -17,4 +17,30 @@ public sealed class AvaloniaClipboardService(IClassicDesktopStyleApplicationLife
         await clipboard.SetTextAsync(text);
         return true;
     }
+
+    public async Task<string?> TryGetTextAsync()
+    {
+        if (TopLevel.GetTopLevel(desktop.MainWindow)?.Clipboard is not { } clipboard)
+        {
+            return null;
+        }
+
+        try
+        {
+            return await clipboard.TryGetTextAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or System.Runtime.InteropServices.COMException)
+        {
+            // Another program holds the clipboard; treat it as not readable.
+            return null;
+        }
+    }
+
+    public async Task ClearAsync()
+    {
+        if (TopLevel.GetTopLevel(desktop.MainWindow)?.Clipboard is { } clipboard)
+        {
+            await clipboard.ClearAsync();
+        }
+    }
 }

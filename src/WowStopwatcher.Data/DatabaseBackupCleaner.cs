@@ -20,7 +20,7 @@ public sealed class DatabaseBackupCleaner
         _time = time;
     }
 
-    /// <summary>Deletes backups last written at least <paramref name="maxAge"/> ago, with their -wal and -shm files.</summary>
+    /// <summary>Deletes backups last written at least <paramref name="maxAge"/> ago, with their -wal and -shm files and key file (<c>.key.json</c>).</summary>
     public void DeleteOlderThan(TimeSpan maxAge)
     {
         var folder = Path.Combine(Path.GetDirectoryName(_databasePath)!, "backups");
@@ -60,6 +60,7 @@ public sealed class DatabaseBackupCleaner
                 File.Delete(file + "-wal");
                 File.Delete(file + "-shm");
                 File.Delete(file);
+                File.Delete(DatabaseKeyFile.PathFor(file));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

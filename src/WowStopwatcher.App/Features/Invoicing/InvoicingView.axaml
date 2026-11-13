@@ -21,7 +21,10 @@
     <StyleInclude Source="/Features/Invoicing/InvoicingStyles.axaml" />
   </UserControl.Styles>
 
-  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+  <Panel>
+  <ContentControl Content="{Binding LockContent}" IsVisible="{Binding IsLocked}" />
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                IsVisible="{Binding IsUnlocked}">
     <Border MaxWidth="920" Padding="28,28,28,32">
       <Panel>
         <StackPanel Spacing="16" IsVisible="{Binding IsPageVisible}">
@@ -178,4 +181,5 @@
       </Panel>
     </Border>
   </ScrollViewer>
+  </Panel>
 </UserControl>

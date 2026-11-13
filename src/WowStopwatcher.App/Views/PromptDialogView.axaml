@@ -1,0 +1,147 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:WowStopwatcher.App.Controls"
+             xmlns:loc="using:WowStopwatcher.App.Localization"
+             xmlns:vm="using:WowStopwatcher.App.ViewModels"
+             x:Class="WowStopwatcher.App.Views.PromptDialogView"
+             x:DataType="vm:PromptDialogViewModel"
+             IsVisible="{Binding IsOpen}">
+
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+    <KeyBinding Gesture="Enter" Command="{Binding ConfirmCommand}" />
+  </UserControl.KeyBindings>
+
+  <UserControl.Styles>
+    <Style Selector="TextBox.promptField">
+      <Setter Property="Height" Value="40" />
+      <Setter Property="MinHeight" Value="40" />
+      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+      <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.promptField.mono">
+      <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+      <Setter Property="FontSize" Value="15" />
+    </Style>
+    <Style Selector="TextBox.promptField.invalid">
+      <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid Background="{DynamicResource OverlayBrush}">
+    <Border MaxWidth="460"
+            Margin="16"
+            Padding="22,22,22,18"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Center"
+            Background="{DynamicResource CardBrush}"
+            CornerRadius="{DynamicResource RadiusDialog}"
+            BoxShadow="{DynamicResource ShadowDialog}"
+            AutomationProperties.Name="{Binding Title}">
+      <StackPanel Spacing="14">
+        <StackPanel Spacing="6">
+          <TextBlock Text="{Binding Title}"
+                     FontSize="17"
+                     FontWeight="Bold"
+                     LetterSpacing="-0.17"
+                     TextWrapping="Wrap" />
+          <SelectableTextBlock Text="{Binding Subtitle}"
+                               IsVisible="{Binding HasSubtitle}"
+                               FontFamily="{DynamicResource MonoFont}"
+                               FontSize="12"
+                               Foreground="{DynamicResource SecondaryBrush}"
+                               TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Body}"
+                     IsVisible="{Binding HasBody}"
+                     FontSize="14"
+                     LineHeight="21"
+                     Foreground="{DynamicResource SecondaryBrush}"
+                     TextWrapping="Wrap" />
+        </StackPanel>
+
+        <StackPanel Spacing="6" IsVisible="{Binding HasFirst}">
+          <TextBlock Text="{Binding FirstLabel}"
+                     FontSize="12"
+                     FontWeight="SemiBold"
+                     Foreground="{DynamicResource SecondaryBrush}" />
+          <TextBox x:Name="FirstBox"
+                   Classes="promptField"
+                   Classes.mono="{Binding IsMono}"
+                   Classes.invalid="{Binding HasError}"
+                   PasswordChar="{Binding MaskChar}"
+                   Text="{Binding First}"
+                   AutomationProperties.Name="{Binding FirstLabel}" />
+        </StackPanel>
+
+        <StackPanel Spacing="6" IsVisible="{Binding HasSecond}">
+          <TextBlock Text="{Binding SecondLabel}"
+                     FontSize="12"
+                     FontWeight="SemiBold"
+                     Foreground="{DynamicResource SecondaryBrush}" />
+          <TextBox Classes="promptField"
+                   Classes.mono="{Binding IsSecondMono}"
+                   Classes.invalid="{Binding HasError}"
+                   PasswordChar="{Binding SecondMaskChar}"
+                   Text="{Binding Second}"
+                   AutomationProperties.Name="{Binding SecondLabel}" />
+        </StackPanel>
+
+        <StackPanel Spacing="6" IsVisible="{Binding HasThird}">
+          <TextBlock Text="{Binding ThirdLabel}"
+                     FontSize="12"
+                     FontWeight="SemiBold"
+                     Foreground="{DynamicResource SecondaryBrush}" />
+          <TextBox Classes="promptField"
+                   Classes.mono="{Binding IsThirdMono}"
+                   Classes.invalid="{Binding HasError}"
+                   PasswordChar="{Binding ThirdMaskChar}"
+                   Text="{Binding Third}"
+                   AutomationProperties.Name="{Binding ThirdLabel}" />
+        </StackPanel>
+
+        <TextBlock Text="{Binding Error}"
+                   IsVisible="{Binding HasError}"
+                   FontSize="12"
+                   Foreground="{DynamicResource DangerBrush}"
+                   TextWrapping="Wrap" />
+
+        <Border IsVisible="{Binding HasNote}"
+                Padding="12,10"
+                Background="{DynamicResource StarSoftBrush}"
+                CornerRadius="{DynamicResource RadiusControl}">
+          <Grid ColumnDefinitions="Auto,*">
+            <c:Icon Width="16" Height="16"
+                    Margin="0,1,8,0"
+                    VerticalAlignment="Top"
+                    Data="{StaticResource IconInfo}"
+                    Stroke="{DynamicResource ReachedAccentBrush}"
+                    StrokeThickness="2" />
+            <TextBlock Grid.Column="1"
+                       FontSize="13"
+                       Foreground="{DynamicResource ReachedAccentBrush}"
+                       TextWrapping="Wrap"
+                       Text="{Binding Note}" />
+          </Grid>
+        </Border>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+          <Button Classes="secondary"
+                  Command="{Binding CancelCommand}"
+                  Content="{loc:T common.cancel}" />
+          <Button Classes="primary"
+                  IsVisible="{Binding !IsDestructive}"
+                  Command="{Binding ConfirmCommand}"
+                  Content="{Binding ConfirmLabel}" />
+          <Button Classes="dangerSolid"
+                  IsVisible="{Binding IsDestructive}"
+                  Command="{Binding ConfirmCommand}"
+                  Content="{Binding ConfirmLabel}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>
