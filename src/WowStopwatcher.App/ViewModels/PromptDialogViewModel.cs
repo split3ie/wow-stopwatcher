@@ -108,10 +108,16 @@ public sealed partial class PromptDialogViewModel : ObservableObject, IPromptDia
         IsDestructive = request.IsDestructive;
         FirstLabel = request.First?.Label;
         SecondLabel = request.Second?.Label;
+        ThirdLabel = request.Third?.Label;
         MaskChar = request.First?.Masked == true ? '●' : '\0';
+        SecondMaskChar = request.Second?.Masked == true ? '●' : '\0';
+        ThirdMaskChar = request.Third?.Masked == true ? '●' : '\0';
         IsMono = request.First?.Mono == true;
+        IsSecondMono = request.Second?.Mono == true;
+        IsThirdMono = request.Third?.Mono == true;
         First = string.Empty;
         Second = string.Empty;
+        Third = string.Empty;
         Error = null;
         IsChecking = false;
 
