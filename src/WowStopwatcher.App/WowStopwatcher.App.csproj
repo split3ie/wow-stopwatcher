@@ -7,6 +7,8 @@
     <AssemblyTitle>WowStopwatcher</AssemblyTitle>
     <Product>WowStopwatcher</Product>
     <Company>split3ie</Company>
+    <Description>Personal time tracker with multiple stopwatches and daily goals.</Description>
+    <Copyright>Copyright © split3ie</Copyright>
     <Authors>split3ie</Authors>
   </PropertyGroup>
   <Import Project="Features.props" />
@@ -17,7 +19,8 @@
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- Compression makes the bundle look packed and triggers antivirus heuristics. -->
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
     <PublishTrimmed>false</PublishTrimmed>
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>

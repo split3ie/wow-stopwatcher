@@ -21,7 +21,7 @@ WowStopwatcher is a desktop app for Windows, macOS and Linux that shows how you 
 - **Keep temporary stopwatches tidy.** New stopwatches are temporary: they hide themselves after a full day without use. Turn on **Permanent** to keep one. Hidden stopwatches keep their statistics, and you can bring one back in Statistics by hovering its row and clicking **Restore**.
 - **Start with your computer.** Optionally launch in the tray with **Run with computer start**. No stopwatch starts by itself.
 - **Update from inside the app.** See "Updating" below.
-- **Keep your data to yourself.** Everything is stored locally in a SQLite file. Nothing is sent anywhere, except the optional "Check for updates" request to GitHub.
+- **Keep your data to yourself.** Everything is stored locally in an encrypted SQLite file. Nothing is sent anywhere, except the optional "Check for updates" request to GitHub.
 
 ## Installation
 
@@ -129,11 +129,17 @@ Good to know:
 
 ## Your data
 
-Sessions and stopwatches are stored in `wowstopwatcher.db` (SQLite) in a `WowStopwatcher` folder under the OS application-data folder (`Environment.SpecialFolder.ApplicationData`; on Windows `%AppData%\WowStopwatcher`). Back up that file to keep your history. Deleting it resets the app.
+Sessions and stopwatches are stored in `wowstopwatcher.db` (SQLite) in a `WowStopwatcher` folder under the OS application-data folder (`Environment.SpecialFolder.ApplicationData`; on Windows `%AppData%\WowStopwatcher`). Deleting it resets the app.
+
+The database is always encrypted. The key is kept in your operating system's secret store (Windows DPAPI, macOS Keychain, Linux Secret Service), so the app opens normally for you. At first start (or when an older unencrypted database is found) the app shows a one-time **recovery code**. **Keep it safe**: it is the only way to open your data on another computer, after a reinstall, or when the secret store has no key (on Linux without a Secret Service the app asks for it at every start).
+
+Back up with **Settings › Data › Export**: you get a password-protected `.wsbackup` file with the database, its key file and your invoice templates. **Import** accepts a `.wsbackup` (asks the password) or an older `.zip`.
+
+Not encrypted: the invoice templates (`templates/`), generated PDFs and `location.json`. The optional **Invoices PIN** only locks the Invoices page in the app; anyone logged in to your computer account can still open Today and Statistics.
 
 ## For developers
 
-Requirements: [.NET 10 SDK](https://dotnet.microsoft.com/download) on Windows, macOS or Linux. Built with Avalonia 12, CommunityToolkit.Mvvm and Microsoft.Data.Sqlite.
+Requirements: [.NET 10 SDK](https://dotnet.microsoft.com/download) on Windows, macOS or Linux. Built with Avalonia 12, CommunityToolkit.Mvvm and Microsoft.Data.Sqlite.Core with SQLite3 Multiple Ciphers (`SQLite3MC.PCLRaw.bundle`).
 
 ```bash
 dotnet build src/WowStopwatcher.slnx
@@ -145,13 +151,14 @@ Start hidden in the tray with `dotnet run --project src/WowStopwatcher.App -- --
 
 ### Feature flags
 
-Optional features can be left out at build time, for example `dotnet build src/WowStopwatcher.slnx -p:FeatureTray=false`. The flags (all on by default) come in three groups:
+Optional features can be left out at build time, for example `dotnet build src/WowStopwatcher.slnx -p:FeatureTray=false`. The flags (all on by default) come in four groups:
 
-- Pages: `FeatureToday`, `FeatureStatistics`, `FeatureSettings`. At least one must stay on, otherwise the build fails.
+- Pages: `FeatureToday`, `FeatureStatistics`, `FeatureSettings`, `FeatureInvoicing`. At least one must stay on, otherwise the build fails.
 - Stopwatches: `FeatureIndependent`, `FeatureGoals`, `FeaturePermanent` (a stopwatch property is removed from the whole app; stored values are kept).
 - System: `FeatureTray`, `FeatureHotkeys`, `FeatureGoalNotifications`, `FeatureAutostart`, `FeatureUpdateCheck`.
+- Security: `FeatureEncryption` (with it off the database is plain and backups are plain `.zip`), `FeatureInvoicesPin` (the Invoices PIN).
 
-`FeatureGoals=false` also turns off `FeatureGoalNotifications`; `FeatureSettings=false` also turns off `FeatureAutostart` and `FeatureUpdateCheck`.
+`FeatureGoals=false` also turns off `FeatureGoalNotifications`; `FeatureSettings=false` also turns off `FeatureAutostart` and `FeatureUpdateCheck`; `FeatureInvoicing=false` or `FeatureEncryption=false` also turns off `FeatureInvoicesPin`.
 
 ### Translating
 

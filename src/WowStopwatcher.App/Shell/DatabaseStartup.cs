@@ -1,3 +1,4 @@
+using WowStopwatcher.Core.Security;
 using WowStopwatcher.Data;
 
 namespace WowStopwatcher.App.Shell;
@@ -8,14 +9,18 @@ namespace WowStopwatcher.App.Shell;
 /// </summary>
 public sealed class DatabaseStartup(DatabaseLocation location, DatabaseTransfer transfer)
 {
-    /// <summary>Returns the result of the pending step (null when there was none) to show once.</summary>
+    /// <summary>
+    /// Returns the result of the pending step (null when there was none) to show once.
+    /// <paramref name="currentKey"/> is the key of the database that is open now (null when there is none or it is plain);
+    /// the pending step needs it to back up or copy an encrypted database.
+    /// </summary>
     /// <exception cref="DatabaseOpenException"><c>location.json</c> is damaged or the configured folder is missing.</exception>
-    public PendingOutcome? Run()
+    public PendingOutcome? Run(DatabaseKey? currentKey = null)
     {
         // Throws for a damaged location.json; that is only ever reset by an explicit user choice.
         location.ResolveDatabasePath();
 
-        var outcome = transfer.ApplyPending(location);
+        var outcome = transfer.ApplyPending(location, currentKey);
 
         if (location.IsConfiguredFolderMissing())
         {

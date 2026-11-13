@@ -50,7 +50,7 @@ card text says all, none or some enabled), followed by one card per feature with
 with the status of the last build), the output folder (Browse...), the version (with inline validation), the command line and the log (monospace, scrolls to the end,
 "Copy log"). The bottom bar is on every page: the problems list, the build status, Cancel and Build.
 
-Feature groups and dependencies: some features depend on others (Goal notifications need Goals; Autostart and
+Feature groups and dependencies: some features depend on others (Goal notifications need Goals; Invoices PIN needs Invoicing and Encryption; Autostart and
 Update check need Settings): when the requirement is off, the dependent one is off, its card is disabled and shows "Requires X",
 and its previous choice returns when the requirement is on again. Both off and disabled features are passed as `=false`.
 The Pages group needs at least one page; otherwise the group is marked, the problem is listed in the bottom bar and Build is disabled.

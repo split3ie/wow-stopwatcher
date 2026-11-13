@@ -4,10 +4,20 @@ using WowStopwatcher.Data;
 
 namespace WowStopwatcher.App.ViewModels;
 
-/// <summary>Texts and choices of the window shown when the database cannot be opened.</summary>
-public sealed partial class DatabaseErrorViewModel(DatabaseOpenException error) : ObservableObject
+/// <summary>
+/// Texts and choices of the window shown when the database cannot be opened.
+/// <paramref name="encryptionAvailable"/> is false in a build without encryption, where an encrypted database is explained as unsupported.
+/// </summary>
+public sealed partial class DatabaseErrorViewModel(DatabaseOpenException error, bool encryptionAvailable = true) : ObservableObject
 {
-    public string Title { get; } = Loc.T("dbError.title");
+    public string Title { get; } = Loc.T(error.Problem switch
+    {
+        DatabaseProblem.EncryptionFailed => "dbError.titleEncrypt",
+        DatabaseProblem.EncryptionConflict => "dbError.titleConflict",
+        DatabaseProblem.KeyRejected or DatabaseProblem.KeyRequired or DatabaseProblem.KeyFileMissing or DatabaseProblem.KeyFileDamaged
+            => "dbError.titleKey",
+        _ => "dbError.title",
+    });
 
     public string Body { get; } = Loc.T(error.Problem switch
     {
@@ -16,6 +26,13 @@ public sealed partial class DatabaseErrorViewModel(DatabaseOpenException error) 
         DatabaseProblem.BackupFailed => "dbError.backupFailed",
         DatabaseProblem.FolderMissing => "dbError.folderMissing",
         DatabaseProblem.LocationDamaged => "dbError.locationDamaged",
+        DatabaseProblem.KeyRejected => "dbError.keyRejected",
+        DatabaseProblem.KeyRequired => encryptionAvailable ? "dbError.keyRequired" : "dbError.encryptionOff",
+        DatabaseProblem.NotEncrypted => "dbError.notEncrypted",
+        DatabaseProblem.KeyFileMissing => "dbError.keyFileMissing",
+        DatabaseProblem.KeyFileDamaged => "dbError.keyFileDamaged",
+        DatabaseProblem.EncryptionConflict => "dbError.encryptionConflict",
+        DatabaseProblem.EncryptionFailed => "dbError.encryptionFailed",
         _ => "dbError.unavailable",
     });
 
@@ -23,6 +40,7 @@ public sealed partial class DatabaseErrorViewModel(DatabaseOpenException error) 
     {
         DatabaseProblem.FolderMissing => "dbError.folderLabel",
         DatabaseProblem.LocationDamaged => "dbError.locationFile",
+        DatabaseProblem.KeyFileMissing or DatabaseProblem.KeyFileDamaged => "dbError.keyFile",
         _ => "dbError.file",
     });
 
@@ -36,7 +54,9 @@ public sealed partial class DatabaseErrorViewModel(DatabaseOpenException error) 
     /// <summary>True when the folder may come back (drive connected, sync finished), so "Try again" makes sense.</summary>
     public bool CanRetry { get; } = error.Problem == DatabaseProblem.FolderMissing;
 
-    public bool CanChooseFolder { get; } = error.Problem == DatabaseProblem.FolderMissing;
+    /// <summary>True when another folder may hold a usable copy (the folder is missing or the key of this one is lost).</summary>
+    public bool CanChooseFolder { get; } = error.Problem is DatabaseProblem.FolderMissing
+        or DatabaseProblem.KeyRejected or DatabaseProblem.KeyRequired or DatabaseProblem.KeyFileMissing or DatabaseProblem.KeyFileDamaged;
 
     public bool CanUseDefault { get; } = error.Problem is DatabaseProblem.FolderMissing or DatabaseProblem.LocationDamaged;
 

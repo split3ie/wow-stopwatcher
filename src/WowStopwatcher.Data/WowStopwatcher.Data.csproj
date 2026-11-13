@@ -3,6 +3,7 @@
     <ProjectReference Include="..\WowStopwatcher.Core\WowStopwatcher.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.14" />
+    <PackageReference Include="SQLite3MC.PCLRaw.bundle" Version="2.6.1" />
   </ItemGroup>
 </Project>

@@ -17,6 +17,11 @@ public static class TransferMessages
         TransferErrorCode.NoDatabase => "transfer.error.noDatabase",
         TransferErrorCode.Damaged => "transfer.error.damaged",
         TransferErrorCode.NewerVersion => "transfer.error.newerVersion",
+        TransferErrorCode.KeyRequired => "transfer.error.keyRequired",
+        TransferErrorCode.KeyRejected => "transfer.error.keyRejected",
+        TransferErrorCode.KeyFileMissing => "transfer.error.keyFileMissing",
+        TransferErrorCode.PasswordRequired => "transfer.error.passwordRequired",
+        TransferErrorCode.WrongPassword => "transfer.error.wrongPassword",
         _ => "transfer.error.io",
     });
 

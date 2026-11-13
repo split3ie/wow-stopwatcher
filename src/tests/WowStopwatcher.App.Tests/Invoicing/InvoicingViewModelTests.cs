@@ -264,10 +264,11 @@ public sealed class InvoicingViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Month_income_shows_the_breakdown_and_the_total_in_usd()
+    public async Task Month_income_shows_the_breakdown_and_the_total_in_usd()
     {
         AllocateAll();
         var vm = CreateViewModel();
+        await WaitUntilAsync(() => vm.MonthIncome.HasTotal);
 
         Assert.True(vm.AmountsHidden);
         Assert.Contains(MoneyMask.Mask, vm.MonthIncome.TotalText);
@@ -286,10 +287,11 @@ public sealed class InvoicingViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Month_income_without_rates_has_no_total()
+    public async Task Month_income_without_rates_has_no_total()
     {
         AllocateAll();
         var vm = CreateViewModel(new StubRates { Rates = null });
+        await WaitUntilAsync(() => vm.MonthIncome.HasHint);
 
         Assert.Single(vm.MonthIncome.Items);
         Assert.False(vm.MonthIncome.HasTotal);
@@ -297,10 +299,11 @@ public sealed class InvoicingViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Month_income_leaves_a_currency_without_a_rate_out_of_the_total()
+    public async Task Month_income_leaves_a_currency_without_a_rate_out_of_the_total()
     {
         AllocateAll();
         var vm = CreateViewModel(new StubRates { Rates = new([new("CAD", 1.5m)], new DateTimeOffset(2026, 11, 15, 11, 0, 0, TimeSpan.Zero)) });
+        await WaitUntilAsync(() => vm.MonthIncome.HasNoRate);
 
         Assert.False(vm.MonthIncome.HasTotal);
         Assert.True(vm.MonthIncome.HasNoRate);

@@ -70,5 +70,6 @@
     </Grid>
 
     <v:ConfirmDialogView DataContext="{Binding Dialog}" />
+    <v:PromptDialogView DataContext="{Binding Prompt}" />
   </Grid>
 </Window>
