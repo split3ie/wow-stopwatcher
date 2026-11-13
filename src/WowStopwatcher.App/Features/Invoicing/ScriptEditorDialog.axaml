@@ -1,0 +1,51 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:WowStopwatcher.App.Localization"
+        xmlns:local="using:WowStopwatcher.App.Features.Invoicing"
+        x:Class="WowStopwatcher.App.Features.Invoicing.ScriptEditorDialog"
+        x:DataType="local:ScriptEditorDialogViewModel"
+        Icon="/Assets/app.ico"
+        Title="{Binding Title}"
+        Width="720"
+        Height="480"
+        MinWidth="480"
+        MinHeight="320"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource CardBrush}"
+        Foreground="{DynamicResource TextBrush}"
+        FontFamily="{DynamicResource UiFont}"
+        FontSize="14">
+
+  <Window.Styles>
+    <StyleInclude Source="/Features/Invoicing/InvoicingStyles.axaml" />
+  </Window.Styles>
+
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="22,20,22,20" RowSpacing="12">
+    <TextBlock FontSize="18" FontWeight="Bold" TextWrapping="Wrap" Text="{Binding Title}" />
+
+    <local:ScriptEditor Grid.Row="1"
+                        Classes="script"
+                        VerticalAlignment="Stretch"
+                        VerticalScrollBarVisibility="Auto"
+                        Value="{Binding Draft}"
+                        AutomationProperties.Name="{loc:T invoicing.placeholders.script}" />
+
+    <StackPanel Grid.Row="2" Spacing="4">
+      <TextBlock Classes="hint" Text="{loc:T invoicing.scriptDialog.renderHint}" />
+      <ScrollViewer MaxHeight="90" VerticalScrollBarVisibility="Auto" IsVisible="{Binding HasResult}">
+        <TextBlock Classes="mono"
+                   Classes.error="{Binding ResultIsError}"
+                   FontSize="13"
+                   TextWrapping="Wrap"
+                   Text="{Binding ResultText}" />
+      </ScrollViewer>
+    </StackPanel>
+
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+      <ProgressBar Width="80" Height="4" IsIndeterminate="True" HorizontalAlignment="Left" IsVisible="{Binding IsBusy}" />
+      <Button Grid.Column="1" Classes="secondary" Command="{Binding CancelCommand}" Content="{loc:T invoicing.scriptDialog.cancel}" />
+      <Button Grid.Column="2" Classes="secondary" Command="{Binding RenderCommand}" Content="{loc:T invoicing.scriptDialog.render}" />
+      <Button Grid.Column="3" Classes="primary" Command="{Binding SaveCommand}" Content="{loc:T invoicing.scriptDialog.save}" />
+    </Grid>
+  </Grid>
+</Window>
