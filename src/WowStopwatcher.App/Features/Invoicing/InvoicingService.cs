@@ -368,8 +368,9 @@ public sealed class InvoicingService
     }
 
     /// <summary>Resolves the placeholders for the current month with one synthetic line of <paramref name="sampleHours"/>.</summary>
-    public IReadOnlyDictionary<string, PlaceholderResult> ResolvePlaceholdersForSample(string companyId, decimal sampleHours) =>
-        BuildSampleInputs(Require(companyId), sampleHours).Placeholders;
+    /// <param name="definitions">Placeholder definitions to use instead of the stored ones (an unsaved draft); null uses the stored ones.</param>
+    public IReadOnlyDictionary<string, PlaceholderResult> ResolvePlaceholdersForSample(string companyId, decimal sampleHours, IReadOnlyList<PlaceholderDefinition>? definitions = null) =>
+        BuildSampleInputs(Require(companyId), sampleHours, definitions).Placeholders;
 
     /// <summary>Compares the markers of the company's template with the built-in names and the defined placeholders.</summary>
     public TemplateWarnings GetTemplateWarnings(string companyId)
@@ -612,17 +613,17 @@ public sealed class InvoicingService
     private InvoiceDayRange RangeFor(Company company, DateOnly date) =>
         InvoiceDayRanges.For(date, company.DayStartMinutes, null, _time.LocalTimeZone);
 
-    private Inputs BuildSampleInputs(Company company, decimal sampleHours)
+    private Inputs BuildSampleInputs(Company company, decimal sampleHours, IReadOnlyList<PlaceholderDefinition>? definitions = null)
     {
         var today = Today();
         var period = InvoicePeriod.From(today);
         var minutes = Math.Max(1, (int)Math.Round(sampleHours * 60m, MidpointRounding.AwayFromZero));
         var line = new InvoiceLine(today, minutes, "Sample", [new InvoiceLineSource("sample", "Sample")]);
         var day = new InvoiceDay(today, false, [line], minutes, false);
-        return BuildInputs(company, period, null, [day], company.NextInvoiceNumber);
+        return BuildInputs(company, period, null, [day], company.NextInvoiceNumber, definitions);
     }
 
-    private Inputs BuildInputs(Company company, InvoicePeriod period, Invoice? invoice, IReadOnlyList<InvoiceDay> days, int? number)
+    private Inputs BuildInputs(Company company, InvoicePeriod period, Invoice? invoice, IReadOnlyList<InvoiceDay> days, int? number, IReadOnlyList<PlaceholderDefinition>? draftDefinitions = null)
     {
         var culture = Loc.Culture;
         var lines = InvoiceBilling.BilledLines(days);
@@ -632,7 +633,7 @@ public sealed class InvoicingService
         var currency = frozen?.Currency ?? company.Currency;
         var amount = InvoiceMath.Amount(minutes, rate);
 
-        var definitions = _companies.GetPlaceholders(company.Id);
+        var definitions = draftDefinitions ?? _companies.GetPlaceholders(company.Id);
         Dictionary<string, PlaceholderResult> placeholders;
         if (frozen is not null)
         {

@@ -82,7 +82,11 @@ public sealed partial class PlaceholderRowViewModel : ObservableObject
     }
 
     /// <summary>The result, or the error text; the mask when the row is hidden with amounts and amounts are hidden.</summary>
-    public string ResultText => !ResultIsError && (Hidden || IsMoney) && _owner.AmountsHidden ? MoneyMask.Mask : _resultRaw;
+    public string ResultText => Masked(_resultRaw, ResultIsError);
+
+    internal string Masked(string text, bool isError) => !isError && (Hidden || IsMoney) && _owner.AmountsHidden ? MoneyMask.Mask : text;
+
+    internal ScriptEditorDialogViewModel CreateScriptEditor(Action close) => _owner.CreateScriptEditor(this, close);
 
     internal void SetResult(string text, bool isError)
     {

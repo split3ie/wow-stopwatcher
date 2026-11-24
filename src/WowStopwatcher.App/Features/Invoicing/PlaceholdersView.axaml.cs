@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Avalonia;
+using Avalonia.Interactivity;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
@@ -8,17 +9,8 @@ namespace WowStopwatcher.App.Features.Invoicing;
 
 public partial class PlaceholdersView : UserControl
 {
-    private const double ScriptMinHeight = 64;
-
     private PlaceholdersViewModel? _viewModel;
     private bool _canExpand;
-    private ScriptEditor? _resizingScript;
-    private double _resizeStartY;
-    private double _resizeStartHeight;
-    private Panel? _resizingPanel;
-    private double _resizeStartX;
-    private double _resizeStartExtra;
-    private double _resizeMaxExtra;
 
     public PlaceholdersView()
     {
@@ -62,56 +54,25 @@ public partial class PlaceholdersView : UserControl
         _viewModel.ToggleBuiltinsCommand.Execute(null);
     }
 
-    private void OnScriptGripPressed(object? sender, PointerPressedEventArgs e)
+    private void OnEditScriptClick(object? sender, RoutedEventArgs e) => EditScript(sender);
+
+    private void EditScript(object? sender)
     {
-        if (sender is not Control { Parent: Panel { Children: [ScriptEditor script, ..] } panel } grip ||
-            !e.GetCurrentPoint(grip).Properties.IsLeftButtonPressed)
+        if ((sender as StyledElement)?.DataContext is not PlaceholderRowViewModel row)
         {
             return;
         }
 
-        _resizingScript = script;
-        _resizeStartY = e.GetPosition(this).Y;
-        _resizeStartHeight = script.Bounds.Height;
-        _resizingPanel = panel;
-        _resizeStartX = e.GetPosition(this).X;
-        _resizeStartExtra = -panel.Margin.Right;
-        // Widening overlays the columns to the right, up to the row's right edge.
-        _resizeMaxExtra = panel.Parent is Control { Parent: Grid row } column ? Math.Max(0, row.Bounds.Width - column.Bounds.Right) : 0;
-        e.Pointer.Capture(grip);
-        e.Handled = true;
-    }
-
-    private void OnScriptGripMoved(object? sender, PointerEventArgs e)
-    {
-        if (_resizingScript is null)
+        var dialog = new ScriptEditorDialog();
+        dialog.DataContext = row.CreateScriptEditor(dialog.Close);
+        if (TopLevel.GetTopLevel(this) is Window owner)
         {
-            return;
+            _ = dialog.ShowDialog(owner);
         }
-
-        // The dragged height acts as a minimum, so long scripts still grow beyond it.
-        var height = _resizeStartHeight + e.GetPosition(this).Y - _resizeStartY;
-        _resizingScript.MinHeight = Math.Max(ScriptMinHeight, height);
-        if (_resizingPanel is not null)
+        else
         {
-            var extra = Math.Clamp(_resizeStartExtra + e.GetPosition(this).X - _resizeStartX, 0, _resizeMaxExtra);
-            _resizingPanel.Margin = new Thickness(0, 0, -extra, 0);
+            dialog.Show();
         }
-
-        e.Handled = true;
-    }
-
-    private void OnScriptGripReleased(object? sender, PointerReleasedEventArgs e)
-    {
-        _resizingScript = null;
-        _resizingPanel = null;
-        e.Pointer.Capture(null);
-    }
-
-    private void OnScriptGripCaptureLost(object? sender, PointerCaptureLostEventArgs e)
-    {
-        _resizingScript = null;
-        _resizingPanel = null;
     }
 
     /// <summary>Limits the chips to one row when collapsed (the height of the first chip) and shows the chevron only when more rows exist.</summary>

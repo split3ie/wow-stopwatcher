@@ -539,6 +539,12 @@
   "invoicing.placeholders.automatic": "Автоматично",
   "invoicing.placeholders.automaticHint": "Вбудоване значення. Оберіть Текст або Скрипт, щоб змінити його.",
   "invoicing.placeholders.run": "Запустити скрипт",
+  "invoicing.placeholders.editScript": "Редагувати скрипт",
+  "invoicing.scriptDialog.title": "Скрипт: {alias}",
+  "invoicing.scriptDialog.renderHint": "Виконати запускає скрипт на зразку рахунку без збереження.",
+  "invoicing.scriptDialog.render": "Виконати",
+  "invoicing.scriptDialog.save": "Зберегти",
+  "invoicing.scriptDialog.cancel": "Скасувати",
   "invoicing.placeholders.hide": "Ховати разом із сумами",
   "invoicing.placeholders.delete": "Видалити плейсхолдер",
   "invoicing.placeholders.add": "+ Додати плейсхолдер",
@@ -726,5 +732,8 @@
   "invoicing.pin.reset.body": "Введіть збережений код відновлення, потім виберіть новий PIN.",
   "invoicing.pin.reset.code": "Код відновлення",
   "invoicing.pin.reset.confirm": "Скинути PIN",
-  "invoicing.pin.reset.wrongCode": "Код відновлення неправильний."
+  "invoicing.pin.reset.wrongCode": "Код відновлення неправильний.",
+  "interruption.title": "Секундоміри зупинено",
+  "interruption.body": "Комп’ютер перейшов у сплячий режим або вимкнувся о {time}. Зупинено: {names}. Відновити?",
+  "interruption.resume": "Відновити"
 }

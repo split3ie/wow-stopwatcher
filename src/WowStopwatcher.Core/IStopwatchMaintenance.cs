@@ -16,6 +16,12 @@ public interface IStopwatchMaintenance
     void Tick();
 
     /// <summary>
+    /// Returns the interruption (sleep or power loss) that stopped running stopwatches since the last call, and forgets it;
+    /// null when there is none. A newer interruption replaces one not yet taken.
+    /// </summary>
+    StopwatchInterruption? TakeInterruption();
+
+    /// <summary>
     /// Re-reads the definitions after a Settings change. Stops deleted stopwatches, re-sorts open sessions into
     /// normal and independent by the current flags, and keeps only the most recently started normal one.
     /// </summary>

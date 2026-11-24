@@ -9,7 +9,13 @@ public static class CoreServiceCollectionExtensions
     public static IServiceCollection AddCore(this IServiceCollection services)
     {
         services.AddSingleton(TimeProvider.System);
-        services.AddSingleton<StopwatchEngine>();
+        services.AddSingleton<ILastAliveStore>(sp => new SettingsLastAliveStore(sp.GetRequiredService<ISettingsRepository>()));
+        services.AddSingleton(sp => new StopwatchEngine(
+            sp.GetRequiredService<IStopwatchRepository>(),
+            sp.GetRequiredService<ISessionRepository>(),
+            sp.GetRequiredService<TimeProvider>(),
+            new TemporaryStopwatchExpiryPolicy(),
+            sp.GetRequiredService<ILastAliveStore>()));
         services.AddSingleton<IStopwatchState>(sp => sp.GetRequiredService<StopwatchEngine>());
         services.AddSingleton<IStopwatchControl>(sp => sp.GetRequiredService<StopwatchEngine>());
         services.AddSingleton<IStopwatchMaintenance>(sp => sp.GetRequiredService<StopwatchEngine>());

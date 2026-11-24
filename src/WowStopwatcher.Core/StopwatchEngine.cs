@@ -22,6 +22,19 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
     private IReadOnlyList<GoalReset> _goalResets = [];
     private DateOnly _today;
     private string? _lastUsedId;
+    private readonly ILastAliveStore? _lastAliveStore;
+    private DateTimeOffset _lastAlive;
+    private DateTimeOffset _lastAliveWritten;
+    private StopwatchInterruption? _interruption;
+
+    /// <summary>
+    /// A longer silence than this between two engine calls (or since the last run) means the app was not alive
+    /// (sleep, power loss): running sessions are stopped at the last-alive time instead of counting the gap.
+    /// </summary>
+    public static readonly TimeSpan InterruptionGap = TimeSpan.FromMinutes(2);
+
+    /// <summary>How often the last-alive time is written while a stopwatch runs (it is also written on every state change).</summary>
+    public static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(30);
 
     /// <summary>Most stopwatches (normal and independent together) that may run at the same time.</summary>
     public const int MaxConcurrent = 3;
@@ -33,13 +46,36 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
 
     public StopwatchEngine(
         IStopwatchRepository stopwatches, ISessionRepository sessions, TimeProvider time, IStopwatchExpiryPolicy expiryPolicy)
+        : this(stopwatches, sessions, time, expiryPolicy, null)
+    {
+    }
+
+    /// <param name="lastAliveStore">Enables the heartbeat; null means no interruption detection.</param>
+    public StopwatchEngine(
+        IStopwatchRepository stopwatches, ISessionRepository sessions, TimeProvider time, IStopwatchExpiryPolicy expiryPolicy,
+        ILastAliveStore? lastAliveStore)
     {
         _stopwatches = stopwatches;
         _sessions = sessions;
         _time = time;
         _expiryPolicy = expiryPolicy;
+        _lastAliveStore = lastAliveStore;
         _splitter = new MidnightSessionSplitter(sessions);
         Load();
+    }
+
+    /// <summary>
+    /// Returns the interruption detected since the last call and forgets it, or null. If a new one happens before
+    /// this is called, it replaces the earlier one.
+    /// </summary>
+    public StopwatchInterruption? TakeInterruption()
+    {
+        lock (_lock)
+        {
+            var taken = _interruption;
+            _interruption = null;
+            return taken;
+        }
     }
 
     /// <summary>Raised after any state change (start, stop, reset, midnight split, reload).</summary>
@@ -316,6 +352,13 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
             EnforceLimit(now);
             RefreshLastUsed();
             _today = LocalDays.ToLocalDate(now, _time.LocalTimeZone);
+            if (_lastAliveStore?.Read() is { } stored)
+            {
+                CloseIfInterrupted(stored, now);
+            }
+
+            _lastAlive = now;
+            WriteLastAlive(now);
             SplitAtMidnight(now);
             ApplyExpiry();
             UpdateGoalAnchors(now);
@@ -384,7 +427,8 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
         {
             var now = Now();
             var previousDay = _today;
-            changed = SplitAtMidnight(now);
+            changed = _lastAliveStore is not null && CloseIfInterrupted(_lastAlive, now);
+            changed |= SplitAtMidnight(now);
             if (_today != previousDay)
             {
                 changed |= ApplyExpiry();
@@ -395,12 +439,57 @@ public sealed class StopwatchEngine : IStopwatchState, IStopwatchControl, IStopw
             {
                 RefreshToday();
             }
+
+            Heartbeat(now, changed);
         }
 
         if (changed)
         {
             Changed?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    // Closes every open session at the last-alive time when the app was silent for longer than the gap.
+    // A clock moved backwards gives a negative gap and does nothing.
+    private bool CloseIfInterrupted(DateTimeOffset lastAlive, DateTimeOffset now)
+    {
+        if (now - lastAlive <= InterruptionGap || _open.OpenCount == 0)
+        {
+            return false;
+        }
+
+        var ids = new List<string>();
+        foreach (var session in _open.AllOpen())
+        {
+            CloseAt(session, lastAlive);
+            ids.Add(session.StopwatchId);
+        }
+
+        _open.Clear();
+        RefreshLastUsed();
+        _interruption = new StopwatchInterruption(lastAlive, ids);
+        return true;
+    }
+
+    // Remembers that the app is alive now; written on a state change, otherwise at most every HeartbeatInterval while something runs.
+    private void Heartbeat(DateTimeOffset now, bool changed)
+    {
+        if (_lastAliveStore is null)
+        {
+            return;
+        }
+
+        _lastAlive = now;
+        if (changed || (_open.OpenCount > 0 && now - _lastAliveWritten >= HeartbeatInterval))
+        {
+            WriteLastAlive(now);
+        }
+    }
+
+    private void WriteLastAlive(DateTimeOffset now)
+    {
+        _lastAliveStore?.Write(now);
+        _lastAliveWritten = now;
     }
 
     // Switches "today" and splits open sessions at every local midnight they crossed. Returns true when anything changed.

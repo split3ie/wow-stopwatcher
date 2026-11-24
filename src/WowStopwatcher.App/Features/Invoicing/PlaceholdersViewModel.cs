@@ -224,6 +224,38 @@ public sealed partial class PlaceholdersViewModel : ObservableObject
         return valid;
     }
 
+    /// <summary>Makes the view model of the script editor popup for a row; Save writes the draft to the row.</summary>
+    internal ScriptEditorDialogViewModel CreateScriptEditor(PlaceholderRowViewModel row, Action close) =>
+        new(row.Alias.Trim(), row.Value, script => RenderDraftAsync(row, script), script => row.Value = script, close);
+
+    /// <summary>Runs a draft script for the sample invoice without saving it. Returns the text to show (masked like the table) and whether it is an error.</summary>
+    internal async Task<(string Text, bool IsError)> RenderDraftAsync(PlaceholderRowViewModel row, string script)
+    {
+        var hours = _sampleHours();
+        var definitions = Rows
+            .Select((r, i) => ReferenceEquals(r, row)
+                ? r.ToDefinition(_companyId, i) with { Kind = PlaceholderKind.Script, Value = script }
+                : r.ToDefinition(_companyId, i))
+            .ToList();
+        var alias = row.NormalizedAlias;
+        try
+        {
+            var results = await Task.Run(() => _d.Service.ResolvePlaceholdersForSample(_companyId, hours, definitions));
+            if (!results.TryGetValue(alias, out var result))
+            {
+                return (string.Empty, false);
+            }
+
+            return result.IsOk
+                ? (row.Masked(result.Value ?? string.Empty, false), false)
+                : (InvoicingMessages.Script(result.ErrorCode, result.Error), true);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        {
+            return (ex.Message, true);
+        }
+    }
+
     /// <summary>Saves pending edits, then evaluates every placeholder for the sample invoice (off the UI thread) and checks the template for unknown markers.</summary>
     internal async Task RunAsync()
     {
