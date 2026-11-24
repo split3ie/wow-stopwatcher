@@ -59,6 +59,7 @@ public static class ShellServiceCollectionExtensions
     public static IServiceCollection AddShellBackgroundServices(this IServiceCollection services)
     {
         services.AddSingleton<IAppService, SingleInstanceActivationService>();
+        services.AddSingleton<IAppService, StopwatchInterruptionService>();
         return services;
     }
 }

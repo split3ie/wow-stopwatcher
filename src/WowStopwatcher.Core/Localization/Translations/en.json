@@ -708,5 +708,8 @@
   "invoicing.pin.reset.body": "Enter the recovery code you saved, then choose a new PIN.",
   "invoicing.pin.reset.code": "Recovery code",
   "invoicing.pin.reset.confirm": "Reset PIN",
-  "invoicing.pin.reset.wrongCode": "That recovery code is not right."
+  "invoicing.pin.reset.wrongCode": "That recovery code is not right.",
+  "interruption.title": "Stopwatches stopped",
+  "interruption.body": "The computer was asleep or turned off at {time}. Stopped: {names}. Resume?",
+  "interruption.resume": "Resume"
 }

@@ -732,5 +732,8 @@
   "invoicing.pin.reset.body": "Введіть збережений код відновлення, потім виберіть новий PIN.",
   "invoicing.pin.reset.code": "Код відновлення",
   "invoicing.pin.reset.confirm": "Скинути PIN",
-  "invoicing.pin.reset.wrongCode": "Код відновлення неправильний."
+  "invoicing.pin.reset.wrongCode": "Код відновлення неправильний.",
+  "interruption.title": "Секундоміри зупинено",
+  "interruption.body": "Комп’ютер перейшов у сплячий режим або вимкнувся о {time}. Зупинено: {names}. Відновити?",
+  "interruption.resume": "Відновити"
 }
