@@ -30,6 +30,7 @@ public static class InvoiceInputHash
             Field(sb, line.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
             Field(sb, line.Minutes.ToString(CultureInfo.InvariantCulture));
             Field(sb, line.Note);
+            Field(sb, line.Logged ? "1" : "0");
             Field(sb, line.Sources.Count.ToString(CultureInfo.InvariantCulture));
             foreach (var source in line.Sources)
             {

@@ -5,7 +5,7 @@ using WowStopwatcher.Core.Localization;
 
 namespace WowStopwatcher.App.Features.Invoicing;
 
-/// <summary>One line of an invoice day: its stopwatch, time and an editable note. Only lines with a note are billed.</summary>
+/// <summary>One line of an invoice day: its stopwatch, time and an editable note and a logged flag. Only lines with a note or logged are billed.</summary>
 public sealed partial class InvoiceDetailsLineViewModel : ObservableObject
 {
     private readonly InvoiceDetailsViewModel _owner;
@@ -33,6 +33,7 @@ public sealed partial class InvoiceDetailsLineViewModel : ObservableObject
         Minutes = line.Minutes;
         _timeText = InvoiceTimeText.Format(line.Minutes);
         _note = line.Note;
+        _logged = line.Logged;
     }
 
     /// <summary>The day of the line.</summary>
@@ -64,6 +65,8 @@ public sealed partial class InvoiceDetailsLineViewModel : ObservableObject
 
     public string SelectLabel => Loc.T("invoicing.details.selectLine", ("name", LabelName), ("time", TimeText), ("day", _dayLabel));
 
+    public string LoggedLabel => Loc.T("invoicing.details.loggedLabel", ("name", LabelName), ("day", _dayLabel));
+
     public string NoteLabel => Loc.T("invoicing.details.noteLabel", ("name", LabelName), ("day", _dayLabel));
 
     [ObservableProperty]
@@ -74,15 +77,22 @@ public sealed partial class InvoiceDetailsLineViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsBilled), nameof(IsUnallocated))]
     private string _note;
 
+    /// <summary>True when the time was saved to an external time tracker; saved at once.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBilled), nameof(IsUnallocated))]
+    private bool _logged;
+
     [ObservableProperty]
     private bool _isSelected;
 
-    /// <summary>True when the line has a note, so it is in the invoice.</summary>
-    public bool IsBilled => !string.IsNullOrWhiteSpace(Note);
+    /// <summary>True when the line has a note or is logged, so it is in the invoice.</summary>
+    public bool IsBilled => Logged || !string.IsNullOrWhiteSpace(Note);
 
     public bool IsUnallocated => !IsBilled;
 
     partial void OnNoteChanged(string value) => _owner.NoteEdited(this);
+
+    partial void OnLoggedChanged(bool value) => _owner.LoggedEdited(this);
 
     partial void OnIsSelectedChanged(bool value) => _owner.SelectionChanged();
 

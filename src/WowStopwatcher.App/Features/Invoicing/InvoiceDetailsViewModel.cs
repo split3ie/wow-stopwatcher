@@ -486,6 +486,29 @@ public sealed partial class InvoiceDetailsViewModel : ObservableObject, IDisposa
         _saver.Schedule();
     }
 
+    internal void LoggedEdited(InvoiceDetailsLineViewModel line)
+    {
+        if (_loading || !IsEditable)
+        {
+            return;
+        }
+
+        _saver.Flush();
+        var logged = line.Logged;
+        EditDayResult result;
+        try
+        {
+            result = _service.EditDay(_companyId, _period, line.Date, lines => InvoiceLineEditor.SetLogged(lines, line.Index, logged));
+        }
+        catch (ArgumentException)
+        {
+            result = EditDayResult.Unchanged;
+        }
+
+        Report(result);
+        Reload(rebuild: result != EditDayResult.Saved);
+    }
+
     internal void SelectionChanged()
     {
         if (_loading)

@@ -169,6 +169,7 @@ public sealed class EncryptedTransferTests : EncryptionTestBase
         using (var connection = original.OpenConnection())
         {
             Exec(connection, "DROP TABLE goal_resets");
+            Exec(connection, "ALTER TABLE invoice_lines DROP COLUMN logged");
             Exec(connection, "PRAGMA user_version = 13");
         }
 
@@ -188,6 +189,7 @@ public sealed class EncryptedTransferTests : EncryptionTestBase
         using (var connection = database.OpenConnection())
         {
             Exec(connection, "DROP TABLE goal_resets");
+            Exec(connection, "ALTER TABLE invoice_lines DROP COLUMN logged");
             Exec(connection, "PRAGMA user_version = 13");
         }
 

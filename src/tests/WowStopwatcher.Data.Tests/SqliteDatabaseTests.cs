@@ -99,7 +99,7 @@ public class SqliteDatabaseTests
             var database = new SqliteDatabase(path);
             var after = DateTimeOffset.UtcNow.AddSeconds(2);
 
-            Assert.Equal(14, SqliteDatabase.LatestSchemaVersion);
+            Assert.Equal(15, SqliteDatabase.LatestSchemaVersion);
             Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
             var all = new SqliteStopwatchRepository(database).GetAll(includeDeleted: true);
             Assert.Equal(2, all.Count);
@@ -420,6 +420,7 @@ public class SqliteDatabaseTests
                 command.CommandText = """
                     CREATE TABLE companies (id TEXT PRIMARY KEY NOT NULL);
                     CREATE TABLE invoices (id INTEGER PRIMARY KEY);
+                    CREATE TABLE invoice_lines (id INTEGER PRIMARY KEY);
                     CREATE TABLE invoice_placeholders (
                         id INTEGER PRIMARY KEY, company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
                         alias TEXT NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('static','script')), value TEXT NOT NULL DEFAULT '',
@@ -507,7 +508,7 @@ public class SqliteDatabaseTests
             using (var connection = seed.OpenConnection())
             {
                 using var command = connection.CreateCommand();
-                command.CommandText = "DROP TABLE goal_resets; PRAGMA user_version = 13;";
+                command.CommandText = "DROP TABLE goal_resets; ALTER TABLE invoice_lines DROP COLUMN logged; PRAGMA user_version = 13;";
                 command.ExecuteNonQuery();
             }
 

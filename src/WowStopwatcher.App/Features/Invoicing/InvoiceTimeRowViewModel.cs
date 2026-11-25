@@ -15,11 +15,11 @@ public sealed partial class InvoiceTimeRowViewModel : ObservableObject
         _owner = owner;
         Index = index;
         TimeText = InvoiceTimeText.Format(entry.Minutes);
-        Note = entry.Note;
+        Note = entry.Note.Length > 0 ? entry.Note : Loc.T("invoiceTime.loggedNoNote");
         IsEditing = isEditing;
         IsEditable = owner.IsEditable;
-        EditLabel = Loc.T("invoiceTime.edit.label", ("time", TimeText), ("note", entry.Note));
-        DeleteLabel = Loc.T("invoiceTime.delete.label", ("time", TimeText), ("note", entry.Note));
+        EditLabel = Loc.T("invoiceTime.edit.label", ("time", TimeText), ("note", Note));
+        DeleteLabel = Loc.T("invoiceTime.delete.label", ("time", TimeText), ("note", Note));
     }
 
     /// <summary>Position of the entry in the allocation.</summary>

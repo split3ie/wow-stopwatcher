@@ -12,6 +12,9 @@ public sealed record InvoiceLine(DateOnly Date, int Minutes, string Note, IReadO
     /// <summary>Portions of this line's time that come from other days (after merging across days); empty when none.</summary>
     public IReadOnlyList<InvoiceLineMove> MovedIn { get; init; } = [];
 
+    /// <summary>True when this time was saved to an external time tracker; such a line is billed even without a note.</summary>
+    public bool Logged { get; init; }
+
     /// <summary>True when the line bills several stopwatches.</summary>
     public bool IsMerged => Sources.Count > 1;
 

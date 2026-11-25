@@ -48,4 +48,15 @@ public class InvoiceBillingTests
         Assert.Equal(60, day.BilledMinutes);
         Assert.Equal(30, day.UnallocatedMinutes);
     }
+
+    [Fact]
+    public void A_logged_line_is_billed_without_a_note()
+    {
+        var logged = Line(40, "") with { Logged = true };
+        var days = new[] { Day(logged, Line(20, "")) };
+
+        Assert.True(InvoiceBilling.IsBilled(logged));
+        Assert.Equal(40, InvoiceBilling.BilledMinutes(days));
+        Assert.Equal(20, InvoiceBilling.UnallocatedMinutes(days));
+    }
 }
