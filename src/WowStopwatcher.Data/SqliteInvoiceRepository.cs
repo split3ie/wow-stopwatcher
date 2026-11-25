@@ -119,7 +119,7 @@ public sealed class SqliteInvoiceRepository(SqliteDatabase database) : IInvoiceR
         var lines = new Dictionary<string, List<InvoiceLine>>();
         using (var command = connection.CreateCommand())
         {
-            command.CommandText = "SELECT id, local_date, minutes, note FROM invoice_lines WHERE invoice_id = $i ORDER BY local_date, sort_order, id";
+            command.CommandText = "SELECT id, local_date, minutes, note, logged FROM invoice_lines WHERE invoice_id = $i ORDER BY local_date, sort_order, id";
             command.Parameters.AddWithValue("$i", invoiceId);
             using var reader = command.ExecuteReader();
             while (reader.Read())
@@ -132,7 +132,7 @@ public sealed class SqliteInvoiceRepository(SqliteDatabase database) : IInvoiceR
 
                 IReadOnlyList<InvoiceLineSource> lineSources = sources.TryGetValue(reader.GetInt64(0), out var s) ? s : [];
                 IReadOnlyList<InvoiceLineMove> lineMoves = moves.TryGetValue(reader.GetInt64(0), out var m) ? m : [];
-                list.Add(new InvoiceLine(ParseDate(date), reader.GetInt32(2), reader.GetString(3), lineSources) { MovedIn = lineMoves });
+                list.Add(new InvoiceLine(ParseDate(date), reader.GetInt32(2), reader.GetString(3), lineSources) { MovedIn = lineMoves, Logged = reader.GetInt32(4) != 0 });
             }
         }
 
@@ -323,13 +323,14 @@ public sealed class SqliteInvoiceRepository(SqliteDatabase database) : IInvoiceR
             {
                 insertLine.Transaction = transaction;
                 insertLine.CommandText = """
-                    INSERT INTO invoice_lines (invoice_id, local_date, minutes, note, sort_order) VALUES ($i, $d, $m, $n, $o);
+                    INSERT INTO invoice_lines (invoice_id, local_date, minutes, note, logged, sort_order) VALUES ($i, $d, $m, $n, $l, $o);
                     SELECT last_insert_rowid();
                     """;
                 insertLine.Parameters.AddWithValue("$i", invoiceId);
                 insertLine.Parameters.AddWithValue("$d", date);
                 insertLine.Parameters.AddWithValue("$m", line.Minutes);
                 insertLine.Parameters.AddWithValue("$n", line.Note);
+                insertLine.Parameters.AddWithValue("$l", line.Logged ? 1 : 0);
                 insertLine.Parameters.AddWithValue("$o", order);
                 lineId = Convert.ToInt64(insertLine.ExecuteScalar());
             }

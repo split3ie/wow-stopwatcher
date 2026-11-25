@@ -20,10 +20,11 @@ public sealed class StopwatchDayAllocation
         MergedLines = mergedLines;
     }
 
-    /// <summary>A noted (billed) part of the stopwatch's day.</summary>
+    /// <summary>A billed part of the stopwatch's day: noted, logged, or both.</summary>
     /// <param name="Minutes">Minutes of the entry.</param>
-    /// <param name="Note">Non-empty trimmed note.</param>
-    public sealed record Entry(int Minutes, string Note);
+    /// <param name="Note">Trimmed note; empty only for an entry that is logged without a note.</param>
+    /// <param name="Logged">True when the time was saved to an external time tracker.</param>
+    public sealed record Entry(int Minutes, string Note, bool Logged = false);
 
     /// <summary>Stopwatch id.</summary>
     public string StopwatchId { get; }
@@ -54,7 +55,7 @@ public sealed class StopwatchDayAllocation
 
     private int AllocatedMinutes => Entries.Sum(e => e.Minutes);
 
-    /// <summary>Builds the allocation of one stopwatch from the day's lines; its un-noted lines carry no minutes into the result.</summary>
+    /// <summary>Builds the allocation of one stopwatch from the day's lines; its unbilled lines carry no minutes into the result.</summary>
     public static StopwatchDayAllocation From(IReadOnlyList<InvoiceLine> dayLines, string stopwatchId, string stopwatchName, int trackedMinutes)
     {
         var entries = new List<Entry>();
@@ -63,10 +64,9 @@ public sealed class StopwatchDayAllocation
         {
             if (IsOwn(line, stopwatchId))
             {
-                var note = line.Note.Trim();
-                if (note.Length > 0)
+                if (InvoiceBilling.IsBilled(line))
                 {
-                    entries.Add(new Entry(line.Minutes, note));
+                    entries.Add(new Entry(line.Minutes, line.Note.Trim(), line.Logged));
                 }
             }
             else if (line.IsMerged && line.Sources.Any(s => s.StopwatchId == stopwatchId))
@@ -93,7 +93,7 @@ public sealed class StopwatchDayAllocation
         var trimmed = RequireNote(note);
         RequirePositive(minutes);
         var entries = Entries.ToList();
-        entries[index] = new Entry(minutes, trimmed);
+        entries[index] = entries[index] with { Minutes = minutes, Note = trimmed };
         return With(entries);
     }
 
@@ -113,7 +113,7 @@ public sealed class StopwatchDayAllocation
     public IReadOnlyList<InvoiceLine> ApplyTo(IReadOnlyList<InvoiceLine> dayLines, DateOnly date)
     {
         InvoiceLineSource[] sources = [new InvoiceLineSource(StopwatchId, StopwatchName)];
-        var replacement = Entries.Select(e => new InvoiceLine(date, e.Minutes, e.Note, sources)).ToList();
+        var replacement = Entries.Select(e => new InvoiceLine(date, e.Minutes, e.Note, sources) { Logged = e.Logged }).ToList();
         if (Unallocated > 0)
         {
             replacement.Add(new InvoiceLine(date, Unallocated, string.Empty, sources));

@@ -15,7 +15,7 @@ namespace WowStopwatcher.Data;
 public sealed class SqliteDatabase
 {
     /// <summary>Current schema version.</summary>
-    public const int LatestSchemaVersion = 14;
+    public const int LatestSchemaVersion = 15;
 
     private readonly DatabaseKey? _key;
 
@@ -478,6 +478,16 @@ public sealed class SqliteDatabase
                 """, transaction);
             Execute(connection, "CREATE INDEX idx_goal_resets_stopwatch ON goal_resets (stopwatch_id);", transaction);
             Execute(connection, "PRAGMA user_version = 14;", transaction);
+            transaction.Commit();
+            version = 14;
+        }
+
+        if (version < 15)
+        {
+            // A line saved to an external time tracker is billed even without a note.
+            using var transaction = connection.BeginTransaction();
+            Execute(connection, "ALTER TABLE invoice_lines ADD COLUMN logged INTEGER NOT NULL DEFAULT 0;", transaction);
+            Execute(connection, "PRAGMA user_version = 15;", transaction);
             transaction.Commit();
         }
     }

@@ -195,4 +195,23 @@ public class StopwatchDayAllocationTests
         Assert.Equal(a.OverMinutes, again.OverMinutes);
         Assert.Equal(a.MergedLines.Select(l => (l.Minutes, l.Note)), again.MergedLines.Select(l => (l.Minutes, l.Note)));
     }
+
+    [Fact]
+    public void LoggedLine_WithoutNote_IsAnEntryAndKeepsItsFlagThroughApplyTo()
+    {
+        var lines = new List<InvoiceLine> { L(60, "x", A), L(30, "", A) with { Logged = true }, L(10, "", A) };
+
+        var a = StopwatchDayAllocation.From(lines, "a", "Alpha", 100);
+
+        Assert.Equal([(60, "x", false), (30, "", true)], a.Entries.Select(e => (e.Minutes, e.Note, e.Logged)));
+        Assert.Equal(10, a.Unallocated);
+
+        var result = a.ApplyTo(lines, Day);
+        Assert.Equal([false, true, false], result.Select(l => l.Logged));
+        Assert.Equal([60, 30, 10], result.Select(l => l.Minutes));
+
+        var edited = a.Edit(1, 20, "now noted");
+        Assert.True(edited.Entries[1].Logged);
+        Assert.False(a.Allocate(5, "new").Entries[2].Logged);
+    }
 }

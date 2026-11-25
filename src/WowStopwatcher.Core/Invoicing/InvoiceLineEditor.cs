@@ -25,7 +25,7 @@ public static class InvoiceLineEditor
 
     /// <summary>
     /// Merges the lines at <paramref name="indices"/> (at least two, distinct) into one at the position of the first:
-    /// minutes summed, sources united without duplicates, distinct non-empty notes joined with "; ".
+    /// minutes summed, sources united without duplicates, distinct non-empty notes joined with "; ", logged when any of them is.
     /// </summary>
     public static IReadOnlyList<InvoiceLine> Merge(IReadOnlyList<InvoiceLine> lines, IReadOnlyCollection<int> indices)
     {
@@ -56,7 +56,7 @@ public static class InvoiceLineEditor
         }
 
         var note = string.Join("; ", selected.Select(l => l.Note.Trim()).Where(n => n.Length > 0).Distinct());
-        var merged = selected[0] with { Minutes = selected.Sum(l => l.Minutes), Note = note, Sources = sources, MovedIn = InvoiceLineMoves.Combine(selected.SelectMany(l => l.MovedIn)) };
+        var merged = selected[0] with { Minutes = selected.Sum(l => l.Minutes), Note = note, Logged = selected.Any(l => l.Logged), Sources = sources, MovedIn = InvoiceLineMoves.Combine(selected.SelectMany(l => l.MovedIn)) };
 
         var result = new List<InvoiceLine>();
         for (var i = 0; i < lines.Count; i++)
@@ -145,6 +145,7 @@ public static class InvoiceLineEditor
         {
             Minutes = selected.Sum(s => s.Line.Minutes),
             Note = note,
+            Logged = selected.Any(s => s.Line.Logged),
             Sources = sources,
             MovedIn = InvoiceLineMoves.Combine(moves, target),
         };
@@ -217,6 +218,15 @@ public static class InvoiceLineEditor
         var line = Get(lines, index);
         var result = lines.ToList();
         result[index] = line with { Note = (note ?? string.Empty).Trim() };
+        return result;
+    }
+
+    /// <summary>Marks the line at <paramref name="index"/> as logged (or not) in an external time tracker.</summary>
+    public static IReadOnlyList<InvoiceLine> SetLogged(IReadOnlyList<InvoiceLine> lines, int index, bool logged)
+    {
+        var line = Get(lines, index);
+        var result = lines.ToList();
+        result[index] = line with { Logged = logged };
         return result;
     }
 

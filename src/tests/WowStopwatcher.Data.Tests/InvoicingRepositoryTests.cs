@@ -522,6 +522,7 @@ public class InvoicingRepositoryTests
                         template_sha256 TEXT NULL, file_name_pattern TEXT NOT NULL, ask_destination INTEGER NOT NULL DEFAULT 1, output_folder TEXT NULL,
                         next_invoice_number INTEGER NOT NULL DEFAULT 1, created_utc INTEGER NOT NULL, deleted_utc INTEGER NULL);
                     CREATE TABLE invoices (id INTEGER PRIMARY KEY);
+                    CREATE TABLE invoice_lines (id INTEGER PRIMARY KEY);
                     INSERT INTO companies (id, name, color, sort_order, rate, currency, file_name_pattern, created_utc)
                         VALUES ('c', 'ACME', '#2F6FEB', 0, '12.5', 'EUR', 'x', 1000);
                     PRAGMA user_version = 9;
@@ -540,6 +541,64 @@ public class InvoicingRepositoryTests
         finally
         {
             SqliteConnection.ClearAllPools();
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ReplaceDay_RoundTripsTheLoggedFlag()
+    {
+        var (db, companies, invoices) = Setup();
+        using (db)
+        {
+            companies.Insert(NewCompany("a"));
+            var invoice = invoices.GetOrCreate("a", new InvoicePeriod(2026, 11));
+
+            invoices.ReplaceDay(invoice.Id, Day(3, true, Line(3, 30, "", ("s1", "One")) with { Logged = true }, Line(3, 15, "x", ("s1", "One"))));
+
+            var lines = invoices.GetStoredDays(invoice.Id).Single().Lines;
+            Assert.Equal([true, false], lines.Select(l => l.Logged));
+        }
+    }
+
+    [Fact]
+    public void Migration_V14ToV15_AddsLoggedColumnDefaultingToFalse()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "wowstopwatcher-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "v14.db");
+        try
+        {
+            using (var created = new TempDatabase())
+            {
+                Assert.Equal(15, SqliteDatabase.LatestSchemaVersion);
+                File.Copy(created.Database.Path, path);
+            }
+
+            using (var connection = new SqliteConnection($"Data Source={path};Pooling=False"))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = """
+                    PRAGMA foreign_keys = OFF;
+                    ALTER TABLE invoice_lines DROP COLUMN logged;
+                    INSERT INTO invoices (id, company_id, year, month, status) VALUES (1, 'a', 2026, 11, 'pending');
+                    INSERT INTO invoice_days (invoice_id, local_date, edited) VALUES (1, '2026-11-03', 1);
+                    INSERT INTO invoice_lines (invoice_id, local_date, minutes, note, sort_order) VALUES (1, '2026-11-03', 30, 'x', 0);
+                    PRAGMA user_version = 14;
+                    """;
+                command.ExecuteNonQuery();
+            }
+
+            var database = new SqliteDatabase(path);
+
+            Assert.Equal(SqliteDatabase.LatestSchemaVersion, database.GetSchemaVersion());
+            var line = new SqliteInvoiceRepository(database).GetStoredDays(1).Single().Lines.Single();
+            Assert.Equal("x", line.Note);
+            Assert.False(line.Logged);
+        }
+        finally
+        {
             Directory.Delete(folder, recursive: true);
         }
     }

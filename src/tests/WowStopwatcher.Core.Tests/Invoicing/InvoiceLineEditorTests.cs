@@ -192,4 +192,41 @@ public class InvoiceLineEditorTests
         Assert.Equal([15, 25], result.Select(l => l.Minutes));
         Assert.All(result, l => Assert.True(l.IsCustom));
     }
+
+    [Fact]
+    public void SetLogged_SetsAndClearsTheFlagOnlyOnThatLine()
+    {
+        var on = InvoiceLineEditor.SetLogged(Sample(), 1, true);
+
+        Assert.Equal([false, true, false], on.Select(l => l.Logged));
+        Assert.Equal("y", on[1].Note);
+        Assert.False(InvoiceLineEditor.SetLogged(on, 1, false)[1].Logged);
+        Assert.Throws<ArgumentException>(() => InvoiceLineEditor.SetLogged(Sample(), 3, true));
+    }
+
+    [Fact]
+    public void Split_Adjust_and_SetNote_KeepTheLoggedFlag()
+    {
+        var lines = InvoiceLineEditor.SetLogged(Sample(), 1, true);
+
+        var split = InvoiceLineEditor.Split(lines, 1, 10);
+        Assert.Equal([false, true, true, false], split.Select(l => l.Logged));
+        Assert.True(InvoiceLineEditor.Adjust(lines, 1, 45)[1].Logged);
+        Assert.True(InvoiceLineEditor.SetNote(lines, 1, "changed")[1].Logged);
+    }
+
+    [Fact]
+    public void Merge_IsLoggedWhenAnyMergedLineIs()
+    {
+        var some = InvoiceLineEditor.SetLogged(Sample(), 1, true);
+
+        Assert.True(InvoiceLineEditor.Merge(some, [0, 1])[0].Logged);
+        Assert.False(InvoiceLineEditor.Merge(Sample(), [0, 1])[0].Logged);
+    }
+
+    [Fact]
+    public void AddCustom_IsNotLogged()
+    {
+        Assert.False(InvoiceLineEditor.AddCustom(Sample(), Day, 10, "n")[3].Logged);
+    }
 }

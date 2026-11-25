@@ -103,6 +103,7 @@ public sealed class EncryptedDatabaseTests : EncryptionTestBase
         {
             Exec(connection, "INSERT INTO stopwatches (id, name, color, sort_order) VALUES ('a', 'English', '#2F6FEB', 0)");
             Exec(connection, "DROP TABLE goal_resets");
+            Exec(connection, "ALTER TABLE invoice_lines DROP COLUMN logged");
             Exec(connection, "PRAGMA user_version = 13");
         }
 

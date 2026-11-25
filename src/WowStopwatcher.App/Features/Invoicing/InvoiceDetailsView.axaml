@@ -263,7 +263,7 @@
     <!-- Lines grouped by day -->
     <Border Classes="card" ClipToBounds="True">
       <StackPanel>
-        <Grid ColumnDefinitions="44,180,90,*" ColumnSpacing="12" Margin="16,10" >
+        <Grid ColumnDefinitions="44,180,90,*,32" ColumnSpacing="12" Margin="16,10" >
           <TextBlock Grid.Column="1" Classes="th" Text="{loc:T invoicing.details.col.stopwatch}" />
           <TextBlock Grid.Column="2" Classes="th" TextAlignment="Right" Text="{loc:T invoicing.details.col.time}" />
           <TextBlock Grid.Column="3" Classes="th" Text="{loc:T invoicing.details.col.note}" />
@@ -306,7 +306,7 @@
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:InvoiceDetailsLineViewModel">
                       <Border Classes="lineRow" Classes.selected="{Binding IsSelected}">
-                        <Grid ColumnDefinitions="44,180,90,*" ColumnSpacing="12">
+                        <Grid ColumnDefinitions="44,180,90,*,32" ColumnSpacing="12">
                           <CheckBox Margin="4,0,0,0" MinWidth="0"
                                     IsVisible="{Binding IsEditable}"
                                     IsChecked="{Binding IsSelected}"
@@ -332,6 +332,11 @@
                                    IsReadOnly="{Binding IsReadOnly}"
                                    PlaceholderText="{loc:T invoicing.details.unallocatedHint}"
                                    AutomationProperties.Name="{Binding NoteLabel}" />
+                          <CheckBox Grid.Column="4" MinWidth="0" VerticalAlignment="Center"
+                                    IsEnabled="{Binding IsEditable}"
+                                    IsChecked="{Binding Logged}"
+                                    ToolTip.Tip="{loc:T invoicing.details.logged}"
+                                    AutomationProperties.Name="{Binding LoggedLabel}" />
                         </Grid>
                       </Border>
                     </DataTemplate>
